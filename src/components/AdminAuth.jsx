@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
+import '../admin.css';
 
 export default function AdminAuth({ children }) {
   const [ready, setReady] = useState(false);
