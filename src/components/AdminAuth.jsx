@@ -16,11 +16,16 @@ export default function AdminAuth({ children }) {
   useEffect(() => onAuthStateChanged(auth, async (nextUser) => {
     setUser(nextUser);
     setAllowed(false);
-    if (nextUser) {
-      const snapshot = await getDoc(doc(db, 'admins', nextUser.uid));
-      setAllowed(snapshot.exists());
+    try {
+      if (nextUser) {
+        const snapshot = await getDoc(doc(db, 'admins', nextUser.uid));
+        setAllowed(snapshot.exists() && snapshot.data()?.role === 'admin');
+      }
+    } catch {
+      setAllowed(false);
+    } finally {
+      setReady(true);
     }
-    setReady(true);
   }), []);
 
   async function login(event) {
@@ -60,7 +65,7 @@ export default function AdminAuth({ children }) {
         <section className="panel login-card">
           <p className="eyebrow">Acesso negado</p>
           <h1>Conta sem permissão</h1>
-          <p className="muted">Crie um documento em <code>admins/{'{uid}'}</code> usando este UID:</p>
+          <p className="muted">O documento <code>admins/{'{uid}'}</code> precisa existir e conter <code>role: "admin"</code>.</p>
           <code className="uid-box">{user.uid}</code>
           <button className="button button-secondary" type="button" onClick={() => signOut(auth)}>Sair</button>
         </section>
