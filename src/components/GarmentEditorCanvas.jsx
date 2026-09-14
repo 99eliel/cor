@@ -24,6 +24,7 @@ export default function GarmentEditorCanvas({
 }) {
   const canvasRef = useRef(null);
   const [image, setImage] = useState(null);
+  const [imageError, setImageError] = useState('');
   const [currentPolygon, setCurrentPolygon] = useState([]);
   const [hoverPoint, setHoverPoint] = useState(null);
   const [selectedVertex, setSelectedVertex] = useState(null);
@@ -40,15 +41,20 @@ export default function GarmentEditorCanvas({
   }, [selectedRegionId, view, mode]);
 
   useEffect(() => {
-    if (!imageUrl) {
-      setImage(null);
-      return undefined;
-    }
+    setImage(null);
+    setImageError('');
+
+    if (!imageUrl) return undefined;
+
     const nextImage = new Image();
-    nextImage.crossOrigin = 'anonymous';
     nextImage.onload = () => setImage(nextImage);
+    nextImage.onerror = () => setImageError('A imagem foi enviada, mas não pôde ser carregada no editor.');
     nextImage.src = imageUrl;
-    return () => { nextImage.onload = null; };
+
+    return () => {
+      nextImage.onload = null;
+      nextImage.onerror = null;
+    };
   }, [imageUrl]);
 
   useEffect(() => {
@@ -164,7 +170,15 @@ export default function GarmentEditorCanvas({
   }
 
   if (!imageUrl) {
-    return <div className="canvas-placeholder"><strong>Envie a foto desta vista</strong><span>Frente e costas podem ter imagens diferentes.</span></div>;
+    return <div className="canvas-placeholder"><strong>Envie a foto desta vista</strong><span>Você pode usar frente, costas ou frente + costas na mesma imagem.</span></div>;
+  }
+
+  if (imageError) {
+    return <div className="canvas-placeholder"><strong>Não foi possível abrir a imagem</strong><span>{imageError}</span></div>;
+  }
+
+  if (!image) {
+    return <div className="canvas-placeholder"><strong>Carregando imagem…</strong><span>Aguarde um instante.</span></div>;
   }
 
   return (
