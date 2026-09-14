@@ -1,36 +1,290 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
 import AdminAuth from '../components/AdminAuth';
+import GarmentEditorCanvas from '../components/GarmentEditorCanvas';
+import NewRegionDialog from '../components/NewRegionDialog';
+import RegionSidebar from '../components/RegionSidebar';
+import { createGarmentId, getGarment, listGarments, saveGarment } from '../lib/garmentRepo';
+import { slugifyRegionId } from '../lib/geometry';
+import { uploadGarmentImage } from '../lib/storageImages';
+import '../admin.css';
+
+const EMPTY_IMAGES = { front: '', back: '' };
 
 function AdminWorkspace({ logout }) {
+  const fileInputRef = useRef(null);
+  const [garments, setGarments] = useState([]);
+  const [garmentId, setGarmentId] = useState('');
+  const [name, setName] = useState('');
+  const [images, setImages] = useState(EMPTY_IMAGES);
+  const [regions, setRegions] = useState([]);
+  const [view, setView] = useState('front');
+  const [selectedRegionId, setSelectedRegionId] = useState(null);
+  const [visibleIds, setVisibleIds] = useState(new Set());
+  const [mode, setMode] = useState('idle');
+  const [zoom, setZoom] = useState(1);
+  const [previewColors, setPreviewColors] = useState({});
+  const [regionDialogOpen, setRegionDialogOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  const selectedRegion = useMemo(
+    () => regions.find((region) => region.id === selectedRegionId) ?? null,
+    [regions, selectedRegionId],
+  );
+
+  useEffect(() => {
+    refreshGarments();
+  }, []);
+
+  async function refreshGarments() {
+    try {
+      const items = await listGarments();
+      setGarments(items);
+    } catch (err) {
+      setError(`Não foi possível listar as peças: ${err.message}`);
+    }
+  }
+
+  function resetEditor() {
+    setGarmentId('');
+    setName('');
+    setImages(EMPTY_IMAGES);
+    setRegions([]);
+    setVisibleIds(new Set());
+    setSelectedRegionId(null);
+    setView('front');
+    setMode('idle');
+    setPreviewColors({});
+    setZoom(1);
+    setMessage('Nova peça pronta para cadastro.');
+    setError('');
+  }
+
+  async function loadGarment(id) {
+    if (!id) return resetEditor();
+    setBusy(true);
+    setError('');
+    try {
+      const data = await getGarment(id);
+      if (!data) throw new Error('Peça não encontrada.');
+      setGarmentId(id);
+      setName(data.name ?? '');
+      setImages({ front: data.images?.front ?? '', back: data.images?.back ?? '' });
+      setRegions(Array.isArray(data.regions) ? data.regions : []);
+      setVisibleIds(new Set((data.regions ?? []).map((region) => region.id)));
+      setPreviewColors(Object.fromEntries((data.regions ?? []).map((region) => [region.id, region.defaultColor])));
+      setSelectedRegionId(null);
+      setMode('idle');
+      setView('front');
+      setMessage(`Peça “${data.name}” carregada.`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function ensureGarmentId() {
+    if (garmentId) return garmentId;
+    if (!name.trim()) throw new Error('Digite o nome da peça antes de enviar a foto.');
+    const id = createGarmentId(name.trim());
+    setGarmentId(id);
+    return id;
+  }
+
+  async function handleImageFile(file) {
+    if (!file) return;
+    setBusy(true);
+    setError('');
+    setMessage('Enviando imagem…');
+    try {
+      const id = ensureGarmentId();
+      const url = await uploadGarmentImage(file, id, view);
+      setImages((current) => ({ ...current, [view]: url }));
+      setMessage(`${view === 'front' ? 'Frente' : 'Costas'} enviada com sucesso.`);
+    } catch (err) {
+      setError(err.message);
+      setMessage('');
+    } finally {
+      setBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  function createRegion({ label, defaultColor }) {
+    const id = slugifyRegionId(label, regions.map((region) => region.id));
+    const viewCount = regions.filter((region) => region.view === view).length;
+    const region = {
+      id,
+      label,
+      view,
+      zIndex: viewCount + 1,
+      locked: false,
+      defaultColor,
+      polygons: [],
+    };
+    setRegions((items) => [...items, region]);
+    setVisibleIds((current) => new Set([...current, id]));
+    setPreviewColors((current) => ({ ...current, [id]: defaultColor }));
+    setSelectedRegionId(id);
+    setMode('draw');
+    setRegionDialogOpen(false);
+  }
+
+  function updateRegion(id, changes) {
+    setRegions((items) => items.map((region) => region.id === id ? { ...region, ...changes } : region));
+    if (changes.defaultColor) {
+      setPreviewColors((current) => ({ ...current, [id]: changes.defaultColor }));
+    }
+  }
+
+  function toggleVisible(id) {
+    setVisibleIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function reorderRegions(orderedIds) {
+    const count = orderedIds.length;
+    const zById = Object.fromEntries(orderedIds.map((id, index) => [id, count - index]));
+    setRegions((items) => items.map((region) => (
+      region.view === view && zById[region.id]
+        ? { ...region, zIndex: zById[region.id] }
+        : region
+    )));
+  }
+
+  async function handleSave() {
+    setError('');
+    setMessage('');
+    if (!name.trim()) return setError('Digite o nome da peça.');
+    if (!images.front) return setError('Envie pelo menos a foto da frente.');
+    if (regions.some((region) => !region.polygons?.length)) {
+      return setError('Há uma região sem polígono. Desenhe ou remova essa região antes de salvar.');
+    }
+
+    setBusy(true);
+    try {
+      const id = ensureGarmentId();
+      await saveGarment(id, { name: name.trim(), images, regions });
+      await refreshGarments();
+      setMessage('Peça salva no Firestore com sucesso.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function openCustomer() {
+    if (!garmentId) return setError('Salve a peça antes de abrir a tela do cliente.');
+    const base = `${window.location.origin}${window.location.pathname}`;
+    window.open(`${base}#/customizar/${garmentId}`, '_blank', 'noopener,noreferrer');
+  }
+
+  function switchView(nextView) {
+    setView(nextView);
+    setSelectedRegionId(null);
+    setMode('idle');
+    setZoom(1);
+  }
+
   return (
-    <main className="app-shell">
-      <header className="topbar">
+    <main className="app-shell admin-shell">
+      <header className="admin-header">
         <div>
           <p className="eyebrow">Painel interno</p>
-          <h1>Cadastro de peças</h1>
+          <h1>Editor de uniformes</h1>
         </div>
         <div className="topbar-actions">
-          <button type="button" className="button button-secondary" disabled>Frente</button>
-          <button type="button" className="button button-secondary" disabled>Costas</button>
-          <button type="button" className="button button-primary" disabled>Nova região</button>
-          <button type="button" className="button button-ghost" onClick={logout}>Sair</button>
+          <button className="button button-secondary" type="button" onClick={resetEditor}>Nova peça</button>
+          <button className="button button-secondary" type="button" onClick={openCustomer}>Abrir como cliente</button>
+          <button className="button button-primary" type="button" onClick={handleSave} disabled={busy}>Salvar</button>
+          <button className="button button-ghost" type="button" onClick={logout}>Sair</button>
         </div>
       </header>
 
-      <div className="notice">Firebase conectado. O próximo passo do editor será liberado após autorizar o primeiro UID na coleção admins.</div>
+      <section className="panel garment-meta-bar">
+        <label className="grow-field">Nome da peça<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Camisa Polo Refletiva" /></label>
+        <label>Carregar existente
+          <select value={garmentId} onChange={(event) => loadGarment(event.target.value)}>
+            <option value="">Nova peça</option>
+            {garments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+        </label>
+        <div className="garment-id-box"><span>ID</span><code>{garmentId || 'será criado automaticamente'}</code></div>
+      </section>
+
+      {(message || error) && <div className={error ? 'notice notice-error' : 'notice notice-success'}>{error || message}</div>}
+
+      <div className="view-toolbar panel">
+        <div className="segmented">
+          <button type="button" className={view === 'front' ? 'active' : ''} onClick={() => switchView('front')}>Frente</button>
+          <button type="button" className={view === 'back' ? 'active' : ''} onClick={() => switchView('back')}>Costas</button>
+        </div>
+        <input ref={fileInputRef} className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => handleImageFile(event.target.files?.[0])} />
+        <button className="button button-secondary" type="button" onClick={() => fileInputRef.current?.click()} disabled={busy}>Enviar foto {view === 'front' ? 'da frente' : 'das costas'}</button>
+        <button className="button button-primary" type="button" onClick={() => setRegionDialogOpen(true)} disabled={!images[view]}>+ Nova região</button>
+        <button className={`button ${mode === 'preview' ? 'button-success' : 'button-secondary'}`} type="button" onClick={() => setMode((value) => value === 'preview' ? 'idle' : 'preview')} disabled={!images[view]}>Pré-visualizar como cliente</button>
+        <div className="zoom-controls"><button type="button" onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}>−</button><span>{Math.round(zoom * 100)}%</span><button type="button" onClick={() => setZoom((z) => Math.min(3, z + 0.1))}>+</button></div>
+      </div>
 
       <section className="admin-layout">
-        <aside className="panel sidebar-panel">
-          <div className="panel-heading"><h2>Regiões</h2><span className="badge">0</span></div>
-          <p className="muted">As regiões aparecerão aqui em ordem de zIndex.</p>
-        </aside>
-        <section className="panel canvas-panel">
-          <div className="canvas-toolbar"><span>Editor da peça</span></div>
-          <div className="canvas-placeholder">
-            <strong>Admin autenticado</strong>
-            <span>Cadastro de imagens e editor de polígonos entram nesta área.</span>
+        <RegionSidebar
+          regions={regions}
+          view={view}
+          selectedRegionId={selectedRegionId}
+          visibleIds={visibleIds}
+          onSelect={(id) => { setSelectedRegionId(id); if (mode !== 'preview') setMode('edit'); }}
+          onToggleVisible={toggleVisible}
+          onReorder={reorderRegions}
+          onUpdateRegion={updateRegion}
+          onEdit={(id) => { setSelectedRegionId(id); setMode('edit'); }}
+          onAddPart={(id) => { setSelectedRegionId(id); setMode('draw'); }}
+        />
+
+        <section className="panel canvas-panel editor-panel">
+          <div className="canvas-toolbar">
+            <span>{view === 'front' ? 'Frente' : 'Costas'} · {mode === 'draw' ? 'Desenhando região' : mode === 'edit' ? 'Editando pontos' : mode === 'preview' ? 'Pré-visualização do cliente' : 'Editor'}</span>
+            {selectedRegion && <strong>{selectedRegion.label}</strong>}
           </div>
+          <GarmentEditorCanvas
+            imageUrl={images[view]}
+            view={view}
+            regions={regions}
+            setRegions={setRegions}
+            selectedRegionId={selectedRegionId}
+            mode={mode}
+            visibleIds={visibleIds}
+            previewColors={previewColors}
+            onSelectRegion={(id) => setSelectedRegionId(id)}
+            onPolygonClosed={() => setMode('edit')}
+            zoom={zoom}
+            setZoom={setZoom}
+          />
         </section>
+
+        <aside className="panel inspector-panel">
+          <h2>Propriedades</h2>
+          {!selectedRegion && <p className="muted">Selecione uma região para editar suas propriedades.</p>}
+          {selectedRegion && (
+            <>
+              <label>Nome<input value={selectedRegion.label} onChange={(event) => updateRegion(selectedRegion.id, { label: event.target.value })} /></label>
+              <label>Cor padrão<input type="color" value={selectedRegion.defaultColor} onChange={(event) => updateRegion(selectedRegion.id, { defaultColor: event.target.value })} /></label>
+              {mode === 'preview' && !selectedRegion.locked && <label>Cor no teste<input type="color" value={previewColors[selectedRegion.id] ?? selectedRegion.defaultColor} onChange={(event) => setPreviewColors((current) => ({ ...current, [selectedRegion.id]: event.target.value }))} /></label>}
+              {mode === 'preview' && selectedRegion.locked && <div className="locked-note">🔒 Esta região está bloqueada para o cliente.</div>}
+              <div className="stats-grid"><div><span>Partes</span><strong>{selectedRegion.polygons?.length ?? 0}</strong></div><div><span>zIndex</span><strong>{selectedRegion.zIndex}</strong></div></div>
+              <button className="button button-secondary full-width" type="button" onClick={() => { setMode('draw'); }}>Adicionar outra parte</button>
+            </>
+          )}
+        </aside>
       </section>
+
+      <NewRegionDialog open={regionDialogOpen} onClose={() => setRegionDialogOpen(false)} onCreate={createRegion} />
     </main>
   );
 }
