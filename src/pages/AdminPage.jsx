@@ -1,6 +1,6 @@
-import { isFirebaseConfigured } from '../lib/firebase';
+import AdminAuth from '../components/AdminAuth';
 
-export default function AdminPage() {
+function AdminWorkspace({ logout }) {
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -12,38 +12,29 @@ export default function AdminPage() {
           <button type="button" className="button button-secondary" disabled>Frente</button>
           <button type="button" className="button button-secondary" disabled>Costas</button>
           <button type="button" className="button button-primary" disabled>Nova região</button>
+          <button type="button" className="button button-ghost" onClick={logout}>Sair</button>
         </div>
       </header>
 
-      {!isFirebaseConfigured && (
-        <div className="notice">
-          Firebase ainda não configurado. Preencha as variáveis VITE_FIREBASE_* para conectar Firestore e Storage.
-        </div>
-      )}
+      <div className="notice">Firebase conectado. O próximo passo do editor será liberado após autorizar o primeiro UID na coleção admins.</div>
 
       <section className="admin-layout">
         <aside className="panel sidebar-panel">
-          <div className="panel-heading">
-            <h2>Regiões</h2>
-            <span className="badge">0</span>
-          </div>
-          <p className="muted">As regiões cadastradas aparecerão aqui e poderão ser reordenadas por zIndex.</p>
+          <div className="panel-heading"><h2>Regiões</h2><span className="badge">0</span></div>
+          <p className="muted">As regiões aparecerão aqui em ordem de zIndex.</p>
         </aside>
-
         <section className="panel canvas-panel">
-          <div className="canvas-toolbar">
-            <span>Editor da peça</span>
-            <div>
-              <button type="button" className="icon-button" disabled>−</button>
-              <button type="button" className="icon-button" disabled>+</button>
-            </div>
-          </div>
+          <div className="canvas-toolbar"><span>Editor da peça</span></div>
           <div className="canvas-placeholder">
-            <strong>Nenhuma peça carregada</strong>
-            <span>O editor de polígonos será conectado ao cadastro da peça nesta tela.</span>
+            <strong>Admin autenticado</strong>
+            <span>Cadastro de imagens e editor de polígonos entram nesta área.</span>
           </div>
         </section>
       </section>
     </main>
   );
+}
+
+export default function AdminPage() {
+  return <AdminAuth>{({ logout }) => <AdminWorkspace logout={logout} />}</AdminAuth>;
 }
