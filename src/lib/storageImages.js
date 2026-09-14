@@ -28,9 +28,9 @@ export async function uploadClientLogo(file, uid) {
   return getDownloadURL(objectRef);
 }
 
-export async function uploadFinalRender(blob, uid) {
+export async function uploadFinalRender(blob, uid, label = 'final') {
   if (!blob || blob.size > 10 * 1024 * 1024) throw new Error('Render final inválido.');
-  const objectRef = ref(storage, `final-renders/${uid}/${Date.now()}.png`);
+  const objectRef = ref(storage, `final-renders/${uid}/${Date.now()}-${safeName(label)}.png`);
   await uploadBytes(objectRef, blob, { contentType: 'image/png' });
   return getDownloadURL(objectRef);
 }
