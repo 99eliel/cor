@@ -23,12 +23,15 @@ export default function GarmentEditorCanvas({
   setZoom,
 }) {
   const canvasRef = useRef(null);
+  const scrollRef = useRef(null);
+  const panRef = useRef(null);
   const [image, setImage] = useState(null);
   const [imageError, setImageError] = useState('');
   const [currentPolygon, setCurrentPolygon] = useState([]);
   const [hoverPoint, setHoverPoint] = useState(null);
   const [selectedVertex, setSelectedVertex] = useState(null);
   const [draggingVertex, setDraggingVertex] = useState(null);
+  const [isPanning, setIsPanning] = useState(false);
 
   const selectedRegion = useMemo(
     () => regions.find((region) => region.id === selectedRegionId) ?? null,
@@ -115,6 +118,7 @@ export default function GarmentEditorCanvas({
   }
 
   function handleClick(event) {
+    if (event.button !== 0 || isPanning) return;
     const canvas = canvasRef.current;
     if (!canvas || !image) return;
     const point = normalizedPointFromEvent(event, canvas);
@@ -135,7 +139,23 @@ export default function GarmentEditorCanvas({
   }
 
   function handlePointerDown(event) {
-    if (mode !== 'edit' || !selectedRegion) return;
+    if (event.button === 2) {
+      const scroller = scrollRef.current;
+      if (!scroller) return;
+      event.preventDefault();
+      panRef.current = {
+        pointerId: event.pointerId,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        scrollLeft: scroller.scrollLeft,
+        scrollTop: scroller.scrollTop,
+      };
+      setIsPanning(true);
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      return;
+    }
+
+    if (event.button !== 0 || mode !== 'edit' || !selectedRegion) return;
     const canvas = canvasRef.current;
     const point = normalizedPointFromEvent(event, canvas);
     const vertex = findVertexHit(selectedRegion, point, canvas.width, canvas.height, 10);
@@ -154,6 +174,16 @@ export default function GarmentEditorCanvas({
   }
 
   function handlePointerMove(event) {
+    const pan = panRef.current;
+    if (pan && pan.pointerId === event.pointerId) {
+      const scroller = scrollRef.current;
+      if (!scroller) return;
+      event.preventDefault();
+      scroller.scrollLeft = pan.scrollLeft - (event.clientX - pan.clientX);
+      scroller.scrollTop = pan.scrollTop - (event.clientY - pan.clientY);
+      return;
+    }
+
     const canvas = canvasRef.current;
     if (!canvas || !image) return;
     const point = normalizedPointFromEvent(event, canvas);
@@ -161,6 +191,15 @@ export default function GarmentEditorCanvas({
     if (mode === 'edit' && draggingVertex && selectedRegionId) {
       setRegions((items) => moveVertex(items, selectedRegionId, draggingVertex, point));
     }
+  }
+
+  function handlePointerEnd(event) {
+    if (panRef.current?.pointerId === event.pointerId) {
+      panRef.current = null;
+      setIsPanning(false);
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    }
+    setDraggingVertex(null);
   }
 
   function handleWheel(event) {
@@ -182,7 +221,12 @@ export default function GarmentEditorCanvas({
   }
 
   return (
-    <div className="editor-scroll" onWheel={handleWheel}>
+    <div
+      ref={scrollRef}
+      className={`editor-scroll ${isPanning ? 'is-panning' : ''}`}
+      onWheel={handleWheel}
+      onContextMenu={(event) => event.preventDefault()}
+    >
       <div className="editor-zoom-stage" style={{ width: `${zoom * 100}%` }}>
         <canvas
           ref={canvasRef}
@@ -190,12 +234,13 @@ export default function GarmentEditorCanvas({
           onClick={handleClick}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
-          onPointerUp={() => setDraggingVertex(null)}
-          onPointerLeave={() => { setDraggingVertex(null); setHoverPoint(null); }}
+          onPointerUp={handlePointerEnd}
+          onPointerCancel={handlePointerEnd}
+          onPointerLeave={() => { if (!isPanning) { setDraggingVertex(null); setHoverPoint(null); } }}
         />
       </div>
-      {mode === 'draw' && <div className="canvas-hint">Clique para criar os vértices. Feche clicando perto do primeiro ponto ou pressione Enter.</div>}
-      {mode === 'edit' && <div className="canvas-hint">Arraste pontos. Clique numa aresta para adicionar um ponto. Delete remove o ponto selecionado.</div>}
+      {mode === 'draw' && <div className="canvas-hint">Clique para criar os vértices. Feche clicando perto do primeiro ponto ou pressione Enter. Botão direito + arrastar move a imagem.</div>}
+      {mode === 'edit' && <div className="canvas-hint">Arraste pontos. Clique numa aresta para adicionar um ponto. Delete remove o ponto selecionado. Botão direito + arrastar move a imagem.</div>}
     </div>
   );
 }
