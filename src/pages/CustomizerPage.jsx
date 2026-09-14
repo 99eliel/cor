@@ -17,6 +17,15 @@ function availableViews(garment) {
   return ['front', 'back', 'combined'].filter((key) => garment?.images?.[key]);
 }
 
+function safeFileName(value) {
+  return (value || 'uniforme')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9-_]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase() || 'uniforme';
+}
+
 function Catalog() {
   const [items, setItems] = useState([]);
   const [error, setError] = useState('');
@@ -27,7 +36,13 @@ function Catalog() {
 
   return (
     <main className="app-shell catalog-shell">
-      <header className="customer-header"><div><p className="eyebrow">Uniformes</p><h1>Escolha uma peça para personalizar</h1></div></header>
+      <header className="customer-header catalog-header">
+        <div>
+          <p className="eyebrow">Uniformes</p>
+          <h1>Escolha uma peça para personalizar</h1>
+        </div>
+        <Link className="button button-secondary catalog-admin-link" to="/admin">Área administrativa</Link>
+      </header>
       {error && <div className="notice notice-error">{error}</div>}
       <section className="catalog-grid">
         {items.map((item) => {
@@ -120,6 +135,31 @@ export default function CustomizerPage() {
     setMessage(removed ? 'Logo selecionada removida.' : 'Clique primeiro em uma logo para removê-la.');
   }
 
+  async function downloadCurrentImage() {
+    setBusy(true);
+    setError('');
+    setMessage(`Gerando ${VIEW_LABELS[view].toLowerCase()} para download…`);
+    try {
+      const blob = await stageRef.current?.exportView(view);
+      if (!blob) throw new Error('Não foi possível gerar a imagem desta vista.');
+
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = objectUrl;
+      link.download = `${safeFileName(garment.name)}-${view}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      setMessage(`${VIEW_LABELS[view]} baixada em PNG com sucesso.`);
+    } catch (err) {
+      setError(err.message);
+      setMessage('');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function finalizeOrder() {
     setBusy(true);
     setError('');
@@ -152,7 +192,7 @@ export default function CustomizerPage() {
         finalImageUrl: firstFinalImage,
       });
       setOrderId(id);
-      setMessage('Pedido finalizado e salvo com sucesso.');
+      setMessage('Pedido finalizado e salvo com sucesso. Agora você também pode baixar a imagem pronta.');
     } catch (err) {
       setError(err.message);
       setMessage('');
@@ -234,6 +274,8 @@ export default function CustomizerPage() {
 
           <div className="tool-divider" />
           <button type="button" className="button button-success finalize-button" disabled={busy} onClick={finalizeOrder}>{busy ? 'Processando…' : 'Finalizar pedido'}</button>
+          <button type="button" className="button button-secondary full-width download-final-button" disabled={busy} onClick={downloadCurrentImage}>Baixar imagem pronta · {VIEW_LABELS[view]}</button>
+          {views.length > 1 && <p className="download-help">Troque entre as abas acima para baixar cada vista separadamente.</p>}
         </aside>
       </section>
     </main>
