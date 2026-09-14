@@ -1,33 +1,53 @@
 # Customizador de Uniformes
 
-Aplicação React + Vite para cadastro e customização visual de peças de uniforme, preparada para hospedagem estática no GitHub Pages.
+Aplicação React + Vite para cadastro e customização visual de peças de uniforme, preparada para GitHub Pages.
 
 ## Stack
 
 - React + Vite
 - React Router com `HashRouter`
-- Fabric.js para logos
-- Firebase Firestore e Storage
+- Fabric.js para múltiplas logos
+- Firebase Auth, Firestore e Storage
 - Canvas 2D para regiões e recolorização
 
 ## Rotas
 
-- `#/admin` — painel interno de cadastro das peças
+- `#/admin` — painel interno protegido por Firebase Auth
 - `#/customizar/:garmentId` — customizador do cliente
-- `#/` — entrada do customizador sem peça selecionada
+- `#/` — catálogo público das peças cadastradas
 
-## Configuração do Firebase
+## Admin
 
-Copie `.env.example` para `.env` e preencha:
+O login usa E-mail/Senha do Firebase Authentication. Além de estar autenticado, o UID precisa possuir o documento:
 
-```env
-VITE_FIREBASE_API_KEY=
-VITE_FIREBASE_AUTH_DOMAIN=
-VITE_FIREBASE_PROJECT_ID=
-VITE_FIREBASE_STORAGE_BUCKET=
-VITE_FIREBASE_MESSAGING_SENDER_ID=
-VITE_FIREBASE_APP_ID=
+```text
+admins/{uid}
+  role: "admin"
 ```
+
+O editor permite:
+
+- foto da frente e das costas;
+- regiões com coordenadas normalizadas entre 0 e 1;
+- múltiplos polígonos por região;
+- edição de vértices;
+- inserção de vértice clicando na aresta;
+- remoção do vértice selecionado com Delete/Backspace;
+- reordenação visual definindo `zIndex`;
+- regiões bloqueadas para o cliente;
+- pré-visualização das cores antes de salvar.
+
+## Cliente
+
+O cliente recebe autenticação anônima em segundo plano. A tela suporta recolorização por região, frente/costas, várias logos com Fabric.js e finalização do pedido em `orders`.
+
+Os renders finais são gravados em `final-renders/{uid}` e as logos originais em `logos/{uid}`.
+
+## Firebase usado
+
+O projeto está configurado em `src/lib/firebase.js` para o Firebase `app-da-cidade-7759b`.
+
+**Atenção:** esse Firebase já possui outras coleções/aplicações. Os arquivos `firestore.rules` e `storage.rules` deste repositório descrevem as permissões necessárias para este customizador, mas NÃO devem substituir às cegas as regras atualmente publicadas no projeto compartilhado. Antes de publicar, mescle os blocos de `garments`, `orders` e `admins` com as regras existentes. O mesmo vale para os caminhos de Storage.
 
 ## Desenvolvimento
 
@@ -36,20 +56,27 @@ npm install
 npm run dev
 ```
 
-## Deploy GitHub Pages
+## GitHub Pages
 
-O Vite está configurado com `base: '/cor/'`.
+O Vite usa `base: '/cor/'`. O workflow `.github/workflows/deploy.yml` compila e publica automaticamente a cada push no `main`.
+
+Também continua disponível o deploy manual:
 
 ```bash
 npm run deploy
 ```
 
-O script executa o build e publica a pasta `dist` usando `gh-pages`.
+## Estrutura principal
 
-## Decisões pendentes antes das regras de segurança
-
-- Definir se `/admin` usará Firebase Auth.
-- Definir se cada peça aceitará uma única logo ou múltiplas logos.
-- Informar a escala aproximada de peças/regiões para validar eventuais otimizações de hit-testing.
-
-As regras definitivas de Firestore e Storage devem ser adicionadas depois dessas decisões, sem depender de URL secreta para proteger escrita administrativa.
+```text
+src/components/AdminAuth.jsx
+src/components/GarmentEditorCanvas.jsx
+src/components/RegionSidebar.jsx
+src/components/CustomerStage.jsx
+src/lib/geometry.js
+src/lib/renderGarment.js
+src/pages/AdminPage.jsx
+src/pages/CustomizerPage.jsx
+firestore.rules
+storage.rules
+```
