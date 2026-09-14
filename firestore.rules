@@ -11,7 +11,9 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      allow create: if request.resource.data.garmentId is string
+      allow create: if request.auth != null
+        && request.resource.data.clientUid == request.auth.uid
+        && request.resource.data.garmentId is string
         && request.resource.data.colorChoices is map;
       allow read, update, delete: if isAdmin();
     }
