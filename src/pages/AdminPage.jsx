@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import AdminAuth from '../components/AdminAuth';
 import AdminLogoTester from '../components/AdminLogoTester';
 import GarmentEditorCanvas from '../components/GarmentEditorCanvas';
@@ -215,6 +216,7 @@ function AdminWorkspace({ logout }) {
           <h1>Editor de uniformes</h1>
         </div>
         <div className="topbar-actions">
+          <Link className="button button-secondary" to="/">Catálogo</Link>
           <button className="button button-secondary" type="button" onClick={resetEditor}>Nova peça</button>
           <button className="button button-secondary" type="button" onClick={openCustomer}>Abrir como cliente</button>
           <button className="button button-primary" type="button" onClick={handleSave} disabled={busy}>Salvar</button>
