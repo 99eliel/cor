@@ -34,6 +34,83 @@ function createBlurredMask(width, height, polygons, blurPx = 1.5) {
   return softMask;
 }
 
+function createMaskedSolidLayer(width, height, mask, color) {
+  const layer = document.createElement('canvas');
+  layer.width = width;
+  layer.height = height;
+  const layerCtx = layer.getContext('2d');
+  layerCtx.fillStyle = color;
+  layerCtx.fillRect(0, 0, width, height);
+  layerCtx.globalCompositeOperation = 'destination-in';
+  layerCtx.drawImage(mask, 0, 0);
+  layerCtx.globalCompositeOperation = 'source-over';
+  return layer;
+}
+
+function createMaskedDetailLayer(width, height, mask, image) {
+  const layer = document.createElement('canvas');
+  layer.width = width;
+  layer.height = height;
+  const layerCtx = layer.getContext('2d');
+
+  // Recupera apenas luz/sombra/textura da foto, sem trazer a cor original de volta.
+  layerCtx.filter = 'grayscale(1) contrast(1.18)';
+  layerCtx.drawImage(image, 0, 0, width, height);
+  layerCtx.filter = 'none';
+  layerCtx.globalCompositeOperation = 'destination-in';
+  layerCtx.drawImage(mask, 0, 0);
+  layerCtx.globalCompositeOperation = 'source-over';
+  return layer;
+}
+
+function colorBrightness(color) {
+  const value = String(color ?? '').trim();
+  const short = /^#([0-9a-f]{3})$/i.exec(value);
+  const full = /^#([0-9a-f]{6})$/i.exec(value);
+
+  let hex;
+  if (short) hex = short[1].split('').map((char) => char + char).join('');
+  else if (full) hex = full[1];
+  else return 0.5;
+
+  const r = Number.parseInt(hex.slice(0, 2), 16);
+  const g = Number.parseInt(hex.slice(2, 4), 16);
+  const b = Number.parseInt(hex.slice(4, 6), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+
+function recolorRegion(ctx, image, region, chosenColor, width, height) {
+  const mask = createBlurredMask(width, height, region.polygons ?? [], 1.5);
+  const brightness = colorBrightness(chosenColor);
+
+  // Quanto mais clara for a cor desejada, mais neutralizamos/clareamos a base.
+  // Isso permite, por exemplo, transformar azul-marinho em amarelo claro.
+  const liftAlpha = Math.min(0.82, 0.08 + brightness * 0.78);
+  const whiteLayer = createMaskedSolidLayer(width, height, mask, '#ffffff');
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  ctx.globalAlpha = liftAlpha;
+  ctx.drawImage(whiteLayer, 0, 0);
+  ctx.restore();
+
+  // Depois do clareamento, a nova cor passa a dominar a região.
+  const colorLayer = createMaskedSolidLayer(width, height, mask, chosenColor);
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.globalAlpha = 1;
+  ctx.drawImage(colorLayer, 0, 0);
+  ctx.restore();
+
+  // Reintroduz dobras, costuras e volume usando somente luminância da foto original.
+  const detailLayer = createMaskedDetailLayer(width, height, mask, image);
+  ctx.save();
+  ctx.globalCompositeOperation = 'soft-light';
+  ctx.globalAlpha = 0.42;
+  ctx.drawImage(detailLayer, 0, 0);
+  ctx.restore();
+}
+
 export function renderGarment({
   canvas,
   image,
@@ -61,21 +138,7 @@ export function renderGarment({
   activeRegions.forEach((region) => {
     const chosenColor = colorChoices[region.id];
     if (!chosenColor) return;
-
-    const mask = createBlurredMask(width, height, region.polygons ?? [], 1.5);
-    const colorLayer = document.createElement('canvas');
-    colorLayer.width = width;
-    colorLayer.height = height;
-    const layerCtx = colorLayer.getContext('2d');
-    layerCtx.fillStyle = chosenColor;
-    layerCtx.fillRect(0, 0, width, height);
-    layerCtx.globalCompositeOperation = 'destination-in';
-    layerCtx.drawImage(mask, 0, 0);
-
-    ctx.save();
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.drawImage(colorLayer, 0, 0);
-    ctx.restore();
+    recolorRegion(ctx, image, region, chosenColor, width, height);
   });
 
   if (showEditorOverlay) {
