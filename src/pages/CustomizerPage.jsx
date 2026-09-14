@@ -7,6 +7,16 @@ import { createOrder } from '../lib/orderRepo';
 import { uploadClientLogo, uploadFinalRender } from '../lib/storageImages';
 import '../customer.css';
 
+const VIEW_LABELS = {
+  front: 'Frente',
+  back: 'Costas',
+  combined: 'Frente + Costas',
+};
+
+function availableViews(garment) {
+  return ['front', 'back', 'combined'].filter((key) => garment?.images?.[key]);
+}
+
 function Catalog() {
   const [items, setItems] = useState([]);
   const [error, setError] = useState('');
@@ -20,12 +30,15 @@ function Catalog() {
       <header className="customer-header"><div><p className="eyebrow">Uniformes</p><h1>Escolha uma peça para personalizar</h1></div></header>
       {error && <div className="notice notice-error">{error}</div>}
       <section className="catalog-grid">
-        {items.map((item) => (
-          <Link className="panel catalog-card" key={item.id} to={`/customizar/${item.id}`}>
-            <div className="catalog-image-wrap">{item.images?.front ? <img src={item.images.front} alt={item.name} /> : <span>Sem imagem</span>}</div>
-            <div className="catalog-card-body"><strong>{item.name}</strong><span>Personalizar →</span></div>
-          </Link>
-        ))}
+        {items.map((item) => {
+          const thumb = item.images?.front || item.images?.combined || item.images?.back;
+          return (
+            <Link className="panel catalog-card" key={item.id} to={`/customizar/${item.id}`}>
+              <div className="catalog-image-wrap">{thumb ? <img src={thumb} alt={item.name} /> : <span>Sem imagem</span>}</div>
+              <div className="catalog-card-body"><strong>{item.name}</strong><span>Personalizar →</span></div>
+            </Link>
+          );
+        })}
         {!error && items.length === 0 && <div className="panel empty-catalog">Nenhuma peça cadastrada ainda.</div>}
       </section>
     </main>
@@ -61,7 +74,8 @@ export default function CustomizerPage() {
         if (!data) throw new Error('Peça não encontrada.');
         setGarment(data);
         setClientUser(user);
-        setView(data.images?.front ? 'front' : 'back');
+        const views = availableViews(data);
+        setView(views[0] ?? 'front');
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -116,13 +130,11 @@ export default function CustomizerPage() {
       setClientUser(user);
       const finalImages = {};
 
-      if (garment.images?.front) {
-        const blob = await stageRef.current.exportView('front');
-        finalImages.front = await uploadFinalRender(blob, user.uid, `front-${garmentId}`);
-      }
-      if (garment.images?.back) {
-        const blob = await stageRef.current.exportView('back');
-        finalImages.back = await uploadFinalRender(blob, user.uid, `back-${garmentId}`);
+      for (const targetView of availableViews(garment)) {
+        const blob = await stageRef.current.exportView(targetView);
+        if (blob) {
+          finalImages[targetView] = await uploadFinalRender(blob, user.uid, `${targetView}-${garmentId}`);
+        }
       }
 
       const effectiveColors = Object.fromEntries((garment.regions ?? []).map((region) => [
@@ -130,13 +142,14 @@ export default function CustomizerPage() {
         colorChoices[region.id] ?? region.defaultColor,
       ]));
 
+      const firstFinalImage = finalImages.front || finalImages.combined || finalImages.back || '';
       const id = await createOrder({
         garmentId,
         clientUid: user.uid,
         colorChoices: effectiveColors,
         logos,
         finalImages,
-        finalImageUrl: finalImages.front ?? finalImages.back ?? '',
+        finalImageUrl: firstFinalImage,
       });
       setOrderId(id);
       setMessage('Pedido finalizado e salvo com sucesso.');
@@ -152,13 +165,23 @@ export default function CustomizerPage() {
     .filter((region) => region.view === view)
     .sort((a, b) => (b.zIndex ?? 0) - (a.zIndex ?? 0));
 
+  const views = availableViews(garment);
+
   return (
     <main className="app-shell customer-shell">
       <header className="customer-header">
         <div><Link className="back-link" to="/">← Todas as peças</Link><p className="eyebrow">Customização</p><h1>{garment.name}</h1></div>
         <div className="customer-view-tabs">
-          {garment.images?.front && <button type="button" className={view === 'front' ? 'active' : ''} onClick={() => { setView('front'); setSelectedRegionId(null); }}>Frente</button>}
-          {garment.images?.back && <button type="button" className={view === 'back' ? 'active' : ''} onClick={() => { setView('back'); setSelectedRegionId(null); }}>Costas</button>}
+          {views.map((targetView) => (
+            <button
+              key={targetView}
+              type="button"
+              className={view === targetView ? 'active' : ''}
+              onClick={() => { setView(targetView); setSelectedRegionId(null); }}
+            >
+              {VIEW_LABELS[targetView]}
+            </button>
+          ))}
         </div>
       </header>
 
