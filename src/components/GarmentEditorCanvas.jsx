@@ -164,9 +164,9 @@ export default function GarmentEditorCanvas({
   }
 
   function handleWheel(event) {
-    if (!event.ctrlKey && !event.metaKey) return;
     event.preventDefault();
-    setZoom((value) => Math.min(3, Math.max(0.5, value + (event.deltaY < 0 ? 0.1 : -0.1))));
+    const step = event.deltaY < 0 ? 0.1 : -0.1;
+    setZoom((value) => Math.min(3, Math.max(0.5, Number((value + step).toFixed(2)))));
   }
 
   if (!imageUrl) {
