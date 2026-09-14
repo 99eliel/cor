@@ -3,6 +3,11 @@ import { distancePixels, getRegionAtPoint, normalizedPointFromEvent } from '../l
 import { findEdgeHit, findVertexHit, insertVertex, moveVertex, removeVertex } from '../lib/editorHit';
 import { drawEditableVertices, renderGarment } from '../lib/renderGarment';
 
+function isTypingTarget(target) {
+  const tag = target?.tagName?.toLowerCase();
+  return tag === 'input' || tag === 'textarea' || tag === 'select' || target?.isContentEditable;
+}
+
 export default function GarmentEditorCanvas({
   imageUrl,
   view,
@@ -75,6 +80,7 @@ export default function GarmentEditorCanvas({
 
   useEffect(() => {
     function onKeyDown(event) {
+      if (isTypingTarget(event.target)) return;
       if (event.key === 'Enter' && mode === 'draw' && currentPolygon.length >= 3) {
         event.preventDefault();
         finishPolygon();
