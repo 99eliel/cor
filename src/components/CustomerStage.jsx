@@ -5,11 +5,18 @@ import { renderGarment } from '../lib/renderGarment';
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.crossOrigin = 'anonymous';
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('Não foi possível carregar uma imagem.'));
-    image.src = url;
+    function attempt(useCors) {
+      const image = new Image();
+      if (useCors) image.crossOrigin = 'anonymous';
+      image.onload = () => resolve(image);
+      image.onerror = () => {
+        if (useCors) attempt(false);
+        else reject(new Error('Não foi possível carregar uma imagem.'));
+      };
+      image.src = url;
+    }
+
+    attempt(true);
   });
 }
 
@@ -128,7 +135,7 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
   useEffect(() => {
     currentViewRef.current = view;
     paint(view);
-  }, [view, garment.images?.front, garment.images?.back]);
+  }, [view, garment.images?.front, garment.images?.back, garment.images?.combined]);
 
   useEffect(() => {
     paint(view);
@@ -197,7 +204,16 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
         ctx.restore();
       });
 
-      return new Promise((resolve) => result.toBlob(resolve, 'image/png', 0.96));
+      return new Promise((resolve, reject) => {
+        try {
+          result.toBlob((blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error('Não foi possível gerar a imagem final.'));
+          }, 'image/png', 0.96);
+        } catch {
+          reject(new Error('A imagem foi exibida, mas o navegador bloqueou a exportação final.')); 
+        }
+      });
     },
   }));
 
