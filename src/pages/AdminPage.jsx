@@ -8,7 +8,12 @@ import { slugifyRegionId } from '../lib/geometry';
 import { uploadGarmentImage } from '../lib/storageImages';
 import '../admin.css';
 
-const EMPTY_IMAGES = { front: '', back: '' };
+const EMPTY_IMAGES = { front: '', back: '', combined: '' };
+const VIEW_LABELS = {
+  front: 'Frente',
+  back: 'Costas',
+  combined: 'Frente + Costas',
+};
 
 function AdminWorkspace({ logout }) {
   const fileInputRef = useRef(null);
@@ -68,15 +73,20 @@ function AdminWorkspace({ logout }) {
     try {
       const data = await getGarment(id);
       if (!data) throw new Error('Peça não encontrada.');
+      const loadedImages = {
+        front: data.images?.front ?? '',
+        back: data.images?.back ?? '',
+        combined: data.images?.combined ?? '',
+      };
       setGarmentId(id);
       setName(data.name ?? '');
-      setImages({ front: data.images?.front ?? '', back: data.images?.back ?? '' });
+      setImages(loadedImages);
       setRegions(Array.isArray(data.regions) ? data.regions : []);
       setVisibleIds(new Set((data.regions ?? []).map((region) => region.id)));
       setPreviewColors(Object.fromEntries((data.regions ?? []).map((region) => [region.id, region.defaultColor])));
       setSelectedRegionId(null);
       setMode('idle');
-      setView('front');
+      setView(loadedImages.front ? 'front' : loadedImages.back ? 'back' : 'combined');
       setMessage(`Peça “${data.name}” carregada.`);
     } catch (err) {
       setError(err.message);
@@ -102,7 +112,7 @@ function AdminWorkspace({ logout }) {
       const id = ensureGarmentId();
       const url = await uploadGarmentImage(file, id, view);
       setImages((current) => ({ ...current, [view]: url }));
-      setMessage(`${view === 'front' ? 'Frente' : 'Costas'} enviada com sucesso.`);
+      setMessage(`${VIEW_LABELS[view]} enviada com sucesso.`);
     } catch (err) {
       setError(err.message);
       setMessage('');
@@ -162,7 +172,9 @@ function AdminWorkspace({ logout }) {
     setError('');
     setMessage('');
     if (!name.trim()) return setError('Digite o nome da peça.');
-    if (!images.front) return setError('Envie pelo menos a foto da frente.');
+    if (!images.front && !images.back && !images.combined) {
+      return setError('Envie pelo menos uma imagem: frente, costas ou frente + costas.');
+    }
     if (regions.some((region) => !region.polygons?.length)) {
       return setError('Há uma região sem polígono. Desenhe ou remova essa região antes de salvar.');
     }
@@ -222,12 +234,13 @@ function AdminWorkspace({ logout }) {
       {(message || error) && <div className={error ? 'notice notice-error' : 'notice notice-success'}>{error || message}</div>}
 
       <div className="view-toolbar panel">
-        <div className="segmented">
+        <div className="segmented view-type-tabs">
           <button type="button" className={view === 'front' ? 'active' : ''} onClick={() => switchView('front')}>Frente</button>
           <button type="button" className={view === 'back' ? 'active' : ''} onClick={() => switchView('back')}>Costas</button>
+          <button type="button" className={view === 'combined' ? 'active' : ''} onClick={() => switchView('combined')}>Frente + Costas</button>
         </div>
         <input ref={fileInputRef} className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => handleImageFile(event.target.files?.[0])} />
-        <button className="button button-secondary" type="button" onClick={() => fileInputRef.current?.click()} disabled={busy}>Enviar foto {view === 'front' ? 'da frente' : 'das costas'}</button>
+        <button className="button button-secondary" type="button" onClick={() => fileInputRef.current?.click()} disabled={busy}>Enviar foto: {VIEW_LABELS[view]}</button>
         <button className="button button-primary" type="button" onClick={() => setRegionDialogOpen(true)} disabled={!images[view]}>+ Nova região</button>
         <button className={`button ${mode === 'preview' ? 'button-success' : 'button-secondary'}`} type="button" onClick={() => setMode((value) => value === 'preview' ? 'idle' : 'preview')} disabled={!images[view]}>Pré-visualizar como cliente</button>
         <div className="zoom-controls"><button type="button" onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}>−</button><span>{Math.round(zoom * 100)}%</span><button type="button" onClick={() => setZoom((z) => Math.min(3, z + 0.1))}>+</button></div>
@@ -249,7 +262,7 @@ function AdminWorkspace({ logout }) {
 
         <section className="panel canvas-panel editor-panel">
           <div className="canvas-toolbar">
-            <span>{view === 'front' ? 'Frente' : 'Costas'} · {mode === 'draw' ? 'Desenhando região' : mode === 'edit' ? 'Editando pontos' : mode === 'preview' ? 'Pré-visualização do cliente' : 'Editor'}</span>
+            <span>{VIEW_LABELS[view]} · {mode === 'draw' ? 'Desenhando região' : mode === 'edit' ? 'Editando pontos' : mode === 'preview' ? 'Pré-visualização do cliente' : 'Editor'}</span>
             {selectedRegion && <strong>{selectedRegion.label}</strong>}
           </div>
           <GarmentEditorCanvas
