@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import AdminAuth from '../components/AdminAuth';
+import AdminLogoTester from '../components/AdminLogoTester';
 import GarmentEditorCanvas from '../components/GarmentEditorCanvas';
 import NewRegionDialog from '../components/NewRegionDialog';
 import RegionSidebar from '../components/RegionSidebar';
@@ -37,6 +38,7 @@ function AdminWorkspace({ logout }) {
     () => regions.find((region) => region.id === selectedRegionId) ?? null,
     [regions, selectedRegionId],
   );
+  const isPreviewMode = mode === 'preview' || mode === 'logoTest';
 
   useEffect(() => {
     refreshGarments();
@@ -243,6 +245,7 @@ function AdminWorkspace({ logout }) {
         <button className="button button-secondary" type="button" onClick={() => fileInputRef.current?.click()} disabled={busy}>Enviar foto: {VIEW_LABELS[view]}</button>
         <button className="button button-primary" type="button" onClick={() => setRegionDialogOpen(true)} disabled={!images[view]}>+ Nova região</button>
         <button className={`button ${mode === 'preview' ? 'button-success' : 'button-secondary'}`} type="button" onClick={() => setMode((value) => value === 'preview' ? 'idle' : 'preview')} disabled={!images[view]}>Pré-visualizar como cliente</button>
+        <button className={`button ${mode === 'logoTest' ? 'button-success' : 'button-secondary'}`} type="button" onClick={() => setMode((value) => value === 'logoTest' ? 'idle' : 'logoTest')} disabled={!images[view]}>Testar logos</button>
         <div className="zoom-controls"><button type="button" onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}>−</button><span>{Math.round(zoom * 100)}%</span><button type="button" onClick={() => setZoom((z) => Math.min(3, z + 0.1))}>+</button></div>
       </div>
 
@@ -252,7 +255,7 @@ function AdminWorkspace({ logout }) {
           view={view}
           selectedRegionId={selectedRegionId}
           visibleIds={visibleIds}
-          onSelect={(id) => { setSelectedRegionId(id); if (mode !== 'preview') setMode('edit'); }}
+          onSelect={(id) => { setSelectedRegionId(id); if (!isPreviewMode) setMode('edit'); }}
           onToggleVisible={toggleVisible}
           onReorder={reorderRegions}
           onUpdateRegion={updateRegion}
@@ -262,23 +265,34 @@ function AdminWorkspace({ logout }) {
 
         <section className="panel canvas-panel editor-panel">
           <div className="canvas-toolbar">
-            <span>{VIEW_LABELS[view]} · {mode === 'draw' ? 'Desenhando região' : mode === 'edit' ? 'Editando pontos' : mode === 'preview' ? 'Pré-visualização do cliente' : 'Editor'}</span>
+            <span>{VIEW_LABELS[view]} · {mode === 'draw' ? 'Desenhando região' : mode === 'edit' ? 'Editando pontos' : mode === 'preview' ? 'Pré-visualização do cliente' : mode === 'logoTest' ? 'Testando logos' : 'Editor'}</span>
             {selectedRegion && <strong>{selectedRegion.label}</strong>}
           </div>
-          <GarmentEditorCanvas
-            imageUrl={images[view]}
-            view={view}
-            regions={regions}
-            setRegions={setRegions}
-            selectedRegionId={selectedRegionId}
-            mode={mode}
-            visibleIds={visibleIds}
-            previewColors={previewColors}
-            onSelectRegion={(id) => setSelectedRegionId(id)}
-            onPolygonClosed={() => setMode('edit')}
-            zoom={zoom}
-            setZoom={setZoom}
-          />
+          {mode === 'logoTest' ? (
+            <AdminLogoTester
+              garment={{ name, images, regions }}
+              view={view}
+              colorChoices={previewColors}
+              zoom={zoom}
+              setZoom={setZoom}
+              onRegionClick={(region) => setSelectedRegionId(region.id)}
+            />
+          ) : (
+            <GarmentEditorCanvas
+              imageUrl={images[view]}
+              view={view}
+              regions={regions}
+              setRegions={setRegions}
+              selectedRegionId={selectedRegionId}
+              mode={mode}
+              visibleIds={visibleIds}
+              previewColors={previewColors}
+              onSelectRegion={(id) => setSelectedRegionId(id)}
+              onPolygonClosed={() => setMode('edit')}
+              zoom={zoom}
+              setZoom={setZoom}
+            />
+          )}
         </section>
 
         <aside className="panel inspector-panel">
@@ -288,8 +302,8 @@ function AdminWorkspace({ logout }) {
             <>
               <label>Nome<input value={selectedRegion.label} onChange={(event) => updateRegion(selectedRegion.id, { label: event.target.value })} /></label>
               <label>Cor padrão<input type="color" value={selectedRegion.defaultColor} onChange={(event) => updateRegion(selectedRegion.id, { defaultColor: event.target.value })} /></label>
-              {mode === 'preview' && !selectedRegion.locked && <label>Cor no teste<input type="color" value={previewColors[selectedRegion.id] ?? selectedRegion.defaultColor} onChange={(event) => setPreviewColors((current) => ({ ...current, [selectedRegion.id]: event.target.value }))} /></label>}
-              {mode === 'preview' && selectedRegion.locked && <div className="locked-note">🔒 Esta região está bloqueada para o cliente.</div>}
+              {isPreviewMode && !selectedRegion.locked && <label>Cor no teste<input type="color" value={previewColors[selectedRegion.id] ?? selectedRegion.defaultColor} onChange={(event) => setPreviewColors((current) => ({ ...current, [selectedRegion.id]: event.target.value }))} /></label>}
+              {isPreviewMode && selectedRegion.locked && <div className="locked-note">🔒 Esta região está bloqueada para o cliente.</div>}
               <div className="stats-grid"><div><span>Partes</span><strong>{selectedRegion.polygons?.length ?? 0}</strong></div><div><span>zIndex</span><strong>{selectedRegion.zIndex}</strong></div></div>
               <button className="button button-secondary full-width" type="button" onClick={() => { setMode('draw'); }}>Adicionar outra parte</button>
             </>
