@@ -1,22 +1,23 @@
 import { getApps, initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+export const firebaseConfig = {
+  apiKey: 'AIzaSyCKdNkD-eQPEdxCCLyb1PZHaQlEAvZkE98',
+  authDomain: 'app-da-cidade-7759b.firebaseapp.com',
+  databaseURL: 'https://app-da-cidade-7759b-default-rtdb.firebaseio.com',
+  projectId: 'app-da-cidade-7759b',
+  storageBucket: 'app-da-cidade-7759b.firebasestorage.app',
+  messagingSenderId: '819870324220',
+  appId: '1:819870324220:web:6f49bb3fd35622686fce79',
+  measurementId: 'G-0N7CTQM5G2',
 };
 
-export const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean);
+const app = getApps()[0] ?? initializeApp(firebaseConfig);
 
-const app = isFirebaseConfigured
-  ? (getApps()[0] ?? initializeApp(firebaseConfig))
-  : null;
-
-export const db = app ? getFirestore(app) : null;
-export const storage = app ? getStorage(app) : null;
-export { firebaseConfig };
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const storage = getStorage(app);
+export const isFirebaseConfigured = true;
+export { app };
