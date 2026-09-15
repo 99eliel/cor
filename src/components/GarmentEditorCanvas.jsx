@@ -49,14 +49,35 @@ export default function GarmentEditorCanvas({
 
     if (!imageUrl) return undefined;
 
-    const nextImage = new Image();
-    nextImage.onload = () => setImage(nextImage);
-    nextImage.onerror = () => setImageError('A imagem foi enviada, mas não pôde ser carregada no editor.');
-    nextImage.src = imageUrl;
+    let cancelled = false;
+    let activeImage = null;
+
+    function attempt(useCors) {
+      const nextImage = new Image();
+      activeImage = nextImage;
+      if (useCors) nextImage.crossOrigin = 'anonymous';
+
+      nextImage.onload = () => {
+        if (!cancelled) setImage(nextImage);
+      };
+
+      nextImage.onerror = () => {
+        if (cancelled) return;
+        if (useCors) attempt(false);
+        else setImageError('A imagem foi enviada, mas não pôde ser carregada no editor.');
+      };
+
+      nextImage.src = imageUrl;
+    }
+
+    attempt(true);
 
     return () => {
-      nextImage.onload = null;
-      nextImage.onerror = null;
+      cancelled = true;
+      if (activeImage) {
+        activeImage.onload = null;
+        activeImage.onerror = null;
+      }
     };
   }, [imageUrl]);
 
