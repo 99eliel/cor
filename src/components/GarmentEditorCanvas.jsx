@@ -87,17 +87,50 @@ export default function GarmentEditorCanvas({
     }
   }, [image, regions, view, mode, visibleIds, previewColors, selectedRegionId, selectedRegion, currentPolygon, hoverPoint, selectedVertex]);
 
+  function undoLastPoint() {
+    if (mode !== 'draw') return;
+    setCurrentPolygon((items) => items.slice(0, -1));
+    setHoverPoint(null);
+  }
+
+  function cancelCurrentPolygon() {
+    if (mode !== 'draw') return;
+    setCurrentPolygon([]);
+    setHoverPoint(null);
+  }
+
+  function deleteSelectedVertex() {
+    if (mode !== 'edit' || !selectedVertex || !selectedRegionId) return;
+    setRegions((items) => removeVertex(items, selectedRegionId, selectedVertex));
+    setSelectedVertex(null);
+    setDraggingVertex(null);
+  }
+
   useEffect(() => {
     function onKeyDown(event) {
       if (isTypingTarget(event.target)) return;
-      if (event.key === 'Enter' && mode === 'draw' && currentPolygon.length >= 3) {
-        event.preventDefault();
-        finishPolygon();
+
+      if (mode === 'draw') {
+        if (event.key === 'Enter' && currentPolygon.length >= 3) {
+          event.preventDefault();
+          finishPolygon();
+          return;
+        }
+        if ((event.key === 'Delete' || event.key === 'Backspace') && currentPolygon.length > 0) {
+          event.preventDefault();
+          undoLastPoint();
+          return;
+        }
+        if (event.key === 'Escape' && currentPolygon.length > 0) {
+          event.preventDefault();
+          cancelCurrentPolygon();
+        }
+        return;
       }
+
       if ((event.key === 'Delete' || event.key === 'Backspace') && mode === 'edit' && selectedVertex && selectedRegionId) {
         event.preventDefault();
-        setRegions((items) => removeVertex(items, selectedRegionId, selectedVertex));
-        setSelectedVertex(null);
+        deleteSelectedVertex();
       }
     }
     window.addEventListener('keydown', onKeyDown);
@@ -227,6 +260,24 @@ export default function GarmentEditorCanvas({
       onWheel={handleWheel}
       onContextMenu={(event) => event.preventDefault()}
     >
+      {(mode === 'draw' || mode === 'edit') && (
+        <div className="editor-point-actions" onWheel={(event) => event.stopPropagation()}>
+          {mode === 'draw' && (
+            <>
+              <button className="button button-secondary" type="button" disabled={currentPolygon.length === 0} onClick={undoLastPoint}>↶ Desfazer último ponto</button>
+              <button className="button button-secondary" type="button" disabled={currentPolygon.length === 0} onClick={cancelCurrentPolygon}>Cancelar desenho</button>
+              <span>{currentPolygon.length} ponto(s) no desenho atual</span>
+            </>
+          )}
+          {mode === 'edit' && (
+            <>
+              <button className="button button-secondary" type="button" disabled={!selectedVertex} onClick={deleteSelectedVertex}>Excluir vértice selecionado</button>
+              <span>{selectedVertex ? 'Vértice selecionado. Delete/Backspace também remove.' : 'Clique em um ponto para selecioná-lo.'}</span>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="editor-zoom-stage" style={{ width: `${zoom * 100}%` }}>
         <canvas
           ref={canvasRef}
@@ -239,8 +290,8 @@ export default function GarmentEditorCanvas({
           onPointerLeave={() => { if (!isPanning) { setDraggingVertex(null); setHoverPoint(null); } }}
         />
       </div>
-      {mode === 'draw' && <div className="canvas-hint">Clique para criar os vértices. Feche clicando perto do primeiro ponto ou pressione Enter. Botão direito + arrastar move a imagem.</div>}
-      {mode === 'edit' && <div className="canvas-hint">Arraste pontos. Clique numa aresta para adicionar um ponto. Delete remove o ponto selecionado. Botão direito + arrastar move a imagem.</div>}
+      {mode === 'draw' && <div className="canvas-hint">Enter = fechar área · Backspace/Delete = desfazer último ponto · Esc = cancelar desenho · Botão direito + arrastar = mover imagem.</div>}
+      {mode === 'edit' && <div className="canvas-hint">Arraste pontos · Clique numa aresta para adicionar · Delete/Backspace remove o ponto selecionado · Botão direito + arrastar move a imagem.</div>}
     </div>
   );
 }
