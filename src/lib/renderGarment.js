@@ -1,3 +1,5 @@
+const subjectMaskCache = new WeakMap();
+
 function drawPolygon(ctx, polygon, width, height) {
   if (!polygon?.length) return;
   ctx.beginPath();
@@ -32,6 +34,130 @@ function createBlurredMask(width, height, polygons, blurPx = 1.5) {
   softCtx.drawImage(hardMask, 0, 0);
   softCtx.filter = 'none';
   return softMask;
+}
+
+function median(values) {
+  if (!values.length) return 0;
+  values.sort((a, b) => a - b);
+  return values[Math.floor(values.length / 2)];
+}
+
+function estimateBackgroundColor(data, width, height) {
+  const reds = [];
+  const greens = [];
+  const blues = [];
+  const step = Math.max(1, Math.floor(Math.min(width, height) / 80));
+  const borderDepth = Math.max(2, Math.floor(Math.min(width, height) * 0.025));
+
+  function sample(x, y) {
+    const index = (y * width + x) * 4;
+    if (data[index + 3] < 200) return;
+    reds.push(data[index]);
+    greens.push(data[index + 1]);
+    blues.push(data[index + 2]);
+  }
+
+  for (let y = 0; y < borderDepth; y += step) {
+    for (let x = 0; x < width; x += step) {
+      sample(x, y);
+      sample(x, height - 1 - y);
+    }
+  }
+
+  for (let x = 0; x < borderDepth; x += step) {
+    for (let y = borderDepth; y < height - borderDepth; y += step) {
+      sample(x, y);
+      sample(width - 1 - x, y);
+    }
+  }
+
+  return {
+    r: median(reds),
+    g: median(greens),
+    b: median(blues),
+  };
+}
+
+function smoothStep(value) {
+  const t = Math.max(0, Math.min(1, value));
+  return t * t * (3 - 2 * t);
+}
+
+function buildSubjectMask(image, width, height) {
+  let cacheBySize = subjectMaskCache.get(image);
+  if (!cacheBySize) {
+    cacheBySize = new Map();
+    subjectMaskCache.set(image, cacheBySize);
+  }
+
+  const cacheKey = `${width}x${height}`;
+  if (cacheBySize.has(cacheKey)) return cacheBySize.get(cacheKey);
+
+  try {
+    const source = document.createElement('canvas');
+    source.width = width;
+    source.height = height;
+    const sourceCtx = source.getContext('2d', { willReadFrequently: true });
+    sourceCtx.drawImage(image, 0, 0, width, height);
+
+    const imageData = sourceCtx.getImageData(0, 0, width, height);
+    const { data } = imageData;
+    const background = estimateBackgroundColor(data, width, height);
+    const maskData = new ImageData(width, height);
+
+    // Remove apenas pixels realmente próximos do fundo estimado. A transição suave
+    // evita recortes duros e preserva sombras/bordas da própria peça.
+    const fullyBackgroundDistance = 14;
+    const fullyGarmentDistance = 48;
+
+    for (let index = 0; index < data.length; index += 4) {
+      const originalAlpha = data[index + 3];
+      if (originalAlpha === 0) continue;
+
+      const dr = data[index] - background.r;
+      const dg = data[index + 1] - background.g;
+      const db = data[index + 2] - background.b;
+      const distance = Math.sqrt(dr * dr + dg * dg + db * db);
+      const confidence = smoothStep(
+        (distance - fullyBackgroundDistance) / (fullyGarmentDistance - fullyBackgroundDistance),
+      );
+
+      maskData.data[index] = 255;
+      maskData.data[index + 1] = 255;
+      maskData.data[index + 2] = 255;
+      maskData.data[index + 3] = Math.round(originalAlpha * confidence);
+    }
+
+    const subjectMask = document.createElement('canvas');
+    subjectMask.width = width;
+    subjectMask.height = height;
+    const subjectCtx = subjectMask.getContext('2d');
+    subjectCtx.putImageData(maskData, 0, 0);
+
+    cacheBySize.set(cacheKey, subjectMask);
+    return subjectMask;
+  } catch {
+    // Imagens sem CORS ainda podem ser exibidas. Nesse caso mantemos a máscara
+    // tradicional em vez de quebrar o editor ou a tela do cliente.
+    cacheBySize.set(cacheKey, null);
+    return null;
+  }
+}
+
+function createRegionMask(width, height, polygons, image) {
+  const polygonMask = createBlurredMask(width, height, polygons, 1.5);
+  const subjectMask = buildSubjectMask(image, width, height);
+  if (!subjectMask) return polygonMask;
+
+  const mask = document.createElement('canvas');
+  mask.width = width;
+  mask.height = height;
+  const maskCtx = mask.getContext('2d');
+  maskCtx.drawImage(polygonMask, 0, 0);
+  maskCtx.globalCompositeOperation = 'destination-in';
+  maskCtx.drawImage(subjectMask, 0, 0);
+  maskCtx.globalCompositeOperation = 'source-over';
+  return mask;
 }
 
 function createMaskedSolidLayer(width, height, mask, color) {
@@ -80,7 +206,7 @@ function colorBrightness(color) {
 }
 
 function recolorRegion(ctx, image, region, chosenColor, width, height) {
-  const mask = createBlurredMask(width, height, region.polygons ?? [], 1.5);
+  const mask = createRegionMask(width, height, region.polygons ?? [], image);
   const brightness = colorBrightness(chosenColor);
 
   // Quanto mais clara for a cor desejada, mais neutralizamos/clareamos a base.
