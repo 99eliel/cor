@@ -173,14 +173,14 @@ function createMaskedSolidLayer(width, height, mask, color) {
   return layer;
 }
 
-function createMaskedDetailLayer(width, height, mask, image) {
+function createMaskedDetailLayer(width, height, mask, image, contrast = 1.18) {
   const layer = document.createElement('canvas');
   layer.width = width;
   layer.height = height;
   const layerCtx = layer.getContext('2d');
 
-  // Recupera apenas luz/sombra/textura da foto, sem trazer a cor original de volta.
-  layerCtx.filter = 'grayscale(1) contrast(1.18)';
+  // Recupera somente luminância/textura. Nenhuma matiz original volta para a região.
+  layerCtx.filter = `grayscale(1) contrast(${contrast})`;
   layerCtx.drawImage(image, 0, 0, width, height);
   layerCtx.filter = 'none';
   layerCtx.globalCompositeOperation = 'destination-in';
@@ -205,12 +205,32 @@ function colorBrightness(color) {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
 
-function recolorRegion(ctx, image, region, chosenColor, width, height) {
+function inferColorMode(region) {
+  if (region?.colorMode === 'replace' || region?.colorMode === 'tint') {
+    return region.colorMode;
+  }
+
+  const id = String(region?.id ?? '').toLowerCase();
+  const label = String(region?.label ?? '').toLowerCase();
+  const text = `${id} ${label}`;
+
+  if (
+    text.includes('faixa') ||
+    text.includes('listra') ||
+    text.includes('stripe') ||
+    text.includes('band')
+  ) {
+    return 'replace';
+  }
+
+  return 'tint';
+}
+
+function recolorRegionTint(ctx, image, region, chosenColor, width, height) {
   const mask = createRegionMask(width, height, region.polygons ?? [], image);
   const brightness = colorBrightness(chosenColor);
 
   // Quanto mais clara for a cor desejada, mais neutralizamos/clareamos a base.
-  // Isso permite, por exemplo, transformar azul-marinho em amarelo claro.
   const liftAlpha = Math.min(0.82, 0.08 + brightness * 0.78);
   const whiteLayer = createMaskedSolidLayer(width, height, mask, '#ffffff');
 
@@ -220,7 +240,6 @@ function recolorRegion(ctx, image, region, chosenColor, width, height) {
   ctx.drawImage(whiteLayer, 0, 0);
   ctx.restore();
 
-  // Depois do clareamento, a nova cor passa a dominar a região.
   const colorLayer = createMaskedSolidLayer(width, height, mask, chosenColor);
   ctx.save();
   ctx.globalCompositeOperation = 'multiply';
@@ -228,13 +247,51 @@ function recolorRegion(ctx, image, region, chosenColor, width, height) {
   ctx.drawImage(colorLayer, 0, 0);
   ctx.restore();
 
-  // Reintroduz dobras, costuras e volume usando somente luminância da foto original.
   const detailLayer = createMaskedDetailLayer(width, height, mask, image);
   ctx.save();
   ctx.globalCompositeOperation = 'soft-light';
   ctx.globalAlpha = 0.42;
   ctx.drawImage(detailLayer, 0, 0);
   ctx.restore();
+}
+
+function recolorRegionReplace(ctx, image, region, chosenColor, width, height) {
+  const mask = createRegionMask(width, height, region.polygons ?? [], image);
+
+  // Apaga visualmente a matiz original dentro da máscara, sem perder o contorno.
+  // A região passa a começar de uma base neutra, então verde/amarelo/azul antigos
+  // não conseguem contaminar a nova cor escolhida pelo cliente.
+  const neutralBase = createMaskedSolidLayer(width, height, mask, '#d8d8d8');
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  ctx.drawImage(neutralBase, 0, 0);
+  ctx.restore();
+
+  // A nova cor é aplicada como a cor dominante da região.
+  const colorLayer = createMaskedSolidLayer(width, height, mask, chosenColor);
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  ctx.drawImage(colorLayer, 0, 0);
+  ctx.restore();
+
+  // Recoloca somente luz/sombra/textura em escala de cinza.
+  const detailLayer = createMaskedDetailLayer(width, height, mask, image, 1.28);
+  ctx.save();
+  ctx.globalCompositeOperation = 'soft-light';
+  ctx.globalAlpha = 0.46;
+  ctx.drawImage(detailLayer, 0, 0);
+  ctx.restore();
+}
+
+function recolorRegion(ctx, image, region, chosenColor, width, height) {
+  if (inferColorMode(region) === 'replace') {
+    recolorRegionReplace(ctx, image, region, chosenColor, width, height);
+    return;
+  }
+
+  recolorRegionTint(ctx, image, region, chosenColor, width, height);
 }
 
 export function renderGarment({
