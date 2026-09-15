@@ -75,6 +75,11 @@ export default function CustomizerPage() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [orderId, setOrderId] = useState('');
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [customerName, setCustomerName] = useState('');
+  const [customerWhatsapp, setCustomerWhatsapp] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [checkoutError, setCheckoutError] = useState('');
 
   const selectedRegion = useMemo(
     () => garment?.regions?.find((region) => region.id === selectedRegionId) ?? null,
@@ -160,18 +165,57 @@ export default function CustomizerPage() {
     }
   }
 
-  async function finalizeOrder() {
+  function openCheckout() {
+    setError('');
+    setMessage('');
+    setOrderId('');
+    setCheckoutError('');
+    setCheckoutOpen(true);
+  }
+
+  function closeCheckout() {
+    if (busy) return;
+    setCheckoutOpen(false);
+    setCheckoutError('');
+  }
+
+  async function handleCheckoutSubmit(event) {
+    event.preventDefault();
+    const cleanName = customerName.trim();
+    const cleanWhatsapp = customerWhatsapp.trim();
+    const cleanQuantity = quantity.trim();
+
+    if (!cleanName) {
+      setCheckoutError('Digite seu nome.');
+      return;
+    }
+    if (!cleanWhatsapp) {
+      setCheckoutError('Digite seu WhatsApp.');
+      return;
+    }
+
+    let parsedQuantity = null;
+    if (cleanQuantity) {
+      parsedQuantity = Number(cleanQuantity);
+      if (!Number.isInteger(parsedQuantity) || parsedQuantity < 1) {
+        setCheckoutError('A quantidade deve ser um número inteiro maior que zero.');
+        return;
+      }
+    }
+
+    setCheckoutError('');
     setBusy(true);
     setError('');
-    setMessage('Gerando arte final…');
+    setMessage('Gerando arte final e enviando pedido…');
     setOrderId('');
+
     try {
       const user = clientUser ?? await ensureClientUser();
       setClientUser(user);
       const finalImages = {};
 
       for (const targetView of availableViews(garment)) {
-        const blob = await stageRef.current.exportView(targetView);
+        const blob = await stageRef.current?.exportView(targetView);
         if (blob) {
           finalImages[targetView] = await uploadFinalRender(blob, user.uid, `${targetView}-${garmentId}`);
         }
@@ -185,16 +229,22 @@ export default function CustomizerPage() {
       const firstFinalImage = finalImages.front || finalImages.combined || finalImages.back || '';
       const id = await createOrder({
         garmentId,
+        garmentName: garment.name,
         clientUid: user.uid,
+        customerName: cleanName,
+        whatsapp: cleanWhatsapp,
+        quantity: parsedQuantity,
         colorChoices: effectiveColors,
         logos,
         finalImages,
         finalImageUrl: firstFinalImage,
       });
+
+      setCheckoutOpen(false);
       setOrderId(id);
-      setMessage('Pedido finalizado e salvo com sucesso. Agora você também pode baixar a imagem pronta.');
+      setMessage('Pedido enviado com sucesso. A arte final e seus dados foram anexados ao pedido.');
     } catch (err) {
-      setError(err.message);
+      setCheckoutError(err.message || 'Não foi possível enviar o pedido.');
       setMessage('');
     } finally {
       setBusy(false);
@@ -273,11 +323,42 @@ export default function CustomizerPage() {
           <div className="logo-count">{logos.length} logo(s) adicionada(s)</div>
 
           <div className="tool-divider" />
-          <button type="button" className="button button-success finalize-button" disabled={busy} onClick={finalizeOrder}>{busy ? 'Processando…' : 'Finalizar pedido'}</button>
+          <button type="button" className="button button-success finalize-button" disabled={busy} onClick={openCheckout}>{busy ? 'Processando…' : 'Finalizar pedido'}</button>
           <button type="button" className="button button-secondary full-width download-final-button" disabled={busy} onClick={downloadCurrentImage}>Baixar imagem pronta · {VIEW_LABELS[view]}</button>
           {views.length > 1 && <p className="download-help">Troque entre as abas acima para baixar cada vista separadamente.</p>}
         </aside>
       </section>
+
+      {checkoutOpen && (
+        <div className="checkout-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeCheckout(); }}>
+          <form className="panel checkout-card" onSubmit={handleCheckoutSubmit}>
+            <div>
+              <p className="eyebrow">Finalizar pedido</p>
+              <h2>Dados do cliente</h2>
+              <p className="muted checkout-intro">A imagem será salva exatamente como você deixou a peça, incluindo cores e logos.</p>
+            </div>
+
+            <label>Nome
+              <input autoFocus value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder="Seu nome" autoComplete="name" disabled={busy} />
+            </label>
+
+            <label>WhatsApp
+              <input type="tel" value={customerWhatsapp} onChange={(event) => setCustomerWhatsapp(event.target.value)} placeholder="Ex.: (62) 99999-9999" autoComplete="tel" disabled={busy} />
+            </label>
+
+            <label>Quantidade <span className="optional-label">(opcional)</span>
+              <input type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} placeholder="Ex.: 20" disabled={busy} />
+            </label>
+
+            {checkoutError && <div className="checkout-error">{checkoutError}</div>}
+
+            <div className="checkout-actions">
+              <button type="button" className="button button-secondary" onClick={closeCheckout} disabled={busy}>Cancelar</button>
+              <button type="submit" className="button button-success" disabled={busy}>{busy ? 'Enviando pedido…' : 'Confirmar pedido'}</button>
+            </div>
+          </form>
+        </div>
+      )}
     </main>
   );
 }
