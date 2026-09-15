@@ -55,10 +55,13 @@ export function insertVertex(regions, regionId, hit, point) {
 export function removeVertex(regions, regionId, selection) {
   return regions.map((region) => {
     if (region.id !== regionId) return region;
-    const polygons = region.polygons.map((polygon, polygonIndex) => {
-      if (polygonIndex !== selection.polygonIndex || polygon.length <= 3) return polygon;
-      return polygon.filter((_, vertexIndex) => vertexIndex !== selection.vertexIndex);
+
+    const polygons = region.polygons.flatMap((polygon, polygonIndex) => {
+      if (polygonIndex !== selection.polygonIndex) return [polygon];
+      if (polygon.length <= 3) return [];
+      return [polygon.filter((_, vertexIndex) => vertexIndex !== selection.vertexIndex)];
     });
+
     return { ...region, polygons };
   });
 }
