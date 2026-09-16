@@ -4,6 +4,7 @@ import AdminAuth from '../components/AdminAuth';
 import AdminLogoTester from '../components/AdminLogoTester';
 import GarmentEditorCanvas from '../components/GarmentEditorCanvas';
 import NewRegionDialog from '../components/NewRegionDialog';
+import OrderQuoteBuilder from '../components/OrderQuoteBuilder';
 import RegionSidebar from '../components/RegionSidebar';
 import { createGarmentId, getGarment, listGarments, saveGarment } from '../lib/garmentRepo';
 import { slugifyRegionId } from '../lib/geometry';
@@ -128,6 +129,8 @@ function OrdersView({ orders, loading, error, onRefresh }) {
                   ))}
                 </div>
               )}
+
+              <OrderQuoteBuilder order={order} disabled={isWorking || loading} onSaved={onRefresh} />
 
               <div className="order-actions">
                 <button
