@@ -33,6 +33,19 @@ export async function setOrderCompleted(orderId, completed) {
   });
 }
 
+export async function saveOrderQuote(orderId, quote) {
+  await updateDoc(doc(db, 'orders', orderId), {
+    quote: {
+      unitPrice: Number(quote.unitPrice) || 0,
+      estimatedTime: quote.estimatedTime || '',
+      notes: quote.notes || '',
+      total: Number(quote.total) || 0,
+      generatedAt: new Date().toISOString(),
+    },
+    updatedAt: serverTimestamp(),
+  });
+}
+
 export async function deleteOrder(orderId) {
   await deleteDoc(doc(db, 'orders', orderId));
 }
