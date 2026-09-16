@@ -36,9 +36,42 @@ function whatsappHref(value) {
   return `https://wa.me/${normalized}`;
 }
 
-function OrdersView({ orders, loading, error, onRefresh, onToggleCompleted, onDelete, actionId }) {
+function OrdersView({ orders, loading, error, onRefresh }) {
+  const [actionId, setActionId] = useState('');
+  const [actionError, setActionError] = useState('');
   const completedCount = orders.filter((order) => order.status === 'completed').length;
   const pendingCount = orders.length - completedCount;
+
+  async function toggleCompleted(order) {
+    const completed = order.status === 'completed';
+    setActionId(order.id);
+    setActionError('');
+    try {
+      await setOrderCompleted(order.id, !completed);
+      await onRefresh();
+    } catch (err) {
+      setActionError(`Não foi possível atualizar o pedido: ${err.message}`);
+    } finally {
+      setActionId('');
+    }
+  }
+
+  async function removeOrder(order) {
+    const customer = order.customerName ? ` de ${order.customerName}` : '';
+    const confirmed = window.confirm(`Excluir permanentemente o pedido${customer}? Esta ação não pode ser desfeita.`);
+    if (!confirmed) return;
+
+    setActionId(order.id);
+    setActionError('');
+    try {
+      await deleteOrder(order.id);
+      await onRefresh();
+    } catch (err) {
+      setActionError(`Não foi possível excluir o pedido: ${err.message}`);
+    } finally {
+      setActionId('');
+    }
+  }
 
   return (
     <section className="orders-section">
@@ -54,9 +87,9 @@ function OrdersView({ orders, loading, error, onRefresh, onToggleCompleted, onDe
         <button className="button button-secondary" type="button" onClick={onRefresh} disabled={loading}>{loading ? 'Atualizando…' : 'Atualizar pedidos'}</button>
       </div>
 
-      {error && <div className="notice notice-error">{error}</div>}
-      {!error && loading && orders.length === 0 && <div className="panel orders-empty">Carregando pedidos…</div>}
-      {!error && !loading && orders.length === 0 && <div className="panel orders-empty">Nenhum pedido recebido ainda.</div>}
+      {(error || actionError) && <div className="notice notice-error">{actionError || error}</div>}
+      {!error && !actionError && loading && orders.length === 0 && <div className="panel orders-empty">Carregando pedidos…</div>}
+      {!error && !actionError && !loading && orders.length === 0 && <div className="panel orders-empty">Nenhum pedido recebido ainda.</div>}
 
       <div className="orders-grid">
         {orders.map((order) => {
@@ -83,9 +116,7 @@ function OrdersView({ orders, loading, error, onRefresh, onToggleCompleted, onDe
                 <div><span>Peça</span><strong>{order.garmentName || order.garmentId || 'Não identificada'}</strong></div>
               </div>
 
-              {completed && order.completedAt && (
-                <div className="order-completed-note">Concluído em {formatOrderDate(order.completedAt)}</div>
-              )}
+              {completed && order.completedAt && <div className="order-completed-note">Concluído em {formatOrderDate(order.completedAt)}</div>}
 
               {finalImages.length > 0 && (
                 <div className="order-images">
@@ -102,16 +133,16 @@ function OrdersView({ orders, loading, error, onRefresh, onToggleCompleted, onDe
                 <button
                   className={`button ${completed ? 'button-secondary' : 'button-success'}`}
                   type="button"
-                  disabled={isWorking}
-                  onClick={() => onToggleCompleted(order)}
+                  disabled={isWorking || loading}
+                  onClick={() => toggleCompleted(order)}
                 >
                   {isWorking ? 'Salvando…' : completed ? 'Reabrir pedido' : 'Marcar como concluído'}
                 </button>
                 <button
                   className="button order-delete-button"
                   type="button"
-                  disabled={isWorking}
-                  onClick={() => onDelete(order)}
+                  disabled={isWorking || loading}
+                  onClick={() => removeOrder(order)}
                 >
                   Excluir
                 </button>
@@ -131,7 +162,6 @@ function AdminWorkspace({ logout }) {
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState('');
-  const [orderActionId, setOrderActionId] = useState('');
   const [garmentId, setGarmentId] = useState('');
   const [name, setName] = useState('');
   const [images, setImages] = useState(EMPTY_IMAGES);
@@ -176,45 +206,6 @@ function AdminWorkspace({ logout }) {
       setOrdersError(`Não foi possível carregar os pedidos: ${err.message}`);
     } finally {
       setOrdersLoading(false);
-    }
-  }
-
-  async function handleToggleOrder(order) {
-    const completed = order.status === 'completed';
-    setOrderActionId(order.id);
-    setOrdersError('');
-    try {
-      await setOrderCompleted(order.id, !completed);
-      setOrders((items) => items.map((item) => (
-        item.id === order.id
-          ? {
-              ...item,
-              status: completed ? 'pending' : 'completed',
-              completedAt: completed ? null : new Date(),
-            }
-          : item
-      )));
-    } catch (err) {
-      setOrdersError(`Não foi possível atualizar o pedido: ${err.message}`);
-    } finally {
-      setOrderActionId('');
-    }
-  }
-
-  async function handleDeleteOrder(order) {
-    const customer = order.customerName ? ` de ${order.customerName}` : '';
-    const confirmed = window.confirm(`Excluir permanentemente o pedido${customer}? Esta ação não pode ser desfeita.`);
-    if (!confirmed) return;
-
-    setOrderActionId(order.id);
-    setOrdersError('');
-    try {
-      await deleteOrder(order.id);
-      setOrders((items) => items.filter((item) => item.id !== order.id));
-    } catch (err) {
-      setOrdersError(`Não foi possível excluir o pedido: ${err.message}`);
-    } finally {
-      setOrderActionId('');
     }
   }
 
@@ -400,15 +391,7 @@ function AdminWorkspace({ logout }) {
       </nav>
 
       {section === 'orders' ? (
-        <OrdersView
-          orders={orders}
-          loading={ordersLoading}
-          error={ordersError}
-          onRefresh={refreshOrders}
-          onToggleCompleted={handleToggleOrder}
-          onDelete={handleDeleteOrder}
-          actionId={orderActionId}
-        />
+        <OrdersView orders={orders} loading={ordersLoading} error={ordersError} onRefresh={refreshOrders} />
       ) : (
         <>
           <section className="panel garment-meta-bar">
@@ -427,7 +410,7 @@ function AdminWorkspace({ logout }) {
           <div className="view-toolbar panel">
             <div className="segmented view-type-tabs">
               <button type="button" className={view === 'front' ? 'active' : ''} onClick={() => switchView('front')}>Frente</button>
-              <button type="button" className={view === 'back' ? 'active' ''} onClick={() => switchView('back')}>Costas</button>
+              <button type="button" className={view === 'back' ? 'active' : ''} onClick={() => switchView('back')}>Costas</button>
               <button type="button" className={view === 'combined' ? 'active' : ''} onClick={() => switchView('combined')}>Frente + Costas</button>
             </div>
             <input ref={fileInputRef} className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => handleImageFile(event.target.files?.[0])} />
