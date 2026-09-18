@@ -167,14 +167,21 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
       object.sourceType = metadata.sourceType || 'image';
       object.sourcePage = metadata.sourcePage || 1;
       object.sourcePageCount = metadata.sourcePageCount || 1;
-      object.logoView = currentViewRef.current;
-      object.normX = 0.5;
-      object.normY = 0.5;
+      object.logoView = metadata.targetView || currentViewRef.current;
+      object.normX = Number.isFinite(metadata.initialX) ? metadata.initialX : 0.5;
+      object.normY = Number.isFinite(metadata.initialY) ? metadata.initialY : 0.5;
       object.normScale = 0.2;
+      object.set({
+        left: object.normX * canvas.getWidth(),
+        top: object.normY * canvas.getHeight(),
+        visible: object.logoView === currentViewRef.current,
+        selectable: object.logoView === currentViewRef.current,
+        evented: object.logoView === currentViewRef.current,
+      });
       object.scaleToWidth(canvas.getWidth() * object.normScale);
       object.setControlsVisibility({ ml: false, mr: false, mt: false, mb: false });
       canvas.add(object);
-      canvas.setActiveObject(object);
+      if (object.logoView === currentViewRef.current) canvas.setActiveObject(object);
       canvas.requestRenderAll();
       notifyLogos();
     },

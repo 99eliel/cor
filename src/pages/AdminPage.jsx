@@ -98,7 +98,13 @@ function OrdersView({ orders, loading, error, onRefresh }) {
           let finalImages = Object.entries(order.finalImages ?? {}).filter(([, url]) => Boolean(url));
           if (finalImages.length === 0 && order.finalImageUrl) finalImages = [['final', order.finalImageUrl]];
           const whatsappLink = whatsappHref(order.whatsapp);
-          const vectorFiles = (order.logos ?? []).filter((logo) => logo.sourceType === 'pdf' && logo.sourceUrl);
+          const vectorFiles = Array.from(
+            new Map(
+              (order.logos ?? [])
+                .filter((logo) => logo.sourceType === 'pdf' && logo.sourceUrl)
+                .map((logo) => [logo.sourceUrl, logo]),
+            ).values(),
+          );
           const completed = order.status === 'completed';
           const isWorking = actionId === order.id;
 
