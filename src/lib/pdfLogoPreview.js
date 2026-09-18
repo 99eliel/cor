@@ -59,25 +59,20 @@ export async function renderPdfLogoPreview(file, pageNumber = 1) {
   return { previewFile, pageCount, pageNumber };
 }
 
-export async function renderPdfLogoPreviews(file, maxPages = 8) {
+export async function renderPdfLogoPreviews(file) {
   if (!file) throw new Error('Selecione um PDF.');
   const bytes = new Uint8Array(await file.arrayBuffer());
   const loadingTask = pdfjsLib.getDocument({ data: bytes });
   const pdfDocument = await loadingTask.promise;
   const pageCount = pdfDocument.numPages;
-  const renderCount = Math.min(pageCount, maxPages);
   const pages = [];
 
-  for (let pageNumber = 1; pageNumber <= renderCount; pageNumber += 1) {
+  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
     const previewFile = await renderPage(pdfDocument, file, pageNumber);
     pages.push({ previewFile, pageNumber });
   }
 
   await pdfDocument.destroy();
 
-  return {
-    pages,
-    pageCount,
-    truncated: pageCount > renderCount,
-  };
+  return { pages, pageCount };
 }

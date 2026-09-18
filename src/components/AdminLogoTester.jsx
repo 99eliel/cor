@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import CustomerStage from './CustomerStage';
-import PdfLogoPageMapper from './PdfLogoPageMapper';
-import { renderPdfLogoPreview, renderPdfLogoPreviews } from '../lib/pdfLogoPreview';
+import PdfLogoLibrary from './PdfLogoLibrary';
+import { renderPdfLogoPreviews } from '../lib/pdfLogoPreview';
 
 const MAX_LOGO_BYTES = 5 * 1024 * 1024;
 const MAX_PDF_BYTES = 15 * 1024 * 1024;
@@ -40,67 +40,66 @@ export default function AdminLogoTester({
   const [logos, setLogos] = useState([]);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
-  const [pdfMapping, setPdfMapping] = useState(null);
+  const [pdfLibrary, setPdfLibrary] = useState(null);
+  const [pdfBusyPage, setPdfBusyPage] = useState(null);
   const [isPanning, setIsPanning] = useState(false);
 
-  function availableTestViews() {
-    return ['front', 'back', 'combined'].filter((key) => garment?.images?.[key]);
-  }
-
-  function releasePdfMapping(mapping = pdfMapping) {
-    mapping?.pages?.forEach((page) => {
+  function releasePdfLibrary(libraryState = pdfLibrary) {
+    libraryState?.pages?.forEach((page) => {
       if (page.previewUrl) URL.revokeObjectURL(page.previewUrl);
     });
   }
 
-  function cancelPdfMapping() {
-    releasePdfMapping();
-    setPdfMapping(null);
+  function closePdfLibrary() {
+    if (pdfBusyPage !== null) return;
+    releasePdfLibrary();
+    setPdfLibrary(null);
     setInfo('');
   }
 
-  function changePdfAssignment(pageNumber, targetView) {
-    setPdfMapping((current) => current ? {
-      ...current,
-      assignments: current.assignments.map((item) => (
-        item.pageNumber === pageNumber ? { ...item, targetView } : item
-      )),
-    } : current);
-  }
-
-  async function confirmPdfMapping() {
-    if (!pdfMapping) return;
+  async function addPdfPage(pageNumber, options = {}) {
+    const page = pdfLibrary?.pages?.find((item) => item.pageNumber === pageNumber);
+    if (!page) return;
+    setPdfBusyPage(pageNumber);
     setError('');
 
     try {
-      const selected = pdfMapping.assignments.filter((item) => item.targetView !== 'skip');
-      for (const assignment of selected) {
-        const page = pdfMapping.pages.find((item) => item.pageNumber === assignment.pageNumber);
-        if (!page) continue;
-        const dataUrl = await fileToDataUrl(page.previewFile);
-        const sameViewItems = selected.filter((item) => item.targetView === assignment.targetView);
-        const sameViewIndex = sameViewItems.findIndex((item) => item.pageNumber === assignment.pageNumber);
-        const initialX = sameViewItems.length > 1
-          ? (sameViewIndex === 0 ? 0.3 : sameViewIndex === 1 ? 0.7 : 0.5)
-          : 0.5;
+      const dataUrl = await fileToDataUrl(page.previewFile);
+      const index = pdfLibrary.pages.findIndex((item) => item.pageNumber === pageNumber);
+      const initialX = Number.isFinite(options.initialX)
+        ? options.initialX
+        : 0.25 + ((index % 3) * 0.25);
+      const initialY = Number.isFinite(options.initialY)
+        ? options.initialY
+        : 0.35 + ((Math.floor(index / 3) % 3) * 0.18);
 
-        await stageRef.current?.addLogo(dataUrl, {
-          sourceName: pdfMapping.file.name,
-          sourceType: 'pdf',
-          sourcePage: assignment.pageNumber,
-          sourcePageCount: pdfMapping.pageCount,
-          targetView: assignment.targetView,
-          initialX,
-          initialY: 0.5,
-        });
-      }
-
-      releasePdfMapping(pdfMapping);
-      setPdfMapping(null);
-      setInfo(`${selected.length} página(s) do PDF adicionada(s) ao teste. Troque as vistas para conferir cada aplicação.`);
+      await stageRef.current?.addLogo(dataUrl, {
+        sourceName: pdfLibrary.fileName,
+        sourceType: 'pdf',
+        sourcePage: pageNumber,
+        sourcePageCount: pdfLibrary.pageCount,
+        targetView: view,
+        initialX: Math.min(0.82, initialX),
+        initialY: Math.min(0.82, initialY),
+      });
+      setInfo(`Página ${pageNumber} adicionada em ${view === 'front' ? 'Frente' : view === 'back' ? 'Costas' : 'Frente + Costas'}.`);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setPdfBusyPage(null);
     }
+  }
+
+  async function addAllPdfPages() {
+    if (!pdfLibrary) return;
+    for (let index = 0; index < pdfLibrary.pages.length; index += 1) {
+      const page = pdfLibrary.pages[index];
+      await addPdfPage(page.pageNumber, {
+        initialX: 0.24 + ((index % 3) * 0.26),
+        initialY: 0.28 + ((Math.floor(index / 3) % 3) * 0.22),
+      });
+    }
+    setInfo('Todas as páginas foram adicionadas nesta vista para teste.');
   }
 
   async function handleLogoFile(file) {
@@ -115,44 +114,18 @@ export default function AdminLogoTester({
           throw new Error('O PDF de teste deve ter no máximo 15 MB.');
         }
 
-        const { pages, pageCount } = await renderPdfLogoPreviews(file, 8);
-
-        if (pageCount > 1) {
-          const views = availableTestViews();
-          const hasSeparateSides = views.includes('front') && views.includes('back');
-          const pagesWithUrls = pages.map((page) => ({
+        releasePdfLibrary();
+        setInfo('Lendo todas as páginas do PDF…');
+        const { pages, pageCount } = await renderPdfLogoPreviews(file);
+        setPdfLibrary({
+          fileName: file.name,
+          pageCount,
+          pages: pages.map((page) => ({
             ...page,
             previewUrl: URL.createObjectURL(page.previewFile),
-          }));
-          const assignments = pages.map((page, index) => ({
-            pageNumber: page.pageNumber,
-            targetView: hasSeparateSides
-              ? (index === 0 ? 'front' : index === 1 ? 'back' : view)
-              : (views.includes('combined') ? 'combined' : view),
-          }));
-
-          setPdfMapping({
-            file,
-            pages: pagesWithUrls,
-            pageCount,
-            assignments,
-            availableViews: views,
-          });
-          return;
-        }
-
-        const page = pages[0] ?? await renderPdfLogoPreview(file, 1);
-        const dataUrl = await fileToDataUrl(page.previewFile);
-
-        await stageRef.current?.addLogo(dataUrl, {
-          sourceName: file.name,
-          sourceType: 'pdf',
-          sourcePage: 1,
-          sourcePageCount: 1,
-          targetView: view,
+          })),
         });
-
-        setInfo('PDF vetorial carregado para teste. O arquivo original não é salvo neste modo.');
+        setInfo(`PDF carregado com ${pageCount} página(s). Clique em qualquer página para adicioná-la à vista atual.`);
       } else {
         const dataUrl = await fileToDataUrl(file);
         await stageRef.current?.addLogo(dataUrl, {
@@ -188,7 +161,6 @@ export default function AdminLogoTester({
     if (event.button !== 2) return;
     const scroller = scrollRef.current;
     if (!scroller) return;
-
     event.preventDefault();
     event.stopPropagation();
     panRef.current = {
@@ -207,7 +179,6 @@ export default function AdminLogoTester({
     if (!pan || pan.pointerId !== event.pointerId) return;
     const scroller = scrollRef.current;
     if (!scroller) return;
-
     event.preventDefault();
     event.stopPropagation();
     scroller.scrollLeft = pan.scrollLeft - (event.clientX - pan.clientX);
@@ -228,7 +199,7 @@ export default function AdminLogoTester({
       <div className="admin-logo-test-actions">
         <div>
           <strong>Teste de logos</strong>
-          <span>Use PNG, JPG, WEBP ou PDF vetorial. As logos adicionadas aqui são temporárias e não são salvas na peça.</span>
+          <span>Use PNG, JPG, WEBP ou PDF vetorial. PDFs carregam todas as páginas como logos independentes.</span>
         </div>
         <div className="inline-actions admin-logo-buttons">
           <input
@@ -251,17 +222,19 @@ export default function AdminLogoTester({
       {error && <div className="inline-error admin-logo-error">{error}</div>}
       {!error && info && <div className="admin-logo-info">{info}</div>}
 
-      {pdfMapping && (
-        <PdfLogoPageMapper
-          fileName={pdfMapping.file.name}
-          pages={pdfMapping.pages}
-          pageCount={pdfMapping.pageCount}
-          assignments={pdfMapping.assignments}
-          availableViews={pdfMapping.availableViews}
-          onChange={changePdfAssignment}
-          onCancel={cancelPdfMapping}
-          onConfirm={confirmPdfMapping}
-        />
+      {pdfLibrary && (
+        <div className="admin-pdf-library-wrap">
+          <PdfLogoLibrary
+            fileName={pdfLibrary.fileName}
+            pages={pdfLibrary.pages}
+            pageCount={pdfLibrary.pageCount}
+            currentView={view}
+            busyPage={pdfBusyPage}
+            onAddPage={addPdfPage}
+            onAddAll={addAllPdfPages}
+            onClose={closePdfLibrary}
+          />
+        </div>
       )}
 
       <div

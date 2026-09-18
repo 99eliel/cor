@@ -2,11 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import CustomerStage from '../components/CustomerStage';
 import MartinpelBrand from '../components/MartinpelBrand';
-import PdfLogoPageMapper from '../components/PdfLogoPageMapper';
+import PdfLogoLibrary from '../components/PdfLogoLibrary';
 import { ensureClientUser } from '../lib/clientAuth';
 import { getGarment, listGarments } from '../lib/garmentRepo';
 import { createOrder } from '../lib/orderRepo';
-import { renderPdfLogoPreview, renderPdfLogoPreviews } from '../lib/pdfLogoPreview';
+import { renderPdfLogoPreviews } from '../lib/pdfLogoPreview';
 import { uploadClientLogo, uploadClientLogoOriginalPdf, uploadFinalRender } from '../lib/storageImages';
 import '../customer.css';
 
@@ -92,7 +92,8 @@ export default function CustomizerPage() {
   const [customerWhatsapp, setCustomerWhatsapp] = useState('');
   const [quantity, setQuantity] = useState('');
   const [checkoutError, setCheckoutError] = useState('');
-  const [pdfMapping, setPdfMapping] = useState(null);
+  const [pdfLibrary, setPdfLibrary] = useState(null);
+  const [pdfBusyPage, setPdfBusyPage] = useState(null);
 
   const selectedRegion = useMemo(
     () => garment?.regions?.find((region) => region.id === selectedRegionId) ?? null,
@@ -128,76 +129,87 @@ export default function CustomizerPage() {
     setColorChoices((current) => ({ ...current, [selectedRegion.id]: color }));
   }
 
-  function releasePdfMapping(mapping = pdfMapping) {
-    mapping?.pages?.forEach((page) => {
+  function releasePdfLibrary(libraryState = pdfLibrary) {
+    libraryState?.pages?.forEach((page) => {
       if (page.previewUrl) URL.revokeObjectURL(page.previewUrl);
     });
   }
 
-  function cancelPdfMapping() {
-    if (busy) return;
-    releasePdfMapping();
-    setPdfMapping(null);
-    setMessage('');
+  function closePdfLibrary() {
+    if (pdfBusyPage !== null) return;
+    releasePdfLibrary();
+    setPdfLibrary(null);
   }
 
-  function changePdfAssignment(pageNumber, targetView) {
-    setPdfMapping((current) => current ? {
+  async function ensurePdfPageStorageUrl(pageNumber) {
+    const page = pdfLibrary?.pages?.find((item) => item.pageNumber === pageNumber);
+    if (!page) throw new Error('Página do PDF não encontrada.');
+    if (page.storageUrl) return page.storageUrl;
+
+    const user = clientUser ?? await ensureClientUser();
+    setClientUser(user);
+    const storageUrl = await uploadClientLogo(page.previewFile, user.uid);
+    setPdfLibrary((current) => current ? {
       ...current,
-      assignments: current.assignments.map((item) => (
-        item.pageNumber === pageNumber ? { ...item, targetView } : item
+      pages: current.pages.map((item) => (
+        item.pageNumber === pageNumber ? { ...item, storageUrl } : item
       )),
     } : current);
+    return storageUrl;
   }
 
-  async function confirmPdfMapping() {
-    if (!pdfMapping) return;
-    setBusy(true);
+  async function addPdfPage(pageNumber, options = {}) {
+    if (!pdfLibrary) return;
+    setPdfBusyPage(pageNumber);
     setError('');
-    setMessage('Enviando PDF vetorial e preparando as logos…');
 
     try {
-      const user = clientUser ?? await ensureClientUser();
-      setClientUser(user);
-      const originalUrl = await uploadClientLogoOriginalPdf(pdfMapping.file, user.uid);
-      const selected = pdfMapping.assignments.filter((item) => item.targetView !== 'skip');
+      const storageUrl = await ensurePdfPageStorageUrl(pageNumber);
+      const index = pdfLibrary.pages.findIndex((item) => item.pageNumber === pageNumber);
+      const count = pdfLibrary.pages.length;
+      const initialX = Number.isFinite(options.initialX)
+        ? options.initialX
+        : count > 1
+          ? 0.25 + ((index % 3) * 0.25)
+          : 0.5;
+      const initialY = Number.isFinite(options.initialY)
+        ? options.initialY
+        : 0.35 + ((Math.floor(index / 3) % 3) * 0.18);
 
-      for (const assignment of selected) {
-        const page = pdfMapping.pages.find((item) => item.pageNumber === assignment.pageNumber);
-        if (!page) continue;
-        const previewUrl = await uploadClientLogo(page.previewFile, user.uid);
-        const sameViewItems = selected.filter((item) => item.targetView === assignment.targetView);
-        const sameViewIndex = sameViewItems.findIndex((item) => item.pageNumber === assignment.pageNumber);
-        const spread = sameViewItems.length > 1;
-        const initialX = spread ? (sameViewIndex === 0 ? 0.3 : sameViewIndex === 1 ? 0.7 : 0.5) : 0.5;
+      await stageRef.current?.addLogo(storageUrl, {
+        sourceUrl: pdfLibrary.originalUrl,
+        sourceName: pdfLibrary.fileName,
+        sourceType: 'pdf',
+        sourcePage: pageNumber,
+        sourcePageCount: pdfLibrary.pageCount,
+        targetView: view,
+        initialX: Math.min(0.82, initialX),
+        initialY: Math.min(0.82, initialY),
+      });
 
-        await stageRef.current?.addLogo(previewUrl, {
-          sourceUrl: originalUrl,
-          sourceName: pdfMapping.file.name,
-          sourceType: 'pdf',
-          sourcePage: assignment.pageNumber,
-          sourcePageCount: pdfMapping.pageCount,
-          targetView: assignment.targetView,
-          initialX,
-          initialY: 0.5,
-        });
-      }
-
-      const firstTarget = selected[0]?.targetView;
-      if (firstTarget) {
-        setView(firstTarget);
-        setSelectedRegionId(null);
-      }
-
-      releasePdfMapping(pdfMapping);
-      setPdfMapping(null);
-      setMessage(`${selected.length} logo(s) do PDF adicionada(s). Troque entre Frente e Costas para ajustar cada posição.`);
+      setMessage(`Página ${pageNumber} adicionada em ${VIEW_LABELS[view]}. Agora arraste para onde quiser.`);
     } catch (err) {
       setError(err.message);
       setMessage('');
     } finally {
-      setBusy(false);
+      setPdfBusyPage(null);
     }
+  }
+
+  async function addAllPdfPages() {
+    if (!pdfLibrary) return;
+    setError('');
+    setMessage(`Adicionando ${pdfLibrary.pages.length} páginas em ${VIEW_LABELS[view]}…`);
+
+    for (let index = 0; index < pdfLibrary.pages.length; index += 1) {
+      const page = pdfLibrary.pages[index];
+      await addPdfPage(page.pageNumber, {
+        initialX: 0.24 + ((index % 3) * 0.26),
+        initialY: 0.28 + ((Math.floor(index / 3) % 3) * 0.22),
+      });
+    }
+
+    setMessage(`Todas as páginas do PDF foram adicionadas em ${VIEW_LABELS[view]}. Você pode mover cada uma livremente.`);
   }
 
   async function handleLogo(file) {
@@ -211,51 +223,30 @@ export default function CustomizerPage() {
 
       const isPdf = file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf');
       if (isPdf) {
-        setMessage('Lendo páginas do PDF vetorial…');
-        const { pages, pageCount, truncated } = await renderPdfLogoPreviews(file, 8);
-
-        if (pageCount > 1) {
-          const views = availableViews(garment);
-          const hasSeparateSides = views.includes('front') && views.includes('back');
-          const assignments = pages.map((page, index) => ({
-            pageNumber: page.pageNumber,
-            targetView: hasSeparateSides
-              ? (index === 0 ? 'front' : index === 1 ? 'back' : view)
-              : (views.includes('combined') ? 'combined' : view),
-          }));
-          const pagesWithUrls = pages.map((page) => ({
-            ...page,
-            previewUrl: URL.createObjectURL(page.previewFile),
-          }));
-
-          setPdfMapping({
-            file,
-            pageCount,
-            truncated,
-            pages: pagesWithUrls,
-            assignments,
-            availableViews: views,
-          });
-          setMessage('');
-          return;
-        }
+        releasePdfLibrary();
+        setMessage('Lendo todas as páginas do PDF vetorial…');
 
         const originalUrl = await uploadClientLogoOriginalPdf(file, user.uid);
-        const page = pages[0] ?? await renderPdfLogoPreview(file, 1);
-        const previewUrl = await uploadClientLogo(page.previewFile, user.uid);
+        const { pages, pageCount } = await renderPdfLogoPreviews(file);
+        const pagesWithUrls = pages.map((page) => ({
+          ...page,
+          previewUrl: URL.createObjectURL(page.previewFile),
+          storageUrl: '',
+        }));
 
-        await stageRef.current?.addLogo(previewUrl, {
-          sourceUrl: originalUrl,
-          sourceName: file.name,
-          sourceType: 'pdf',
-          sourcePage: 1,
-          sourcePageCount: 1,
-          targetView: view,
+        setPdfLibrary({
+          fileName: file.name,
+          originalUrl,
+          pageCount,
+          pages: pagesWithUrls,
         });
 
-        setMessage('PDF vetorial adicionado. O arquivo original será enviado com o pedido para a produção.');
+        setMessage(
+          pageCount === 1
+            ? 'PDF carregado. A página está disponível abaixo para você adicionar onde quiser.'
+            : `PDF carregado com ${pageCount} páginas. Escolha qualquer página abaixo e adicione onde quiser.`,
+        );
       } else {
-        setMessage('Enviando logo…');
         const url = await uploadClientLogo(file, user.uid);
         await stageRef.current?.addLogo(url, {
           sourceUrl: url,
@@ -469,7 +460,19 @@ export default function CustomizerPage() {
           <div className="tool-divider" />
           <input ref={fileInputRef} className="sr-only" type="file" accept="image/png,image/jpeg,image/webp,application/pdf,.pdf" onChange={(event) => handleLogo(event.target.files?.[0])} />
           <button type="button" className="button button-primary full-width" disabled={busy} onClick={() => fileInputRef.current?.click()}>+ Adicionar logo</button>
-          <p className="logo-upload-help">Aceita PNG, JPG, WEBP ou PDF vetorial. PDFs originais são preservados para a produção.</p>
+          <p className="logo-upload-help">Aceita PNG, JPG, WEBP ou PDF vetorial. PDFs viram uma biblioteca de páginas para você usar livremente.</p>
+          {pdfLibrary && (
+            <PdfLogoLibrary
+              fileName={pdfLibrary.fileName}
+              pages={pdfLibrary.pages}
+              pageCount={pdfLibrary.pageCount}
+              currentView={view}
+              busyPage={pdfBusyPage}
+              onAddPage={addPdfPage}
+              onAddAll={addAllPdfPages}
+              onClose={closePdfLibrary}
+            />
+          )}
           <button type="button" className="button button-secondary full-width" disabled={busy || logos.length === 0} onClick={removeLogo}>Remover logo selecionada</button>
           <div className="logo-count">{logos.length} logo(s) adicionada(s)</div>
 
@@ -479,20 +482,6 @@ export default function CustomizerPage() {
           {views.length > 1 && <p className="download-help">Troque entre as abas acima para baixar cada vista separadamente.</p>}
         </aside>
       </section>
-
-      {pdfMapping && (
-        <PdfLogoPageMapper
-          fileName={pdfMapping.file.name}
-          pages={pdfMapping.pages}
-          pageCount={pdfMapping.pageCount}
-          assignments={pdfMapping.assignments}
-          availableViews={pdfMapping.availableViews}
-          busy={busy}
-          onChange={changePdfAssignment}
-          onCancel={cancelPdfMapping}
-          onConfirm={confirmPdfMapping}
-        />
-      )}
 
       {checkoutOpen && (
         <div className="checkout-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeCheckout(); }}>
