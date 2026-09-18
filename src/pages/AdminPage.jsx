@@ -293,6 +293,56 @@ function AdminDashboard({
   );
 }
 
+function CatalogManager({ garments, onAdd, onEdit, onPreview }) {
+  return (
+    <section className="catalog-manager">
+      <div className="panel catalog-manager-head">
+        <div>
+          <p className="eyebrow">Catálogo</p>
+          <h2>Peças disponíveis</h2>
+          <p>Gerencie as peças que aparecem para o cliente. Abra uma peça para editar ou cadastre um novo modelo.</p>
+        </div>
+        <button className="button button-primary" type="button" onClick={onAdd}>+ Adicionar peça</button>
+      </div>
+
+      {garments.length === 0 ? (
+        <div className="panel catalog-manager-empty">
+          <div className="catalog-manager-empty-icon">＋</div>
+          <h3>Nenhuma peça cadastrada</h3>
+          <p>Comece adicionando a primeira peça ao catálogo da Martinpel.</p>
+          <button className="button button-primary" type="button" onClick={onAdd}>Adicionar primeira peça</button>
+        </div>
+      ) : (
+        <div className="catalog-manager-grid">
+          {garments.map((garment) => {
+            const thumbnail = garment.images?.front || garment.images?.combined || garment.images?.back;
+            return (
+              <article className="panel catalog-manager-card" key={garment.id}>
+                <div className="catalog-manager-thumb">
+                  {thumbnail
+                    ? <img src={thumbnail} alt={garment.name} />
+                    : <span>Sem imagem</span>}
+                </div>
+                <div className="catalog-manager-card-body">
+                  <div>
+                    <span className="catalog-manager-card-label">Peça</span>
+                    <h3>{garment.name}</h3>
+                    <code>{garment.id}</code>
+                  </div>
+                  <div className="catalog-manager-card-actions">
+                    <button className="button button-primary" type="button" onClick={() => onEdit(garment.id)}>Editar peça</button>
+                    <button className="button button-secondary" type="button" onClick={() => onPreview(garment.id)}>Ver como cliente</button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function AdminWorkspace({ logout }) {
   const fileInputRef = useRef(null);
   const [section, setSection] = useState('dashboard');
@@ -360,12 +410,24 @@ function AdminWorkspace({ logout }) {
   }
 
   function openCatalog() {
-    setSection('editor');
+    setSection('catalog');
+    refreshGarments();
   }
 
   function addNewGarment() {
     resetEditor();
     setSection('editor');
+  }
+
+  async function editGarment(id) {
+    await loadGarment(id);
+    setSection('editor');
+  }
+
+  function previewGarment(id = garmentId) {
+    if (!id) return setError('Salve a peça antes de abrir a tela do cliente.');
+    const base = `${window.location.origin}${window.location.pathname}`;
+    window.open(`${base}#/customizar/${id}`, '_blank', 'noopener,noreferrer');
   }
 
   function resetEditor() {
@@ -510,9 +572,7 @@ function AdminWorkspace({ logout }) {
   }
 
   function openCustomer() {
-    if (!garmentId) return setError('Salve a peça antes de abrir a tela do cliente.');
-    const base = `${window.location.origin}${window.location.pathname}`;
-    window.open(`${base}#/customizar/${garmentId}`, '_blank', 'noopener,noreferrer');
+    previewGarment(garmentId);
   }
 
   function switchView(nextView) {
@@ -524,40 +584,17 @@ function AdminWorkspace({ logout }) {
 
   return (
     <main className="app-shell admin-shell">
-      <div className="martinpel-appbar admin-brandbar">
+      <div className="martinpel-appbar admin-brandbar official-admin-bar">
         <MartinpelBrand compact subtitle="Uniformes • EPI's • Produção" />
-        <div className="martinpel-appbar-meta">
-          <span className="martinpel-system-pill">Gestão de Personalização</span>
-          <small>Peças • Pedidos • Orçamentos</small>
+        <div className="official-admin-global-actions">
+          <Link className="button button-light" to="/">Abrir catálogo público</Link>
+          <button className="button admin-logout-button" type="button" onClick={logout}>Sair</button>
         </div>
       </div>
 
-      <header className="admin-header martinpel-page-header">
-        <div className="page-heading-block">
-          <p className="eyebrow">{section === 'dashboard' ? 'Painel administrativo' : section === 'orders' ? 'Gestão comercial' : 'Catálogo de produtos'}</p>
-          <h1>{section === 'dashboard' ? 'Visão geral' : section === 'orders' ? 'Pedidos e orçamentos' : 'Gerenciar catálogo'}</h1>
-          <p className="page-subtitle">
-            {section === 'dashboard'
-              ? 'Central de controle da Gestão de Personalização Martinpel.'
-              : section === 'orders'
-                ? 'Acompanhe solicitações, gere orçamentos e controle o andamento de cada pedido.'
-                : 'Adicione novas peças ou edite produtos já disponíveis para os clientes.'}
-          </p>
-        </div>
-        <div className="topbar-actions">
-          <Link className="button button-secondary" to="/">Ver catálogo público</Link>
-          {section !== 'dashboard' && <button className="button button-secondary" type="button" onClick={openDashboard}>Visão geral</button>}
-          {section === 'editor' && <button className="button button-secondary" type="button" onClick={addNewGarment}>Adicionar peça</button>}
-          {section === 'editor' && <button className="button button-secondary" type="button" onClick={openCustomer}>Abrir como cliente</button>}
-          {section === 'editor' && <button className="button button-primary" type="button" onClick={handleSave} disabled={busy}>Salvar peça</button>}
-          {section === 'orders' && <button className="button button-secondary" type="button" onClick={refreshOrders} disabled={ordersLoading}>{ordersLoading ? 'Atualizando…' : 'Atualizar pedidos'}</button>}
-          <button className="button button-ghost" type="button" onClick={logout}>Sair</button>
-        </div>
-      </header>
-
-      <nav className="panel admin-main-tabs admin-structure-tabs" aria-label="Seções do painel">
+      <nav className="panel admin-main-tabs admin-structure-tabs official-admin-nav" aria-label="Navegação administrativa">
         <button type="button" className={section === 'dashboard' ? 'active' : ''} onClick={openDashboard}>Visão geral</button>
-        <button type="button" className={section === 'editor' ? 'active' : ''} onClick={openCatalog}>Catálogo <span>{garments.length}</span></button>
+        <button type="button" className={section === 'catalog' || section === 'editor' ? 'active' : ''} onClick={openCatalog}>Catálogo <span>{garments.length}</span></button>
         <button type="button" className={section === 'orders' ? 'active' : ''} onClick={openOrders}>Pedidos{orders.length > 0 && <span>{orders.length}</span>}</button>
       </nav>
 
@@ -570,28 +607,33 @@ function AdminWorkspace({ logout }) {
           onManageGarments={openCatalog}
           onOpenOrders={openOrders}
         />
+      ) : section === 'catalog' ? (
+        <CatalogManager
+          garments={garments}
+          onAdd={addNewGarment}
+          onEdit={editGarment}
+          onPreview={previewGarment}
+        />
       ) : section === 'orders' ? (
         <OrdersView orders={orders} loading={ordersLoading} error={ordersError} onRefresh={refreshOrders} />
       ) : (
         <>
-          <section className="catalog-admin-intro panel">
+          <section className="panel editor-context-bar">
             <div>
-              <p className="eyebrow">Catálogo</p>
-              <h2>{garmentId ? 'Editar peça do catálogo' : 'Adicionar peça ao catálogo'}</h2>
-              <p>{garmentId ? 'Faça as alterações necessárias e salve para atualizar a peça disponível aos clientes.' : 'Preencha os dados, envie a imagem e marque todas as regiões que o cliente poderá personalizar.'}</p>
+              <button className="editor-back-link" type="button" onClick={openCatalog}>← Voltar ao catálogo</button>
+              <p className="eyebrow">{garmentId ? 'Editar peça' : 'Nova peça'}</p>
+              <h1>{garmentId ? (name || 'Peça sem nome') : 'Adicionar peça ao catálogo'}</h1>
+              <p>{garmentId ? 'Edite a configuração da peça e salve para publicar as alterações.' : 'Cadastre a peça, envie as imagens e marque as áreas que poderão ser personalizadas.'}</p>
             </div>
-            <button className="button button-primary" type="button" onClick={addNewGarment}>+ Nova peça</button>
+            <div className="editor-context-actions">
+              {garmentId && <button className="button button-secondary" type="button" onClick={openCustomer}>Pré-visualizar</button>}
+              <button className="button button-primary" type="button" onClick={handleSave} disabled={busy}>{busy ? 'Salvando…' : 'Salvar peça'}</button>
+            </div>
           </section>
 
-          <section className="panel garment-meta-bar">
+          <section className="panel garment-meta-bar official-garment-meta">
             <label className="grow-field">Nome da peça<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Camisa Polo Refletiva" /></label>
-            <label>Carregar existente
-              <select value={garmentId} onChange={(event) => loadGarment(event.target.value)}>
-                <option value="">Nova peça</option>
-                {garments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-              </select>
-            </label>
-            <div className="garment-id-box"><span>ID</span><code>{garmentId || 'será criado automaticamente'}</code></div>
+            <div className="garment-id-box"><span>ID da peça</span><code>{garmentId || 'será criado ao enviar a primeira imagem'}</code></div>
           </section>
 
           {(message || error) && <div className={error ? 'notice notice-error' : 'notice notice-success'}>{error || message}</div>}
