@@ -284,3 +284,182 @@ input:focus,select:focus,textarea:focus{
   .customer-tools{padding:16px!important}
   .admin-main-tabs button{flex:1!important;justify-content:center}
 }
+
+
+/* Identidade oficial — Gestão de Personalização */
+.martinpel-appbar{
+  position:relative;
+  min-height:92px;
+  padding:10px 18px 10px 14px;
+  border:1px solid rgba(202,222,239,.46);
+  background:
+    radial-gradient(circle at 68% -100%,rgba(46,164,226,.30),transparent 35%),
+    linear-gradient(180deg,#072e58 0%,#03264a 52%,#041e3b 100%);
+  box-shadow:
+    0 20px 48px rgba(2,28,54,.24),
+    inset 0 1px 0 rgba(255,255,255,.13);
+}
+.martinpel-appbar:before{
+  content:"";position:absolute;left:250px;right:115px;bottom:13px;height:2px;
+  background:linear-gradient(90deg,rgba(193,215,233,.15),#b9d6eb 38%,#37b5f2 52%,rgba(185,214,235,.12));
+  box-shadow:0 0 12px rgba(57,182,242,.50);
+}
+.martinpel-appbar:after{
+  content:"";position:absolute;left:250px;right:28px;top:8px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.38),transparent);
+}
+.martinpel-system-brand{
+  position:relative;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:center;
+  gap:18px;
+  min-width:min(720px,70vw);
+  isolation:isolate;
+}
+.martinpel-brand-emblem{
+  position:relative;
+  z-index:2;
+  display:grid;
+  place-items:center;
+  width:172px;
+  height:76px;
+  padding:7px;
+  clip-path:polygon(10% 0,90% 0,100% 18%,100% 82%,90% 100%,10% 100%,0 82%,0 18%);
+  background:linear-gradient(145deg,#f5f8fb 0%,#9eb5c9 28%,#ffffff 52%,#7d9ab4 100%);
+  filter:drop-shadow(0 8px 12px rgba(0,0,0,.22));
+}
+.martinpel-brand-emblem:before{
+  content:"";position:absolute;inset:3px;
+  clip-path:inherit;
+  background:linear-gradient(145deg,#0a467d 0%,#031f3d 62%,#082f58 100%);
+  z-index:-1;
+}
+.martinpel-brand-logo{
+  width:150px!important;
+  min-height:58px!important;
+  height:58px;
+  padding:3px 8px!important;
+  border-radius:8px!important;
+  background:#05294f!important;
+  box-shadow:inset 0 0 18px rgba(41,137,203,.15);
+}
+.martinpel-brand-logo img{height:52px!important;object-fit:contain!important}
+.martinpel-brand-copy{
+  position:relative;
+  z-index:2;
+  display:grid!important;
+  grid-template-columns:1fr;
+  gap:1px!important;
+  padding-right:110px;
+}
+.martinpel-brand-company{
+  display:block;
+  color:#f8fbff!important;
+  font-size:clamp(.78rem,1.1vw,1rem)!important;
+  line-height:1;
+  font-weight:900;
+  letter-spacing:.24em;
+}
+.martinpel-brand-copy strong{
+  margin-top:5px;
+  font-size:clamp(1.2rem,2.2vw,2rem)!important;
+  line-height:1.05;
+  letter-spacing:-.035em!important;
+  color:#fff!important;
+  background:linear-gradient(180deg,#ffffff 8%,#eef4f9 48%,#9eb4c7 100%);
+  -webkit-background-clip:text;
+  background-clip:text;
+  -webkit-text-fill-color:transparent;
+  text-shadow:0 5px 15px rgba(0,0,0,.16);
+  white-space:nowrap;
+}
+.martinpel-brand-subtitle{
+  margin-top:6px;
+  color:#9fc5e0!important;
+  font-size:.68rem!important;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.12em;
+}
+.martinpel-brand-tech-line{
+  position:absolute;
+  left:190px;
+  right:16px;
+  bottom:2px;
+  height:8px;
+  border-bottom:2px solid rgba(192,215,233,.70);
+  border-left:80px solid transparent;
+  opacity:.55;
+}
+.martinpel-brand-stripes{
+  position:absolute;
+  right:18px;
+  top:22px;
+  display:flex;
+  gap:7px;
+  transform:skewX(-28deg);
+}
+.martinpel-brand-stripes i{
+  display:block;
+  width:18px;
+  height:8px;
+  border-radius:2px;
+  background:linear-gradient(180deg,#b7ccdc,#668aaa);
+  box-shadow:0 0 8px rgba(114,178,220,.15);
+}
+.martinpel-brand.is-compact .martinpel-brand-emblem{width:154px;height:68px}
+.martinpel-brand.is-compact .martinpel-brand-logo{width:134px!important;height:51px!important;min-height:51px!important}
+.martinpel-brand.is-compact .martinpel-brand-logo img{height:45px!important}
+.martinpel-brand.is-compact .martinpel-brand-copy strong{font-size:clamp(1.08rem,1.75vw,1.6rem)!important}
+.martinpel-brand.is-compact .martinpel-brand-company{font-size:.7rem!important}
+.martinpel-brand.is-compact .martinpel-brand-subtitle{font-size:.58rem!important}
+.martinpel-system-pill{
+  color:#e5f2fb;
+  border-color:rgba(176,208,231,.30);
+  background:linear-gradient(180deg,rgba(255,255,255,.13),rgba(255,255,255,.05));
+}
+.admin-brandbar .martinpel-appbar-meta small{color:#94b8d2}
+.page-heading-block .eyebrow:before{
+  content:"";display:inline-block;width:18px;height:2px;margin:0 8px 3px 0;
+  background:linear-gradient(90deg,var(--mp-blue),#72b8e3);
+}
+.login-brand-block{
+  overflow:hidden;
+  padding:12px!important;
+  background:linear-gradient(180deg,#062f59,#031f3d)!important;
+}
+.login-card .martinpel-system-brand{
+  min-width:0;
+  grid-template-columns:1fr;
+  justify-items:center;
+}
+.login-card .martinpel-brand-emblem{width:180px;height:80px}
+.login-card .martinpel-brand-copy{
+  display:grid!important;
+  padding:4px 0 0;
+  text-align:center;
+}
+.login-card .martinpel-brand-copy strong{
+  white-space:normal;
+  font-size:1.5rem!important;
+}
+.login-card .martinpel-brand-company{font-size:.68rem!important}
+.login-card .martinpel-brand-subtitle{font-size:.58rem!important}
+.login-card .martinpel-brand-tech-line,.login-card .martinpel-brand-stripes{display:none}
+@media(max-width:980px){
+  .martinpel-system-brand{min-width:0;width:100%}
+  .martinpel-appbar:before,.martinpel-appbar:after{display:none}
+  .martinpel-brand-copy{padding-right:80px}
+}
+@media(max-width:640px){
+  .martinpel-appbar{min-height:72px;padding:8px 10px}
+  .martinpel-system-brand{grid-template-columns:auto 1fr;gap:10px}
+  .martinpel-brand.is-compact .martinpel-brand-emblem{width:104px;height:52px}
+  .martinpel-brand.is-compact .martinpel-brand-logo{width:91px!important;height:39px!important;min-height:39px!important;padding:2px 5px!important}
+  .martinpel-brand.is-compact .martinpel-brand-logo img{height:35px!important}
+  .martinpel-brand-copy{display:grid!important;padding-right:0}
+  .martinpel-brand.is-compact .martinpel-brand-copy strong{font-size:.92rem!important;white-space:normal}
+  .martinpel-brand.is-compact .martinpel-brand-company{font-size:.55rem!important;letter-spacing:.14em}
+  .martinpel-brand-subtitle,.martinpel-brand-stripes,.martinpel-brand-tech-line{display:none!important}
+}

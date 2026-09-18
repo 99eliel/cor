@@ -270,7 +270,7 @@ export default function CustomizerPage() {
   return (
     <main className="app-shell customer-shell">
       <div className="martinpel-appbar customer-brandbar">
-        <MartinpelBrand compact subtitle="Personalizador de uniformes" />
+        <MartinpelBrand compact subtitle="Personalização em tempo real" />
         <Link className="button button-light back-to-catalog" to="/">← Voltar ao catálogo</Link>
       </div>
 

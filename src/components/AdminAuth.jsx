@@ -50,7 +50,7 @@ export default function AdminAuth({ children }) {
         <form className="panel login-card" onSubmit={login}>
           <div className="login-brand-block"><MartinpelBrand subtitle="Acesso administrativo" /></div>
           <p className="eyebrow">Área restrita</p>
-          <h1>Painel Martinpel</h1>
+          <h1>Gestão de Personalização</h1>
           <p className="muted">Acesse a gestão de peças, pedidos, orçamentos e produção.</p>
           <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
           <label>Senha<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>

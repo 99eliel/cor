@@ -375,9 +375,9 @@ function AdminWorkspace({ logout }) {
   return (
     <main className="app-shell admin-shell">
       <div className="martinpel-appbar admin-brandbar">
-        <MartinpelBrand compact subtitle="Gestão de personalização e produção" />
+        <MartinpelBrand compact subtitle="Uniformes • EPI's • Produção" />
         <div className="martinpel-appbar-meta">
-          <span className="martinpel-system-pill">Sistema Martinpel</span>
+          <span className="martinpel-system-pill">Gestão de Personalização</span>
           <small>Peças • Pedidos • Orçamentos</small>
         </div>
       </div>
