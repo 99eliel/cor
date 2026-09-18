@@ -1,0 +1,286 @@
+:root{
+  --mp-navy:#062b52;
+  --mp-navy-2:#0a3b69;
+  --mp-navy-3:#0f4d83;
+  --mp-blue:#1d6fae;
+  --mp-blue-soft:#eaf4fc;
+  --mp-sky:#f5f9fd;
+  --mp-ink:#10223a;
+  --mp-muted:#64748b;
+  --mp-border:#d9e4ef;
+  --mp-panel:#ffffff;
+  --mp-success:#147a49;
+  --mp-danger:#b4232f;
+  --mp-radius:18px;
+  --mp-shadow:0 18px 45px rgba(6,43,82,.10);
+  --mp-shadow-soft:0 8px 24px rgba(6,43,82,.07);
+}
+
+html{scroll-behavior:smooth}
+body{
+  color:var(--mp-ink);
+  background:
+    radial-gradient(circle at 8% 0%,rgba(29,111,174,.10),transparent 30%),
+    linear-gradient(180deg,#f7fbff 0,#f2f6fa 420px,#f6f8fb 100%);
+}
+::selection{background:#cfe8fb;color:var(--mp-navy)}
+a{color:inherit}
+.app-shell{width:min(1780px,100%);padding:22px 28px 40px}
+.panel{
+  border:1px solid rgba(139,166,193,.28);
+  border-radius:var(--mp-radius);
+  box-shadow:var(--mp-shadow-soft);
+}
+.eyebrow{color:var(--mp-blue);letter-spacing:.14em}
+.muted,.page-subtitle{color:var(--mp-muted)}
+.page-heading-block{min-width:0}
+.page-heading-block h1{margin:2px 0 5px;font-size:clamp(1.55rem,2.3vw,2.2rem);letter-spacing:-.035em;color:var(--mp-ink)}
+.page-subtitle{margin:0;max-width:760px;line-height:1.5;font-size:.92rem}
+
+.martinpel-appbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  margin-bottom:16px;
+  padding:13px 18px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:22px;
+  background:
+    radial-gradient(circle at 90% -40%,rgba(49,139,202,.30),transparent 35%),
+    linear-gradient(135deg,#032649 0%,#062f5a 55%,#0a3e72 100%);
+  box-shadow:0 18px 44px rgba(6,43,82,.19);
+  color:white;
+  overflow:hidden;
+}
+.martinpel-brand{display:flex;align-items:center;gap:14px;min-width:0}
+.martinpel-brand-logo{
+  display:grid;place-items:center;flex:0 0 auto;
+  width:208px;min-height:66px;padding:5px 10px;border-radius:14px;
+  background:#05294f;overflow:hidden;
+}
+.martinpel-brand-logo img{display:block;width:100%;height:58px;object-fit:contain}
+.martinpel-brand-copy{display:flex;flex-direction:column;gap:2px;min-width:0}
+.martinpel-brand-copy strong{font-size:.9rem;letter-spacing:.02em;color:#fff}
+.martinpel-brand-copy span{font-size:.76rem;color:#c5d9eb;white-space:nowrap}
+.martinpel-brand.is-compact .martinpel-brand-logo{width:170px;min-height:54px}
+.martinpel-brand.is-compact .martinpel-brand-logo img{height:46px}
+.martinpel-brand.is-compact .martinpel-brand-copy strong{font-size:.82rem}
+.martinpel-brand.is-compact .martinpel-brand-copy span{font-size:.7rem}
+.martinpel-appbar-meta{display:flex;align-items:flex-end;flex-direction:column;gap:4px;text-align:right}
+.martinpel-appbar-meta small{color:#b9d0e3;font-weight:600}
+.martinpel-system-pill{
+  display:inline-flex;align-items:center;gap:6px;padding:6px 10px;
+  border:1px solid rgba(255,255,255,.18);border-radius:999px;
+  background:rgba(255,255,255,.09);font-size:.72rem;font-weight:800;letter-spacing:.04em;
+}
+
+.button{
+  min-height:42px;padding:10px 16px;border-radius:12px;
+  font-weight:800;letter-spacing:-.01em;
+  box-shadow:0 1px 0 rgba(255,255,255,.12) inset;
+  transition:transform .15s ease,box-shadow .15s ease,background .15s ease,border-color .15s ease;
+}
+.button:not(:disabled):hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(6,43,82,.12)}
+.button-primary{background:linear-gradient(135deg,var(--mp-navy),var(--mp-navy-2));color:white}
+.button-primary:not(:disabled):hover{background:linear-gradient(135deg,#082f59,#0d477d)}
+.button-secondary{background:#fff;color:var(--mp-navy);border:1px solid var(--mp-border)}
+.button-secondary:not(:disabled):hover{border-color:#9fc1dc;background:#f8fbfe}
+.button-success{background:linear-gradient(135deg,#0f6c40,#168a51);color:#fff}
+.button-light{background:#fff;color:var(--mp-navy);border:1px solid rgba(255,255,255,.45);text-decoration:none}
+.button-ghost{background:#f8fafc;color:#526579;border:1px solid var(--mp-border)}
+input,select,textarea{
+  outline:none;transition:border-color .15s ease,box-shadow .15s ease;
+}
+input:focus,select:focus,textarea:focus{
+  border-color:#70a9d1!important;box-shadow:0 0 0 3px rgba(29,111,174,.12)!important;
+}
+.notice{border-radius:14px;box-shadow:var(--mp-shadow-soft)}
+.notice-success{border-color:#bee8d2!important;background:#f2fbf6!important;color:#11683e!important}
+.notice-error{border-color:#f2c4c7!important;background:#fff6f6!important;color:#9f1c27!important}
+
+.martinpel-page-header,
+.admin-header,
+.customer-header{
+  padding:17px 19px;
+  border:1px solid rgba(139,166,193,.26);
+  border-radius:18px;
+  background:rgba(255,255,255,.92);
+  box-shadow:var(--mp-shadow-soft);
+  backdrop-filter:blur(12px);
+}
+.admin-header{margin-bottom:12px}
+.topbar-actions{align-items:center}
+.admin-main-tabs{
+  width:100%!important;margin-bottom:14px!important;padding:6px!important;
+  border-color:rgba(139,166,193,.28)!important;background:#edf3f8!important;
+  box-shadow:none!important;
+}
+.admin-main-tabs button{flex:0 0 auto;border-radius:11px!important;padding:10px 17px!important;color:#526579!important}
+.admin-main-tabs button.active{
+  color:white!important;background:linear-gradient(135deg,var(--mp-navy),var(--mp-navy-2))!important;
+  box-shadow:0 8px 18px rgba(6,43,82,.18)!important;
+}
+.admin-main-tabs span{background:#fff!important;color:var(--mp-navy)!important}
+.garment-meta-bar{padding:18px!important;border-top:3px solid var(--mp-navy)}
+.garment-id-box{background:#f3f7fb!important;border-color:var(--mp-border)!important}
+.view-toolbar{
+  padding:11px 13px!important;border-color:rgba(139,166,193,.28)!important;
+  background:rgba(255,255,255,.94)!important;
+}
+.segmented{background:#eaf0f6!important;padding:4px!important}
+.segmented button{color:#526579}
+.segmented button.active{color:var(--mp-navy);box-shadow:0 3px 10px rgba(6,43,82,.10)!important}
+.zoom-controls button{border-color:var(--mp-border)!important;color:var(--mp-navy)!important}
+.sidebar-panel,.inspector-panel{border-top:3px solid #b8cee1}
+.region-card{border-color:#e0e9f1!important}
+.region-card:hover{border-color:#9fc1dc!important}
+.region-card.selected{border-color:var(--mp-blue)!important;box-shadow:0 0 0 3px rgba(29,111,174,.09)!important}
+.canvas-toolbar{
+  background:linear-gradient(135deg,var(--mp-navy),#0a3e70);
+  color:#fff;border-bottom:0!important;padding:13px 16px!important;
+}
+.editor-scroll{background:linear-gradient(180deg,#e8eef4,#f3f6f9)!important}
+.editor-point-actions{border-color:#cadbea!important}
+.inspector-panel input,.garment-meta-bar input,.garment-meta-bar select,.modal-card input{
+  border-color:var(--mp-border)!important;
+}
+.stats-grid>div{background:#f4f8fb!important;border-color:#e0e9f1!important}
+.modal-backdrop,.checkout-backdrop{background:rgba(2,23,43,.68)!important;backdrop-filter:blur(6px)}
+
+.login-shell{
+  background:
+    radial-gradient(circle at 50% -10%,rgba(46,132,194,.28),transparent 35%),
+    linear-gradient(145deg,#031f3c,#06345f 55%,#082a4d)!important;
+}
+.login-card{width:min(480px,100%)!important;padding:28px!important;border:1px solid rgba(255,255,255,.14)!important;box-shadow:0 28px 70px rgba(0,0,0,.28)!important}
+.login-brand-block{margin:-10px -10px 5px;padding:7px;border-radius:16px;background:linear-gradient(135deg,#032649,#063a69)}
+.login-card .martinpel-brand{justify-content:center}
+.login-card .martinpel-brand-copy{display:none}
+.login-card .martinpel-brand-logo{width:245px;background:transparent}
+.login-card h1{color:var(--mp-ink)}
+.login-card .button-primary{width:100%}
+
+.catalog-shell,.customer-shell{max-width:1640px!important}
+.customer-brandbar{margin-bottom:18px}
+.catalog-hero{
+  position:relative;overflow:hidden;align-items:center!important;
+  min-height:220px;padding:32px 34px!important;margin-bottom:24px!important;
+  color:#fff;border:0!important;
+  background:
+    radial-gradient(circle at 82% 25%,rgba(80,163,218,.28),transparent 25%),
+    linear-gradient(125deg,#062b52 0%,#0a3b69 62%,#0d528c 100%)!important;
+  box-shadow:0 22px 50px rgba(6,43,82,.18)!important;
+}
+.catalog-hero:after{
+  content:"";position:absolute;right:-85px;bottom:-110px;width:280px;height:280px;
+  border:34px solid rgba(255,255,255,.055);border-radius:50%;pointer-events:none;
+}
+.catalog-hero-copy{position:relative;z-index:1;max-width:760px}
+.catalog-kicker{display:inline-flex;margin-bottom:10px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.12);font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.11em;color:#d5e7f5}
+.catalog-hero h1{margin:0;font-size:clamp(2rem,4vw,3.4rem);line-height:1.02;letter-spacing:-.05em;color:#fff}
+.catalog-hero p{max-width:680px;margin:15px 0 0;color:#d7e6f2;font-size:1rem;line-height:1.6}
+.catalog-hero-badge{position:relative;z-index:1;min-width:260px;padding:18px;border:1px solid rgba(255,255,255,.16);border-radius:17px;background:rgba(255,255,255,.08);backdrop-filter:blur(10px)}
+.catalog-hero-badge strong,.catalog-hero-badge span{display:block}
+.catalog-hero-badge strong{font-size:.9rem}
+.catalog-hero-badge span{margin-top:6px;font-size:.76rem;color:#c7dced}
+.catalog-grid{gap:22px!important}
+.catalog-card{
+  border-radius:20px!important;overflow:hidden!important;border-color:#d9e4ef!important;
+  transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease!important;
+}
+.catalog-card:hover{transform:translateY(-5px)!important;border-color:#a6c6df!important;box-shadow:0 20px 44px rgba(6,43,82,.14)!important}
+.catalog-image-wrap{
+  height:315px!important;background:
+  radial-gradient(circle at 50% 35%,#fff 0,#f1f6fa 55%,#e8eef4 100%)!important;
+  padding:12px;
+}
+.catalog-image-wrap img{transition:transform .25s ease}
+.catalog-card:hover .catalog-image-wrap img{transform:scale(1.025)}
+.catalog-card-body{padding:17px 18px!important;border-top:1px solid #e6edf4}
+.catalog-card-body strong{font-size:1rem;color:var(--mp-ink)}
+.catalog-card-body span{color:var(--mp-blue)!important}
+.empty-catalog{padding:38px!important;text-align:center}
+
+.customer-header{margin-bottom:14px!important;align-items:center!important}
+.back-to-catalog{text-decoration:none;white-space:nowrap}
+.customer-view-tabs{background:#eaf0f6!important;padding:4px!important;border:1px solid #dfe8f0}
+.customer-view-tabs button{color:#526579;padding:10px 17px!important}
+.customer-view-tabs button.active{color:#fff;background:linear-gradient(135deg,var(--mp-navy),var(--mp-navy-2))!important;box-shadow:0 6px 14px rgba(6,43,82,.18)!important}
+.customer-workspace{gap:16px!important}
+.customer-stage-panel{
+  border-radius:20px!important;padding:18px!important;
+  background:linear-gradient(180deg,#dfe8f0,#edf2f6)!important;
+  box-shadow:var(--mp-shadow)!important;
+}
+.customer-base-canvas{border-radius:13px;box-shadow:0 20px 50px rgba(2,31,58,.18)!important}
+.customer-tools{
+  border-top:4px solid var(--mp-navy)!important;border-radius:18px!important;
+  box-shadow:var(--mp-shadow)!important;padding:20px!important;
+}
+.customer-tools h2{color:var(--mp-ink);font-size:1.35rem}
+.region-choice{
+  border-color:#e0e9f1!important;border-radius:12px!important;padding:10px 11px!important;
+  transition:transform .12s ease,border-color .12s ease,background .12s ease;
+}
+.region-choice:not(:disabled):hover{transform:translateX(2px);border-color:#a5c5de!important;background:#f8fbfe!important}
+.region-choice.active{border-color:var(--mp-blue)!important;background:#eef7fe!important;box-shadow:0 0 0 2px rgba(29,111,174,.07)}
+.selected-color-box{border-color:#cfe2f2!important;background:#f4f9fd!important}
+.color-dot{box-shadow:0 1px 4px rgba(6,43,82,.15)}
+.tool-divider{background:#e2eaf1!important}
+.finalize-button{box-shadow:0 10px 22px rgba(20,122,73,.18)}
+.checkout-card{border-top:5px solid var(--mp-navy)!important;box-shadow:0 28px 70px rgba(0,0,0,.25)!important}
+.checkout-card h2{color:var(--mp-ink)}
+
+.orders-toolbar{
+  color:white!important;border:0!important;
+  background:
+    radial-gradient(circle at 90% -30%,rgba(75,157,215,.25),transparent 34%),
+    linear-gradient(135deg,var(--mp-navy),var(--mp-navy-2))!important;
+  box-shadow:0 18px 40px rgba(6,43,82,.16)!important;
+}
+.orders-toolbar .eyebrow{color:#a9cee9!important}
+.orders-toolbar h2{color:#fff!important}
+.orders-toolbar .button-secondary{background:#fff!important}
+.orders-summary-pending{background:rgba(255,245,229,.95)!important}
+.orders-summary-completed{background:rgba(232,250,239,.96)!important}
+.order-card{
+  position:relative;overflow:hidden;border-color:#dbe6ef!important;box-shadow:var(--mp-shadow-soft)!important;
+  transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;
+}
+.order-card:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#e8a33a}
+.order-card-completed:before{background:#2b9b62}
+.order-card:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(6,43,82,.11)!important}
+.order-info-grid>div{background:#f5f8fb!important;border-color:#e3ebf2!important}
+.order-image img{background:#eef4f8!important;border-color:#dce7ef!important}
+.order-quote-builder{border-color:#dbe6ef!important;background:#f8fbfd!important}
+.order-quote-toggle{color:var(--mp-navy)!important}
+.order-quote-form{background:#fff;border-radius:13px}
+.order-quote-grid input,.order-quote-form textarea{border-color:var(--mp-border)!important}
+.order-quote-total{background:#edf6fc!important;border-color:#d0e5f4!important}
+.order-delete-button{border-color:#f0c7cb!important;color:var(--mp-danger)!important}
+
+@media(max-width:980px){
+  .app-shell{padding:16px}
+  .martinpel-appbar{align-items:flex-start;flex-direction:column}
+  .martinpel-appbar-meta{align-items:flex-start;text-align:left}
+  .catalog-hero{align-items:flex-start!important;flex-direction:column;min-height:0}
+  .catalog-hero-badge{width:100%;min-width:0}
+  .customer-header,.admin-header{align-items:flex-start!important}
+}
+@media(max-width:640px){
+  .app-shell{padding:10px 10px 24px!important}
+  .martinpel-appbar{padding:10px 12px;border-radius:16px}
+  .martinpel-brand.is-compact .martinpel-brand-logo{width:146px}
+  .martinpel-brand-copy{display:none}
+  .customer-brandbar .button-light{width:auto;flex:none}
+  .catalog-hero{padding:24px 20px!important;border-radius:18px!important}
+  .catalog-hero h1{font-size:2rem}
+  .catalog-image-wrap{height:250px!important}
+  .martinpel-page-header{padding:14px}
+  .customer-view-tabs{width:100%}
+  .customer-view-tabs button{flex:1;padding:9px 7px!important;font-size:.78rem}
+  .customer-stage-panel{padding:7px!important}
+  .customer-tools{padding:16px!important}
+  .admin-main-tabs button{flex:1!important;justify-content:center}
+}

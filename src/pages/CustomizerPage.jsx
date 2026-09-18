@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import CustomerStage from '../components/CustomerStage';
+import MartinpelBrand from '../components/MartinpelBrand';
 import { ensureClientUser } from '../lib/clientAuth';
 import { getGarment, listGarments } from '../lib/garmentRepo';
 import { createOrder } from '../lib/orderRepo';
@@ -36,12 +37,21 @@ function Catalog() {
 
   return (
     <main className="app-shell catalog-shell">
-      <header className="customer-header catalog-header">
-        <div>
-          <p className="eyebrow">Uniformes</p>
-          <h1>Escolha uma peça para personalizar</h1>
+      <div className="martinpel-appbar customer-brandbar">
+        <MartinpelBrand compact subtitle="Uniformes e EPI's personalizados" />
+        <Link className="button button-light catalog-admin-link" to="/admin">Área administrativa</Link>
+      </div>
+
+      <header className="customer-header catalog-header catalog-hero">
+        <div className="catalog-hero-copy">
+          <span className="catalog-kicker">Personalização Martinpel</span>
+          <h1>Monte seu uniforme do seu jeito.</h1>
+          <p>Escolha uma peça, altere as cores, posicione sua marca e envie a solicitação pronta para orçamento e produção.</p>
         </div>
-        <Link className="button button-secondary catalog-admin-link" to="/admin">Área administrativa</Link>
+        <div className="catalog-hero-badge">
+          <strong>Visualização em tempo real</strong>
+          <span>Cores • Logos • Frente e costas</span>
+        </div>
       </header>
       {error && <div className="notice notice-error">{error}</div>}
       <section className="catalog-grid">
@@ -259,8 +269,17 @@ export default function CustomizerPage() {
 
   return (
     <main className="app-shell customer-shell">
-      <header className="customer-header">
-        <div><Link className="back-link" to="/">← Todas as peças</Link><p className="eyebrow">Customização</p><h1>{garment.name}</h1></div>
+      <div className="martinpel-appbar customer-brandbar">
+        <MartinpelBrand compact subtitle="Personalizador de uniformes" />
+        <Link className="button button-light back-to-catalog" to="/">← Voltar ao catálogo</Link>
+      </div>
+
+      <header className="customer-header martinpel-page-header">
+        <div className="page-heading-block">
+          <p className="eyebrow">Customização da peça</p>
+          <h1>{garment.name}</h1>
+          <p className="page-subtitle">Personalize as áreas disponíveis, posicione sua logo e visualize o resultado antes de enviar o pedido.</p>
+        </div>
         <div className="customer-view-tabs">
           {views.map((targetView) => (
             <button

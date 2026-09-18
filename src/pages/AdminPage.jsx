@@ -5,6 +5,7 @@ import AdminLogoTester from '../components/AdminLogoTester';
 import GarmentEditorCanvas from '../components/GarmentEditorCanvas';
 import NewRegionDialog from '../components/NewRegionDialog';
 import OrderQuoteBuilder from '../components/OrderQuoteBuilder';
+import MartinpelBrand from '../components/MartinpelBrand';
 import RegionSidebar from '../components/RegionSidebar';
 import { createGarmentId, getGarment, listGarments, saveGarment } from '../lib/garmentRepo';
 import { slugifyRegionId } from '../lib/geometry';
@@ -373,10 +374,19 @@ function AdminWorkspace({ logout }) {
 
   return (
     <main className="app-shell admin-shell">
-      <header className="admin-header">
-        <div>
-          <p className="eyebrow">Painel interno</p>
-          <h1>{section === 'orders' ? 'Pedidos' : 'Editor de uniformes'}</h1>
+      <div className="martinpel-appbar admin-brandbar">
+        <MartinpelBrand compact subtitle="Gestão de personalização e produção" />
+        <div className="martinpel-appbar-meta">
+          <span className="martinpel-system-pill">Sistema Martinpel</span>
+          <small>Peças • Pedidos • Orçamentos</small>
+        </div>
+      </div>
+
+      <header className="admin-header martinpel-page-header">
+        <div className="page-heading-block">
+          <p className="eyebrow">{section === 'orders' ? 'Gestão comercial' : 'Configuração de produtos'}</p>
+          <h1>{section === 'orders' ? 'Pedidos e orçamentos' : 'Editor de uniformes'}</h1>
+          <p className="page-subtitle">{section === 'orders' ? 'Acompanhe solicitações, gere orçamentos e controle o andamento de cada pedido.' : 'Cadastre peças, defina áreas personalizáveis e valide a experiência do cliente.'}</p>
         </div>
         <div className="topbar-actions">
           <Link className="button button-secondary" to="/">Catálogo</Link>
