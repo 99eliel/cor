@@ -159,9 +159,115 @@ function OrdersView({ orders, loading, error, onRefresh }) {
   );
 }
 
+function AdminDashboard({
+  garments,
+  orders,
+  ordersLoading,
+  onAddGarment,
+  onManageGarments,
+  onOpenOrders,
+}) {
+  const completed = orders.filter((order) => order.status === 'completed').length;
+  const pending = orders.length - completed;
+  const latestOrders = orders.slice(0, 3);
+
+  return (
+    <section className="admin-dashboard">
+      <div className="dashboard-hero panel">
+        <div>
+          <p className="eyebrow">Central de gestão</p>
+          <h2>O que você quer fazer?</h2>
+          <p>Cadastre peças para o catálogo, acompanhe os pedidos dos clientes e avance cada solicitação até o orçamento e a produção.</p>
+        </div>
+        <div className="dashboard-hero-mark">GP</div>
+      </div>
+
+      <div className="dashboard-actions-grid">
+        <button className="dashboard-action-card is-primary" type="button" onClick={onAddGarment}>
+          <span className="dashboard-action-icon">＋</span>
+          <span className="dashboard-action-copy">
+            <strong>Adicionar peça ao catálogo</strong>
+            <small>Cadastre uma nova peça, envie as imagens e defina as áreas personalizáveis.</small>
+          </span>
+          <span className="dashboard-action-arrow">→</span>
+        </button>
+
+        <button className="dashboard-action-card" type="button" onClick={onManageGarments}>
+          <span className="dashboard-action-icon">▦</span>
+          <span className="dashboard-action-copy">
+            <strong>Gerenciar catálogo</strong>
+            <small>Abra peças existentes para editar imagens, regiões, cores e configurações.</small>
+          </span>
+          <span className="dashboard-action-arrow">→</span>
+        </button>
+
+        <button className="dashboard-action-card" type="button" onClick={onOpenOrders}>
+          <span className="dashboard-action-icon">◎</span>
+          <span className="dashboard-action-copy">
+            <strong>Ver pedidos</strong>
+            <small>Acompanhe clientes, artes finais, orçamentos e andamento dos pedidos.</small>
+          </span>
+          <span className="dashboard-action-arrow">→</span>
+        </button>
+      </div>
+
+      <div className="dashboard-stats-grid">
+        <article className="panel dashboard-stat">
+          <span>Peças no catálogo</span>
+          <strong>{garments.length}</strong>
+          <small>disponíveis para personalização</small>
+        </article>
+        <article className="panel dashboard-stat is-pending">
+          <span>Pedidos pendentes</span>
+          <strong>{ordersLoading ? '…' : pending}</strong>
+          <small>aguardando atendimento</small>
+        </article>
+        <article className="panel dashboard-stat is-completed">
+          <span>Pedidos concluídos</span>
+          <strong>{ordersLoading ? '…' : completed}</strong>
+          <small>finalizados no sistema</small>
+        </article>
+      </div>
+
+      <section className="panel dashboard-recent">
+        <div className="dashboard-section-heading">
+          <div>
+            <p className="eyebrow">Atividade recente</p>
+            <h3>Últimos pedidos</h3>
+          </div>
+          <button className="button button-secondary" type="button" onClick={onOpenOrders}>Ver todos</button>
+        </div>
+
+        {ordersLoading && orders.length === 0 && <div className="dashboard-recent-empty">Carregando pedidos…</div>}
+        {!ordersLoading && latestOrders.length === 0 && <div className="dashboard-recent-empty">Ainda não há pedidos recebidos.</div>}
+
+        {latestOrders.length > 0 && (
+          <div className="dashboard-recent-list">
+            {latestOrders.map((order) => {
+              const done = order.status === 'completed';
+              return (
+                <button type="button" className="dashboard-recent-order" key={order.id} onClick={onOpenOrders}>
+                  <div>
+                    <strong>{order.customerName || 'Cliente não informado'}</strong>
+                    <span>{order.garmentName || order.garmentId || 'Peça não identificada'}</span>
+                  </div>
+                  <div className="dashboard-recent-order-meta">
+                    <span className={`order-status ${done ? 'is-completed' : 'is-pending'}`}>{done ? 'Concluído' : 'Pendente'}</span>
+                    <small>{formatOrderDate(order.createdAt)}</small>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </section>
+    </section>
+  );
+}
+
 function AdminWorkspace({ logout }) {
   const fileInputRef = useRef(null);
-  const [section, setSection] = useState('editor');
+  const [section, setSection] = useState('dashboard');
   const [garments, setGarments] = useState([]);
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
@@ -189,6 +295,7 @@ function AdminWorkspace({ logout }) {
 
   useEffect(() => {
     refreshGarments();
+    refreshOrders();
   }, []);
 
   async function refreshGarments() {
@@ -216,6 +323,21 @@ function AdminWorkspace({ logout }) {
   function openOrders() {
     setSection('orders');
     refreshOrders();
+  }
+
+  function openDashboard() {
+    setSection('dashboard');
+    refreshGarments();
+    refreshOrders();
+  }
+
+  function openCatalog() {
+    setSection('editor');
+  }
+
+  function addNewGarment() {
+    resetEditor();
+    setSection('editor');
   }
 
   function resetEditor() {
@@ -384,29 +506,55 @@ function AdminWorkspace({ logout }) {
 
       <header className="admin-header martinpel-page-header">
         <div className="page-heading-block">
-          <p className="eyebrow">{section === 'orders' ? 'Gestão comercial' : 'Configuração de produtos'}</p>
-          <h1>{section === 'orders' ? 'Pedidos e orçamentos' : 'Editor de uniformes'}</h1>
-          <p className="page-subtitle">{section === 'orders' ? 'Acompanhe solicitações, gere orçamentos e controle o andamento de cada pedido.' : 'Cadastre peças, defina áreas personalizáveis e valide a experiência do cliente.'}</p>
+          <p className="eyebrow">{section === 'dashboard' ? 'Painel administrativo' : section === 'orders' ? 'Gestão comercial' : 'Catálogo de produtos'}</p>
+          <h1>{section === 'dashboard' ? 'Visão geral' : section === 'orders' ? 'Pedidos e orçamentos' : 'Gerenciar catálogo'}</h1>
+          <p className="page-subtitle">
+            {section === 'dashboard'
+              ? 'Central de controle da Gestão de Personalização Martinpel.'
+              : section === 'orders'
+                ? 'Acompanhe solicitações, gere orçamentos e controle o andamento de cada pedido.'
+                : 'Adicione novas peças ou edite produtos já disponíveis para os clientes.'}
+          </p>
         </div>
         <div className="topbar-actions">
-          <Link className="button button-secondary" to="/">Catálogo</Link>
-          {section === 'editor' && <button className="button button-secondary" type="button" onClick={resetEditor}>Nova peça</button>}
+          <Link className="button button-secondary" to="/">Ver catálogo público</Link>
+          {section !== 'dashboard' && <button className="button button-secondary" type="button" onClick={openDashboard}>Visão geral</button>}
+          {section === 'editor' && <button className="button button-secondary" type="button" onClick={addNewGarment}>Adicionar peça</button>}
           {section === 'editor' && <button className="button button-secondary" type="button" onClick={openCustomer}>Abrir como cliente</button>}
-          {section === 'editor' && <button className="button button-primary" type="button" onClick={handleSave} disabled={busy}>Salvar</button>}
-          {section === 'orders' && <button className="button button-secondary" type="button" onClick={refreshOrders} disabled={ordersLoading}>{ordersLoading ? 'Atualizando…' : 'Atualizar'}</button>}
+          {section === 'editor' && <button className="button button-primary" type="button" onClick={handleSave} disabled={busy}>Salvar peça</button>}
+          {section === 'orders' && <button className="button button-secondary" type="button" onClick={refreshOrders} disabled={ordersLoading}>{ordersLoading ? 'Atualizando…' : 'Atualizar pedidos'}</button>}
           <button className="button button-ghost" type="button" onClick={logout}>Sair</button>
         </div>
       </header>
 
-      <nav className="panel admin-main-tabs" aria-label="Seções do painel">
-        <button type="button" className={section === 'editor' ? 'active' : ''} onClick={() => setSection('editor')}>Peças</button>
+      <nav className="panel admin-main-tabs admin-structure-tabs" aria-label="Seções do painel">
+        <button type="button" className={section === 'dashboard' ? 'active' : ''} onClick={openDashboard}>Visão geral</button>
+        <button type="button" className={section === 'editor' ? 'active' : ''} onClick={openCatalog}>Catálogo <span>{garments.length}</span></button>
         <button type="button" className={section === 'orders' ? 'active' : ''} onClick={openOrders}>Pedidos{orders.length > 0 && <span>{orders.length}</span>}</button>
       </nav>
 
-      {section === 'orders' ? (
+      {section === 'dashboard' ? (
+        <AdminDashboard
+          garments={garments}
+          orders={orders}
+          ordersLoading={ordersLoading}
+          onAddGarment={addNewGarment}
+          onManageGarments={openCatalog}
+          onOpenOrders={openOrders}
+        />
+      ) : section === 'orders' ? (
         <OrdersView orders={orders} loading={ordersLoading} error={ordersError} onRefresh={refreshOrders} />
       ) : (
         <>
+          <section className="catalog-admin-intro panel">
+            <div>
+              <p className="eyebrow">Catálogo</p>
+              <h2>{garmentId ? 'Editar peça do catálogo' : 'Adicionar peça ao catálogo'}</h2>
+              <p>{garmentId ? 'Faça as alterações necessárias e salve para atualizar a peça disponível aos clientes.' : 'Preencha os dados, envie a imagem e marque todas as regiões que o cliente poderá personalizar.'}</p>
+            </div>
+            <button className="button button-primary" type="button" onClick={addNewGarment}>+ Nova peça</button>
+          </section>
+
           <section className="panel garment-meta-bar">
             <label className="grow-field">Nome da peça<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Camisa Polo Refletiva" /></label>
             <label>Carregar existente
