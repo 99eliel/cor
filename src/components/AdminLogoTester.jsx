@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
 import CustomerStage from './CustomerStage';
+import { renderPdfLogoPreview } from '../lib/pdfLogoPreview';
 
 const MAX_LOGO_BYTES = 5 * 1024 * 1024;
+const MAX_PDF_BYTES = 15 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
 function fileToDataUrl(file) {
@@ -36,14 +38,44 @@ export default function AdminLogoTester({
   const panRef = useRef(null);
   const [logos, setLogos] = useState([]);
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [isPanning, setIsPanning] = useState(false);
 
   async function handleLogoFile(file) {
     if (!file) return;
     setError('');
+    setInfo('');
     try {
-      const dataUrl = await fileToDataUrl(file);
-      await stageRef.current?.addLogo(dataUrl);
+      const isPdf = file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf');
+
+      if (isPdf) {
+        if (file.size > MAX_PDF_BYTES) {
+          throw new Error('O PDF de teste deve ter no máximo 15 MB.');
+        }
+
+        const { previewFile, pageCount, pageNumber } = await renderPdfLogoPreview(file, 1);
+        const dataUrl = await fileToDataUrl(previewFile);
+
+        await stageRef.current?.addLogo(dataUrl, {
+          sourceName: file.name,
+          sourceType: 'pdf',
+          sourcePage: pageNumber,
+          sourcePageCount: pageCount,
+        });
+
+        setInfo(
+          pageCount > 1
+            ? `PDF carregado para teste. Exibindo a página 1 de ${pageCount}; o arquivo original não é salvo neste modo.`
+            : 'PDF vetorial carregado para teste. O arquivo original não é salvo neste modo.',
+        );
+      } else {
+        const dataUrl = await fileToDataUrl(file);
+        await stageRef.current?.addLogo(dataUrl, {
+          sourceName: file.name,
+          sourceType: 'image',
+        });
+        setInfo('Logo carregada para teste.');
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -54,7 +86,10 @@ export default function AdminLogoTester({
   function removeSelectedLogo() {
     const removed = stageRef.current?.removeSelectedLogo();
     if (!removed) setError('Clique primeiro em uma logo para removê-la.');
-    else setError('');
+    else {
+      setError('');
+      setInfo('Logo de teste removida.');
+    }
   }
 
   function handleWheel(event) {
@@ -107,14 +142,14 @@ export default function AdminLogoTester({
       <div className="admin-logo-test-actions">
         <div>
           <strong>Teste de logos</strong>
-          <span>As logos adicionadas aqui são temporárias e não são salvas na peça.</span>
+          <span>Use PNG, JPG, WEBP ou PDF vetorial. As logos adicionadas aqui são temporárias e não são salvas na peça.</span>
         </div>
         <div className="inline-actions admin-logo-buttons">
           <input
             ref={fileInputRef}
             className="sr-only"
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept="image/png,image/jpeg,image/webp,application/pdf,.pdf"
             onChange={(event) => handleLogoFile(event.target.files?.[0])}
           />
           <button className="button button-primary" type="button" onClick={() => fileInputRef.current?.click()}>
@@ -128,6 +163,7 @@ export default function AdminLogoTester({
       </div>
 
       {error && <div className="inline-error admin-logo-error">{error}</div>}
+      {!error && info && <div className="admin-logo-info">{info}</div>}
 
       <div
         ref={scrollRef}

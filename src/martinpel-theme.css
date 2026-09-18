@@ -625,3 +625,15 @@ input:focus,select:focus,textarea:focus{
   .order-vector-list a{grid-template-columns:38px minmax(0,1fr)}
   .order-vector-list a>b{grid-column:2}
 }
+
+
+.admin-logo-info{
+  margin:0 20px 12px;
+  padding:10px 13px;
+  border:1px solid #c9e1f1;
+  border-radius:11px;
+  background:#f0f8fd;
+  color:#315d7d;
+  font-size:.78rem;
+  line-height:1.4;
+}
