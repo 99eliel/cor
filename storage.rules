@@ -13,6 +13,12 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*');
     }
 
+    function isPdf(maxBytes) {
+      return request.resource != null
+        && request.resource.size < maxBytes
+        && request.resource.contentType == 'application/pdf';
+    }
+
     match /garments/{garmentId}/{fileName} {
       allow read: if true;
       allow create, update: if isAdmin() && isImage(10 * 1024 * 1024);
@@ -24,6 +30,14 @@ service firebase.storage {
       allow create, update: if request.auth != null
         && request.auth.uid == uid
         && isImage(5 * 1024 * 1024);
+      allow delete: if request.auth != null && (request.auth.uid == uid || isAdmin());
+    }
+
+    match /logo-originals/{uid}/{fileName} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && isPdf(15 * 1024 * 1024);
       allow delete: if request.auth != null && (request.auth.uid == uid || isAdmin());
     }
 

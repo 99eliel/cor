@@ -5,7 +5,8 @@ import MartinpelBrand from '../components/MartinpelBrand';
 import { ensureClientUser } from '../lib/clientAuth';
 import { getGarment, listGarments } from '../lib/garmentRepo';
 import { createOrder } from '../lib/orderRepo';
-import { uploadClientLogo, uploadFinalRender } from '../lib/storageImages';
+import { renderPdfLogoPreview } from '../lib/pdfLogoPreview';
+import { uploadClientLogo, uploadClientLogoOriginalPdf, uploadFinalRender } from '../lib/storageImages';
 import '../customer.css';
 
 const VIEW_LABELS = {
@@ -129,13 +130,43 @@ export default function CustomizerPage() {
     if (!file) return;
     setBusy(true);
     setError('');
-    setMessage('Enviando logo…');
+    setMessage('Preparando logo…');
     try {
       const user = clientUser ?? await ensureClientUser();
       setClientUser(user);
-      const url = await uploadClientLogo(file, user.uid);
-      await stageRef.current?.addLogo(url);
-      setMessage('Logo adicionada. Arraste, redimensione ou gire diretamente sobre a peça.');
+
+      const isPdf = file.type === 'application/pdf' || file.name?.toLowerCase().endsWith('.pdf');
+      if (isPdf) {
+        setMessage('Lendo PDF vetorial e gerando prévia…');
+        const originalUrl = await uploadClientLogoOriginalPdf(file, user.uid);
+        const { previewFile, pageCount, pageNumber } = await renderPdfLogoPreview(file, 1);
+        const previewUrl = await uploadClientLogo(previewFile, user.uid);
+
+        await stageRef.current?.addLogo(previewUrl, {
+          sourceUrl: originalUrl,
+          sourceName: file.name,
+          sourceType: 'pdf',
+          sourcePage: pageNumber,
+          sourcePageCount: pageCount,
+        });
+
+        setMessage(
+          pageCount > 1
+            ? `PDF vetorial adicionado. A página 1 de ${pageCount} foi usada como prévia; o PDF original completo será enviado com o pedido.`
+            : 'PDF vetorial adicionado. O arquivo original será enviado com o pedido para a produção.',
+        );
+      } else {
+        setMessage('Enviando logo…');
+        const url = await uploadClientLogo(file, user.uid);
+        await stageRef.current?.addLogo(url, {
+          sourceUrl: url,
+          sourceName: file.name,
+          sourceType: 'image',
+          sourcePage: 1,
+          sourcePageCount: 1,
+        });
+        setMessage('Logo adicionada. Arraste, redimensione ou gire diretamente sobre a peça.');
+      }
     } catch (err) {
       setError(err.message);
       setMessage('');
@@ -336,8 +367,9 @@ export default function CustomizerPage() {
           )}
 
           <div className="tool-divider" />
-          <input ref={fileInputRef} className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => handleLogo(event.target.files?.[0])} />
+          <input ref={fileInputRef} className="sr-only" type="file" accept="image/png,image/jpeg,image/webp,application/pdf,.pdf" onChange={(event) => handleLogo(event.target.files?.[0])} />
           <button type="button" className="button button-primary full-width" disabled={busy} onClick={() => fileInputRef.current?.click()}>+ Adicionar logo</button>
+          <p className="logo-upload-help">Aceita PNG, JPG, WEBP ou PDF vetorial. PDFs originais são preservados para a produção.</p>
           <button type="button" className="button button-secondary full-width" disabled={busy || logos.length === 0} onClick={removeLogo}>Remover logo selecionada</button>
           <div className="logo-count">{logos.length} logo(s) adicionada(s)</div>
 

@@ -98,6 +98,7 @@ function OrdersView({ orders, loading, error, onRefresh }) {
           let finalImages = Object.entries(order.finalImages ?? {}).filter(([, url]) => Boolean(url));
           if (finalImages.length === 0 && order.finalImageUrl) finalImages = [['final', order.finalImageUrl]];
           const whatsappLink = whatsappHref(order.whatsapp);
+          const vectorFiles = (order.logos ?? []).filter((logo) => logo.sourceType === 'pdf' && logo.sourceUrl);
           const completed = order.status === 'completed';
           const isWorking = actionId === order.id;
 
@@ -128,6 +129,27 @@ function OrdersView({ orders, loading, error, onRefresh }) {
                       <span>{VIEW_LABELS[imageView] || 'Arte final'} · abrir imagem</span>
                     </a>
                   ))}
+                </div>
+              )}
+
+              {vectorFiles.length > 0 && (
+                <div className="order-vector-files">
+                  <div className="order-vector-title">
+                    <span>Arquivos originais para produção</span>
+                    <strong>{vectorFiles.length} PDF(s) vetorial(is)</strong>
+                  </div>
+                  <div className="order-vector-list">
+                    {vectorFiles.map((logo, index) => (
+                      <a href={logo.sourceUrl} target="_blank" rel="noreferrer" key={logo.id || `${order.id}-vector-${index}`}>
+                        <span className="order-vector-icon">PDF</span>
+                        <span>
+                          <strong>{logo.sourceName || `Logo vetorial ${index + 1}`}</strong>
+                          <small>{logo.sourcePageCount > 1 ? `Prévia usando página ${logo.sourcePage || 1} de ${logo.sourcePageCount}` : 'Arquivo vetorial original'}</small>
+                        </span>
+                        <b>Abrir original ↗</b>
+                      </a>
+                    ))}
+                  </div>
                 </div>
               )}
 

@@ -555,3 +555,73 @@ input:focus,select:focus,textarea:focus{
   .admin-structure-tabs{overflow-x:auto;justify-content:flex-start}
   .admin-structure-tabs button{min-width:max-content!important;flex:0 0 auto!important}
 }
+
+
+.logo-upload-help{
+  margin:7px 2px 0;
+  color:#718396;
+  font-size:.72rem;
+  line-height:1.4;
+  text-align:center;
+}
+.order-vector-files{
+  margin-top:14px;
+  padding:14px;
+  border:1px solid #cfe0ed;
+  border-radius:14px;
+  background:linear-gradient(180deg,#f7fbfe,#eef6fb);
+}
+.order-vector-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+.order-vector-title span{
+  color:#5f7386;
+  font-size:.74rem;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+}
+.order-vector-title strong{color:var(--mp-navy);font-size:.8rem}
+.order-vector-list{display:flex;flex-direction:column;gap:7px}
+.order-vector-list a{
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+  padding:10px;
+  border:1px solid #d8e6f0;
+  border-radius:11px;
+  background:#fff;
+  text-decoration:none;
+  transition:border-color .15s ease,transform .15s ease,box-shadow .15s ease;
+}
+.order-vector-list a:hover{
+  transform:translateY(-1px);
+  border-color:#9fc4df;
+  box-shadow:0 8px 18px rgba(6,43,82,.08);
+}
+.order-vector-icon{
+  display:grid;
+  place-items:center;
+  width:42px;
+  height:36px;
+  border-radius:9px;
+  background:#b4232f;
+  color:#fff;
+  font-size:.67rem;
+  font-weight:900;
+  letter-spacing:.04em;
+}
+.order-vector-list a>span:nth-child(2){display:flex;flex-direction:column;gap:3px;min-width:0}
+.order-vector-list a>span:nth-child(2) strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mp-ink);font-size:.8rem}
+.order-vector-list a>span:nth-child(2) small{color:#738597;font-size:.68rem}
+.order-vector-list a>b{color:var(--mp-blue);font-size:.72rem;white-space:nowrap}
+@media(max-width:640px){
+  .order-vector-title{align-items:flex-start;flex-direction:column}
+  .order-vector-list a{grid-template-columns:38px minmax(0,1fr)}
+  .order-vector-list a>b{grid-column:2}
+}

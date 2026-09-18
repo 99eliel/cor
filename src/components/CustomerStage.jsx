@@ -41,6 +41,11 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
     const logos = canvas.getObjects().map((object) => ({
       id: object.logoId,
       storageUrl: object.storageUrl,
+      sourceUrl: object.sourceUrl || object.storageUrl,
+      sourceName: object.sourceName || '',
+      sourceType: object.sourceType || 'image',
+      sourcePage: object.sourcePage || 1,
+      sourcePageCount: object.sourcePageCount || 1,
       position: {
         x: object.normX,
         y: object.normY,
@@ -142,7 +147,7 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
   }, [colorChoices, garment.regions]);
 
   useImperativeHandle(ref, () => ({
-    async addLogo(storageUrl) {
+    async addLogo(storageUrl, metadata = {}) {
       const canvas = fabricRef.current;
       if (!canvas) return;
       const imageElement = await loadImage(storageUrl);
@@ -157,6 +162,11 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
       });
       object.logoId = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
       object.storageUrl = storageUrl;
+      object.sourceUrl = metadata.sourceUrl || storageUrl;
+      object.sourceName = metadata.sourceName || '';
+      object.sourceType = metadata.sourceType || 'image';
+      object.sourcePage = metadata.sourcePage || 1;
+      object.sourcePageCount = metadata.sourcePageCount || 1;
       object.logoView = currentViewRef.current;
       object.normX = 0.5;
       object.normY = 0.5;
