@@ -14,20 +14,80 @@ export default function AdminAuth({ children }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => onAuthStateChanged(auth, async (nextUser) => {
-    setUser(nextUser);
-    setAllowed(false);
-    try {
-      if (nextUser) {
-        const snapshot = await getDoc(doc(db, 'admins', nextUser.uid));
-        setAllowed(snapshot.exists() && snapshot.data()?.role === 'admin');
-      }
-    } catch {
+  useEffect(() => {
+    let active = true;
+
+    const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
+      if (!active) return;
+
       setAllowed(false);
-    } finally {
-      setReady(true);
-    }
-  }), []);
+
+      if (!nextUser) {
+        setUser(null);
+        setReady(true);
+        return;
+      }
+
+      // O catálogo usa autenticação anônima para pedidos.
+      // Essa sessão nunca deve ser tratada como tentativa de acesso administrativo.
+      if (nextUser.isAnonymous) {
+        try {
+          await signOut(auth);
+        } catch {
+          // Mesmo que o signOut falhe, não exibimos a sessão anônima como conta admin.
+        }
+
+        if (active) {
+          setUser(null);
+          setAllowed(false);
+          setReady(true);
+        }
+        return;
+      }
+
+      try {
+        const snapshot = await getDoc(doc(db, 'admins', nextUser.uid));
+        const isAdmin = snapshot.exists() && snapshot.data()?.role === 'admin';
+
+        if (isAdmin) {
+          if (active) {
+            setUser(nextUser);
+            setAllowed(true);
+            setError('');
+            setReady(true);
+          }
+          return;
+        }
+
+        await signOut(auth);
+
+        if (active) {
+          setUser(null);
+          setAllowed(false);
+          setError('Esta conta não possui acesso administrativo.');
+          setReady(true);
+        }
+      } catch {
+        try {
+          await signOut(auth);
+        } catch {
+          // Mantém o formulário disponível mesmo se houver falha ao encerrar a sessão.
+        }
+
+        if (active) {
+          setUser(null);
+          setAllowed(false);
+          setError('Não foi possível validar o acesso administrativo. Tente novamente.');
+          setReady(true);
+        }
+      }
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, []);
 
   async function login(event) {
     event.preventDefault();
@@ -44,34 +104,19 @@ export default function AdminAuth({ children }) {
 
   if (!ready) return <main className="loading-screen">Verificando acesso…</main>;
 
-  if (!user) {
+  if (!user || !allowed) {
     return (
       <main className="login-shell">
         <form className="panel login-card" onSubmit={login}>
           <div className="login-brand-block"><MartinpelBrand subtitle="Acesso administrativo" /></div>
-          <p className="eyebrow">Área restrita</p>
+          <p className="eyebrow">Área administrativa</p>
           <h1>Gestão de Personalização</h1>
-          <p className="muted">Acesse a gestão de peças, pedidos, orçamentos e produção.</p>
-          <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-          <label>Senha<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
+          <p className="muted">Entre com seu e-mail e senha para acessar o painel da Martinpel.</p>
+          <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" /></label>
+          <label>Senha<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" /></label>
           {error && <div className="inline-error">{error}</div>}
           <button className="button button-primary" type="submit" disabled={loading}>{loading ? 'Entrando…' : 'Entrar'}</button>
         </form>
-      </main>
-    );
-  }
-
-  if (!allowed) {
-    return (
-      <main className="login-shell">
-        <section className="panel login-card">
-          <div className="login-brand-block"><MartinpelBrand subtitle="Acesso administrativo" /></div>
-          <p className="eyebrow">Acesso negado</p>
-          <h1>Conta sem permissão</h1>
-          <p className="muted">O documento <code>admins/{'{uid}'}</code> precisa existir e conter <code>role: "admin"</code>.</p>
-          <code className="uid-box">{user.uid}</code>
-          <button className="button button-secondary" type="button" onClick={() => signOut(auth)}>Sair</button>
-        </section>
       </main>
     );
   }
