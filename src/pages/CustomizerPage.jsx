@@ -7,7 +7,6 @@ import { ensureClientUser } from '../lib/clientAuth';
 import { getGarment, listGarments } from '../lib/garmentRepo';
 import { createOrder } from '../lib/orderRepo';
 import { renderPdfLogoPreviews } from '../lib/pdfLogoPreview';
-import { backgroundRemovedFile, removeLogoBackground } from '../lib/removeBackground';
 import { uploadClientLogo, uploadClientLogoOriginalPdf, uploadFinalRender } from '../lib/storageImages';
 import '../customer.css';
 
@@ -95,7 +94,6 @@ export default function CustomizerPage() {
   const [checkoutError, setCheckoutError] = useState('');
   const [pdfLibrary, setPdfLibrary] = useState(null);
   const [pdfBusyPage, setPdfBusyPage] = useState(null);
-  const [removingBackground, setRemovingBackground] = useState(false);
 
   const selectedRegion = useMemo(
     () => garment?.regions?.find((region) => region.id === selectedRegionId) ?? null,
@@ -252,7 +250,6 @@ export default function CustomizerPage() {
         const url = await uploadClientLogo(file, user.uid);
         await stageRef.current?.addLogo(url, {
           sourceUrl: url,
-          originalUrl: url,
           sourceName: file.name,
           sourceType: 'image',
           sourcePage: 1,
@@ -267,48 +264,6 @@ export default function CustomizerPage() {
     } finally {
       setBusy(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  }
-
-  async function removeSelectedLogoBackground() {
-    const selected = stageRef.current?.getSelectedLogo();
-    if (!selected) {
-      setError('Clique primeiro na logo da qual deseja remover o fundo.');
-      return;
-    }
-    if (selected.sourceType === 'pdf') {
-      setError('Esta logo veio de um PDF vetorial. A remoção automática de fundo é destinada a PNG, JPG e WEBP.');
-      return;
-    }
-
-    setRemovingBackground(true);
-    setError('');
-    setMessage('Removendo o fundo da logo selecionada…');
-
-    try {
-      const user = clientUser ?? await ensureClientUser();
-      setClientUser(user);
-
-      const originalUrl = selected.originalUrl || selected.sourceUrl || selected.storageUrl;
-      const blob = await removeLogoBackground(originalUrl, selected.sourceName || 'logo.png');
-      const processedFile = backgroundRemovedFile(blob, selected.sourceName || 'logo.png');
-      const processedUrl = await uploadClientLogo(processedFile, user.uid);
-
-      const replaced = await stageRef.current?.replaceSelectedLogoImage(processedUrl, {
-        originalUrl,
-        sourceUrl: selected.sourceUrl || originalUrl,
-        sourceName: selected.sourceName || processedFile.name,
-        processedUrl,
-        backgroundRemoved: true,
-      });
-
-      if (!replaced) throw new Error('A logo selecionada não está mais disponível.');
-      setMessage('Fundo removido. A logo original foi preservada e a versão transparente está sendo usada na peça.');
-    } catch (err) {
-      setError(err.message);
-      setMessage('');
-    } finally {
-      setRemovingBackground(false);
     }
   }
 
@@ -518,15 +473,7 @@ export default function CustomizerPage() {
               onClose={closePdfLibrary}
             />
           )}
-          <button
-            type="button"
-            className="button button-background-remove full-width"
-            disabled={busy || removingBackground || logos.length === 0}
-            onClick={removeSelectedLogoBackground}
-          >
-            {removingBackground ? 'Removendo fundo…' : '✦ Remover fundo da logo selecionada'}
-          </button>
-          <button type="button" className="button button-secondary full-width" disabled={busy || removingBackground || logos.length === 0} onClick={removeLogo}>Remover logo selecionada</button>
+          <button type="button" className="button button-secondary full-width" disabled={busy || logos.length === 0} onClick={removeLogo}>Remover logo selecionada</button>
           <div className="logo-count">{logos.length} logo(s) adicionada(s)</div>
 
           <div className="tool-divider" />

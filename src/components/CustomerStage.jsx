@@ -46,9 +46,6 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
       sourceType: object.sourceType || 'image',
       sourcePage: object.sourcePage || 1,
       sourcePageCount: object.sourcePageCount || 1,
-      originalUrl: object.originalUrl || object.sourceUrl || object.storageUrl,
-      processedUrl: object.processedUrl || '',
-      backgroundRemoved: Boolean(object.backgroundRemoved),
       position: {
         x: object.normX,
         y: object.normY,
@@ -170,9 +167,6 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
       object.sourceType = metadata.sourceType || 'image';
       object.sourcePage = metadata.sourcePage || 1;
       object.sourcePageCount = metadata.sourcePageCount || 1;
-      object.originalUrl = metadata.originalUrl || metadata.sourceUrl || storageUrl;
-      object.processedUrl = metadata.processedUrl || '';
-      object.backgroundRemoved = Boolean(metadata.backgroundRemoved);
       object.logoView = metadata.targetView || currentViewRef.current;
       object.normX = Number.isFinite(metadata.initialX) ? metadata.initialX : 0.5;
       object.normY = Number.isFinite(metadata.initialY) ? metadata.initialY : 0.5;
@@ -191,44 +185,6 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
       canvas.requestRenderAll();
       notifyLogos();
       return object.logoId;
-    },
-
-    getSelectedLogo() {
-      const canvas = fabricRef.current;
-      const active = canvas?.getActiveObject();
-      if (!active?.logoId) return null;
-      return {
-        id: active.logoId,
-        storageUrl: active.storageUrl,
-        sourceUrl: active.sourceUrl || active.storageUrl,
-        originalUrl: active.originalUrl || active.sourceUrl || active.storageUrl,
-        sourceName: active.sourceName || '',
-        sourceType: active.sourceType || 'image',
-        processedUrl: active.processedUrl || '',
-        backgroundRemoved: Boolean(active.backgroundRemoved),
-      };
-    },
-
-    async replaceSelectedLogoImage(storageUrl, metadata = {}) {
-      const canvas = fabricRef.current;
-      const active = canvas?.getActiveObject();
-      if (!canvas || !active?.logoId) return false;
-
-      const imageElement = await loadImage(storageUrl);
-      active.setElement(imageElement);
-      active.storageUrl = storageUrl;
-      active.processedUrl = metadata.processedUrl || storageUrl;
-      active.backgroundRemoved = metadata.backgroundRemoved ?? true;
-      if (metadata.originalUrl) active.originalUrl = metadata.originalUrl;
-      if (metadata.sourceUrl) active.sourceUrl = metadata.sourceUrl;
-      if (metadata.sourceName) active.sourceName = metadata.sourceName;
-
-      active.scaleToWidth(active.normScale * canvas.getWidth());
-      active.setCoords();
-      canvas.setActiveObject(active);
-      canvas.requestRenderAll();
-      notifyLogos();
-      return true;
     },
 
     removeSelectedLogo() {
