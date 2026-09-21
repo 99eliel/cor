@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import CustomerStage from './CustomerStage';
 import PdfLogoLibrary from './PdfLogoLibrary';
 import { renderPdfLogoPreviews } from '../lib/pdfLogoPreview';
+import { removeLogoBackground } from '../lib/removeBackground';
 
 const MAX_LOGO_BYTES = 5 * 1024 * 1024;
 const MAX_PDF_BYTES = 15 * 1024 * 1024;
@@ -42,6 +43,7 @@ export default function AdminLogoTester({
   const [info, setInfo] = useState('');
   const [pdfLibrary, setPdfLibrary] = useState(null);
   const [pdfBusyPage, setPdfBusyPage] = useState(null);
+  const [removingBackground, setRemovingBackground] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
 
   function releasePdfLibrary(libraryState = pdfLibrary) {
@@ -129,6 +131,8 @@ export default function AdminLogoTester({
       } else {
         const dataUrl = await fileToDataUrl(file);
         await stageRef.current?.addLogo(dataUrl, {
+          sourceUrl: dataUrl,
+          originalUrl: dataUrl,
           sourceName: file.name,
           sourceType: 'image',
           targetView: view,
@@ -139,6 +143,44 @@ export default function AdminLogoTester({
       setError(err.message);
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  async function removeSelectedBackground() {
+    const selected = stageRef.current?.getSelectedLogo();
+    if (!selected) {
+      setError('Clique primeiro na logo da qual deseja remover o fundo.');
+      return;
+    }
+    if (selected.sourceType === 'pdf') {
+      setError('A remoção automática é destinada a logos PNG, JPG e WEBP.');
+      return;
+    }
+
+    setRemovingBackground(true);
+    setError('');
+    setInfo('Removendo fundo da logo de teste…');
+
+    try {
+      const originalUrl = selected.originalUrl || selected.sourceUrl || selected.storageUrl;
+      const blob = await removeLogoBackground(originalUrl, selected.sourceName || 'logo.png');
+      const processedUrl = URL.createObjectURL(blob);
+
+      const replaced = await stageRef.current?.replaceSelectedLogoImage(processedUrl, {
+        originalUrl,
+        sourceUrl: selected.sourceUrl || originalUrl,
+        sourceName: selected.sourceName || 'logo.png',
+        processedUrl,
+        backgroundRemoved: true,
+      });
+
+      if (!replaced) throw new Error('A logo selecionada não está mais disponível.');
+      setInfo('Fundo removido no teste. A posição, tamanho e rotação da logo foram mantidos.');
+    } catch (err) {
+      setError(err.message);
+      setInfo('');
+    } finally {
+      setRemovingBackground(false);
     }
   }
 
@@ -212,7 +254,15 @@ export default function AdminLogoTester({
           <button className="button button-primary" type="button" onClick={() => fileInputRef.current?.click()}>
             + Adicionar logo de teste
           </button>
-          <button className="button button-secondary" type="button" onClick={removeSelectedLogo} disabled={logos.length === 0}>
+          <button
+            className="button button-background-remove"
+            type="button"
+            onClick={removeSelectedBackground}
+            disabled={logos.length === 0 || removingBackground}
+          >
+            {removingBackground ? 'Removendo fundo…' : '✦ Remover fundo'}
+          </button>
+          <button className="button button-secondary" type="button" onClick={removeSelectedLogo} disabled={logos.length === 0 || removingBackground}>
             Remover selecionada
           </button>
           <span className="admin-logo-count">{logos.length} logo(s)</span>
