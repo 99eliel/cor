@@ -17,6 +17,7 @@ export default function BackgroundRemovalDialog({
   const [backgroundColor, setBackgroundColor] = useState(null);
   const [tolerance, setTolerance] = useState(42);
   const [feather, setFeather] = useState(12);
+  const [removeInternalIslands, setRemoveInternalIslands] = useState(true);
   const [previewUrl, setPreviewUrl] = useState('');
   const [previewBlob, setPreviewBlob] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -63,6 +64,7 @@ export default function BackgroundRemovalDialog({
           backgroundColor: selectedColor,
           tolerance,
           feather,
+          removeInternalIslands,
         });
         if (!active) return;
         const nextUrl = URL.createObjectURL(blob);
@@ -83,7 +85,7 @@ export default function BackgroundRemovalDialog({
       active = false;
       window.clearTimeout(timer);
     };
-  }, [open, prepared, selectedColor?.r, selectedColor?.g, selectedColor?.b, tolerance, feather]);
+  }, [open, prepared, selectedColor?.r, selectedColor?.g, selectedColor?.b, tolerance, feather, removeInternalIslands]);
 
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -144,7 +146,7 @@ export default function BackgroundRemovalDialog({
                   <strong>Resultado</strong>
                   <span>{processing ? 'Atualizando…' : 'Prévia transparente'}</span>
                 </div>
-                <div className="bg-removal-image checkerboard">
+                <div className="bg-removal-image checkerboard checkerboard-contrast">
                   {previewUrl ? <img src={previewUrl} alt="Prévia sem fundo" /> : <span>Gerando prévia…</span>}
                 </div>
               </div>
@@ -169,10 +171,22 @@ export default function BackgroundRemovalDialog({
                 <input type="range" min="0" max="35" step="1" value={feather} onChange={(event) => setFeather(Number(event.target.value))} />
                 <small>Suaviza os pixels próximos ao contorno para evitar bordas serrilhadas.</small>
               </label>
+
+              <label className="bg-removal-checkbox">
+                <input
+                  type="checkbox"
+                  checked={removeInternalIslands}
+                  onChange={(event) => setRemoveInternalIslands(event.target.checked)}
+                />
+                <span>
+                  <strong>Limpar resíduos internos</strong>
+                  <small>Remove pequenos bolsões da cor do fundo presos dentro de letras e símbolos.</small>
+                </span>
+              </label>
             </div>
 
             <div className="bg-removal-tip">
-              A remoção considera apenas o fundo conectado às bordas da imagem, ajudando a preservar cores iguais dentro da própria marca.
+              Áreas grandes da mesma cor são preservadas para evitar apagar partes importantes da marca. Se algum detalhe desaparecer, desative “Limpar resíduos internos”.
             </div>
 
             <div className="bg-removal-actions">

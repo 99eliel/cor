@@ -1011,3 +1011,40 @@ button.bg-removal-image{cursor:crosshair}
   .bg-removal-color-row .mini-link{margin-left:0;width:100%;text-align:left}
   .bg-removal-actions{display:grid;grid-template-columns:1fr 1fr}
 }
+
+
+/* Refinos do removedor local */
+.checkerboard-contrast{
+  background-color:#d8e0e7;
+  background-image:
+    linear-gradient(45deg,#b7c2cc 25%,transparent 25%),
+    linear-gradient(-45deg,#b7c2cc 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,#b7c2cc 75%),
+    linear-gradient(-45deg,transparent 75%,#b7c2cc 75%);
+}
+.bg-removal-checkbox{
+  grid-column:1/-1!important;
+  display:grid!important;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items:flex-start;
+  gap:10px!important;
+  padding:11px 12px;
+  border:1px solid #d8e5ee;
+  border-radius:11px;
+  background:#fff;
+  cursor:pointer;
+}
+.bg-removal-checkbox input{
+  width:18px;
+  height:18px;
+  margin:2px 0 0;
+  accent-color:var(--mp-blue);
+}
+.bg-removal-checkbox>span{
+  display:flex!important;
+  flex-direction:column;
+  justify-content:flex-start!important;
+  gap:3px!important;
+}
+.bg-removal-checkbox strong{color:#40566b;font-size:.76rem}
+.bg-removal-checkbox small{font-weight:500}

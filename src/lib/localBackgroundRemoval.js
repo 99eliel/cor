@@ -13,7 +13,6 @@ function loadImage(source) {
 function dominantBorderColor(imageData) {
   const { data, width, height } = imageData;
   const bins = new Map();
-  const samples = [];
   const step = Math.max(1, Math.floor(Math.max(width, height) / 500));
 
   function add(x, y) {
@@ -29,7 +28,6 @@ function dominantBorderColor(imageData) {
     entry.g += g;
     entry.b += b;
     bins.set(key, entry);
-    samples.push([r, g, b]);
   }
 
   for (let x = 0; x < width; x += step) {
@@ -98,60 +96,97 @@ export function colorToCss(color) {
   return `rgb(${color.r}, ${color.g}, ${color.b})`;
 }
 
+function applyTransparentAlpha(pixels, source, index, distance, tolerance, feather) {
+  const offset = index * 4;
+  if (source[offset + 3] === 0) {
+    pixels[offset + 3] = 0;
+    return;
+  }
+  if (distance <= tolerance) {
+    pixels[offset + 3] = 0;
+    return;
+  }
+  if (feather > 0 && distance <= tolerance + feather) {
+    const factor = (distance - tolerance) / feather;
+    pixels[offset + 3] = Math.round(source[offset + 3] * Math.max(0, Math.min(1, factor)));
+  }
+}
+
 export async function processBackgroundRemoval(prepared, options = {}) {
   const tolerance = Math.max(1, Number(options.tolerance) || 42);
   const feather = Math.max(0, Number(options.feather) || 0);
+  const removeInternalIslands = options.removeInternalIslands !== false;
   const backgroundColor = options.backgroundColor || prepared.autoColor;
   const { width, height } = prepared;
   const source = prepared.imageData.data;
   const pixels = new Uint8ClampedArray(source);
   const total = width * height;
+  const threshold = tolerance + feather;
+  const candidate = new Uint8Array(total);
   const visited = new Uint8Array(total);
   const queue = new Int32Array(total);
-  let head = 0;
-  let tail = 0;
-  const threshold = tolerance + feather;
 
-  function enqueue(index) {
-    if (index < 0 || index >= total || visited[index]) return;
+  for (let index = 0; index < total; index += 1) {
     const offset = index * 4;
     if (source[offset + 3] === 0 || colorDistance(source, offset, backgroundColor) <= threshold) {
-      visited[index] = 1;
-      queue[tail] = index;
-      tail += 1;
+      candidate[index] = 1;
     }
   }
 
-  for (let x = 0; x < width; x += 1) {
-    enqueue(x);
-    if (height > 1) enqueue(((height - 1) * width) + x);
-  }
-  for (let y = 1; y < height - 1; y += 1) {
-    enqueue(y * width);
-    if (width > 1) enqueue((y * width) + width - 1);
-  }
+  // Componentes pequenos totalmente fechados costumam ser resíduos do fundo
+  // presos dentro de letras/símbolos. O limite baixo preserva áreas maiores
+  // que provavelmente fazem parte da própria marca.
+  const maxInternalIslandPixels = Math.max(48, Math.round(total * 0.006));
 
-  while (head < tail) {
-    const index = queue[head];
-    head += 1;
-    const x = index % width;
-    const y = Math.floor(index / width);
-    const offset = index * 4;
-    const distance = colorDistance(source, offset, backgroundColor);
+  for (let seed = 0; seed < total; seed += 1) {
+    if (!candidate[seed] || visited[seed]) continue;
 
-    if (source[offset + 3] !== 0) {
-      if (distance <= tolerance) {
-        pixels[offset + 3] = 0;
-      } else if (feather > 0 && distance <= threshold) {
-        const factor = (distance - tolerance) / feather;
-        pixels[offset + 3] = Math.round(source[offset + 3] * Math.max(0, Math.min(1, factor)));
+    let head = 0;
+    let tail = 0;
+    let touchesBorder = false;
+    queue[tail++] = seed;
+    visited[seed] = 1;
+
+    while (head < tail) {
+      const index = queue[head++];
+      const x = index % width;
+      const y = Math.floor(index / width);
+
+      if (x === 0 || y === 0 || x === width - 1 || y === height - 1) {
+        touchesBorder = true;
+      }
+
+      const left = x > 0 ? index - 1 : -1;
+      const right = x < width - 1 ? index + 1 : -1;
+      const up = y > 0 ? index - width : -1;
+      const down = y < height - 1 ? index + width : -1;
+
+      if (left >= 0 && candidate[left] && !visited[left]) {
+        visited[left] = 1;
+        queue[tail++] = left;
+      }
+      if (right >= 0 && candidate[right] && !visited[right]) {
+        visited[right] = 1;
+        queue[tail++] = right;
+      }
+      if (up >= 0 && candidate[up] && !visited[up]) {
+        visited[up] = 1;
+        queue[tail++] = up;
+      }
+      if (down >= 0 && candidate[down] && !visited[down]) {
+        visited[down] = 1;
+        queue[tail++] = down;
       }
     }
 
-    if (x > 0) enqueue(index - 1);
-    if (x < width - 1) enqueue(index + 1);
-    if (y > 0) enqueue(index - width);
-    if (y < height - 1) enqueue(index + width);
+    const removeComponent = touchesBorder || (removeInternalIslands && tail <= maxInternalIslandPixels);
+    if (!removeComponent) continue;
+
+    for (let i = 0; i < tail; i += 1) {
+      const index = queue[i];
+      const distance = colorDistance(source, index * 4, backgroundColor);
+      applyTransparentAlpha(pixels, source, index, distance, tolerance, feather);
+    }
   }
 
   const output = document.createElement('canvas');
