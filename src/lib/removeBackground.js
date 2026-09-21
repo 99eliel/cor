@@ -1,6 +1,6 @@
 import { auth } from './firebase';
 
-const DEFAULT_ENDPOINT = 'https://us-central1-app-da-cidade-7759b.cloudfunctions.net/removeBackground';
+const DEFAULT_ENDPOINT = 'https://us-central1-personalizamartinpel.cloudfunctions.net/removeBackground';
 const ENDPOINT = import.meta.env.VITE_REMOVE_BG_FUNCTION_URL || DEFAULT_ENDPOINT;
 
 function dataUrlPayload(value) {
