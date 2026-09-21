@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import BackgroundRemovalDialog from './BackgroundRemovalDialog';
 import CustomerStage from './CustomerStage';
 import PdfLogoLibrary from './PdfLogoLibrary';
 import { renderPdfLogoPreviews } from '../lib/pdfLogoPreview';
@@ -42,6 +43,8 @@ export default function AdminLogoTester({
   const [info, setInfo] = useState('');
   const [pdfLibrary, setPdfLibrary] = useState(null);
   const [pdfBusyPage, setPdfBusyPage] = useState(null);
+  const [backgroundToolLogo, setBackgroundToolLogo] = useState(null);
+  const [backgroundApplying, setBackgroundApplying] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
 
   function releasePdfLibrary(libraryState = pdfLibrary) {
@@ -130,6 +133,8 @@ export default function AdminLogoTester({
         const dataUrl = await fileToDataUrl(file);
         await stageRef.current?.addLogo(dataUrl, {
           sourceUrl: dataUrl,
+          originalUrl: dataUrl,
+          processingSource: dataUrl,
           sourceName: file.name,
           sourceType: 'image',
           targetView: view,
@@ -140,6 +145,44 @@ export default function AdminLogoTester({
       setError(err.message);
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  function openBackgroundRemoval() {
+    const selected = stageRef.current?.getSelectedLogo();
+    if (!selected) {
+      setError('Clique primeiro na logo da qual deseja remover o fundo.');
+      return;
+    }
+    if (selected.sourceType === 'pdf') {
+      setError('PDF vetorial não precisa deste tratamento. Use PNG, JPG ou WEBP.');
+      return;
+    }
+    setError('');
+    setBackgroundToolLogo(selected);
+  }
+
+  async function applyBackgroundRemoval(blob) {
+    if (!backgroundToolLogo) return;
+    setBackgroundApplying(true);
+    setError('');
+    try {
+      const processedUrl = URL.createObjectURL(blob);
+      const replaced = await stageRef.current?.replaceSelectedLogoImage(processedUrl, {
+        originalUrl: backgroundToolLogo.originalUrl || backgroundToolLogo.sourceUrl,
+        sourceUrl: backgroundToolLogo.sourceUrl,
+        sourceName: backgroundToolLogo.sourceName,
+        processedUrl,
+        backgroundRemoved: true,
+      });
+      if (!replaced) throw new Error('A logo selecionada não está mais disponível.');
+      setBackgroundToolLogo(null);
+      setInfo('Fundo removido localmente para o teste. Posição, tamanho e rotação foram preservados.');
+    } catch (err) {
+      setError(err.message);
+      setInfo('');
+    } finally {
+      setBackgroundApplying(false);
     }
   }
 
@@ -213,6 +256,9 @@ export default function AdminLogoTester({
           <button className="button button-primary" type="button" onClick={() => fileInputRef.current?.click()}>
             + Adicionar logo de teste
           </button>
+          <button className="button button-background-local" type="button" onClick={openBackgroundRemoval} disabled={logos.length === 0}>
+            ✦ Remover fundo
+          </button>
           <button className="button button-secondary" type="button" onClick={removeSelectedLogo} disabled={logos.length === 0}>
             Remover selecionada
           </button>
@@ -222,6 +268,14 @@ export default function AdminLogoTester({
 
       {error && <div className="inline-error admin-logo-error">{error}</div>}
       {!error && info && <div className="admin-logo-info">{info}</div>}
+
+      <BackgroundRemovalDialog
+        open={Boolean(backgroundToolLogo)}
+        source={backgroundToolLogo?.processingSource || backgroundToolLogo?.originalUrl || backgroundToolLogo?.sourceUrl}
+        fileName={backgroundToolLogo?.sourceName}
+        onCancel={() => { if (!backgroundApplying) setBackgroundToolLogo(null); }}
+        onApply={applyBackgroundRemoval}
+      />
 
       {pdfLibrary && (
         <div className="admin-pdf-library-wrap">

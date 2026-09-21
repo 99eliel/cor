@@ -925,3 +925,89 @@ input:focus,select:focus,textarea:focus{
   .catalog-manager-grid{grid-template-columns:1fr}
   .catalog-manager-card-actions{grid-template-columns:1fr}
 }
+
+
+/* Removedor de fundo local */
+.button-background-local{
+  border:1px solid #9ccfe7;
+  background:linear-gradient(135deg,#f8fdff,#e8f7ff);
+  color:#075b88;
+  box-shadow:inset 0 1px 0 #fff,0 5px 14px rgba(24,118,170,.08);
+}
+.button-background-local:not(:disabled):hover{
+  border-color:#62b5dd;
+  background:linear-gradient(135deg,#fff,#dcf3ff);
+  box-shadow:0 9px 20px rgba(24,118,170,.14);
+}
+.bg-removal-backdrop{
+  position:fixed;inset:0;z-index:560;display:grid;place-items:center;padding:18px;
+  background:rgba(2,23,43,.76);backdrop-filter:blur(8px);
+}
+.bg-removal-dialog{
+  width:min(940px,100%);max-height:92vh;overflow:auto;padding:22px;
+  border-top:5px solid var(--mp-navy)!important;
+  box-shadow:0 30px 85px rgba(0,0,0,.3)!important;
+}
+.bg-removal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.bg-removal-head h2{margin:2px 0 5px;font-size:1.45rem}
+.bg-removal-head p:last-child{margin:0;color:#6d7f91;line-height:1.45}
+.bg-removal-close{
+  width:38px;height:38px;display:grid;place-items:center;flex:0 0 auto;
+  border:1px solid #d8e3ec;border-radius:10px;background:#fff;color:#53677a;
+  font-size:1.45rem;cursor:pointer;
+}
+.bg-removal-file{
+  display:flex;align-items:center;gap:10px;margin:15px 0 13px;padding:9px 11px;
+  border:1px solid #dce6ee;border-radius:10px;background:#f7fafc;
+}
+.bg-removal-file span{color:#738496;font-size:.68rem;font-weight:900;text-transform:uppercase;letter-spacing:.07em}
+.bg-removal-file strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.8rem}
+.bg-removal-loading{padding:36px;text-align:center;color:#6d8192}
+.bg-removal-preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.bg-removal-preview-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px}
+.bg-removal-preview-title strong{font-size:.82rem;color:var(--mp-ink)}
+.bg-removal-preview-title span{color:#78899a;font-size:.65rem}
+.bg-removal-image{
+  width:100%;height:300px;display:grid;place-items:center;overflow:hidden;padding:12px;
+  border:1px solid #d8e4ed;border-radius:13px;color:#76899a;
+}
+button.bg-removal-image{cursor:crosshair}
+.bg-removal-image img{max-width:100%;max-height:100%;object-fit:contain}
+.checkerboard{
+  background-color:#fff;
+  background-image:
+    linear-gradient(45deg,#e7edf2 25%,transparent 25%),
+    linear-gradient(-45deg,#e7edf2 25%,transparent 25%),
+    linear-gradient(45deg,transparent 75%,#e7edf2 75%),
+    linear-gradient(-45deg,transparent 75%,#e7edf2 75%);
+  background-size:18px 18px;
+  background-position:0 0,0 9px,9px -9px,-9px 0;
+}
+.bg-removal-controls{
+  display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:15px;padding:15px;
+  border:1px solid #dbe6ef;border-radius:13px;background:#f8fbfd;
+}
+.bg-removal-controls label{display:flex;flex-direction:column;gap:7px}
+.bg-removal-controls label>span{display:flex;justify-content:space-between;gap:8px;color:#40566b;font-size:.78rem;font-weight:800}
+.bg-removal-controls input[type=range]{width:100%;accent-color:var(--mp-blue)}
+.bg-removal-controls small{color:#758799;font-size:.67rem;line-height:1.4}
+.bg-removal-color-row{
+  grid-column:1/-1;display:flex;align-items:center;gap:9px;min-width:0;
+  padding-bottom:12px;border-bottom:1px solid #dce6ee;
+}
+.bg-removal-color-row>span:first-child{color:#52677a;font-size:.72rem;font-weight:900}
+.bg-removal-color-chip{width:28px;height:28px;flex:0 0 auto;border:2px solid #fff;border-radius:8px;box-shadow:0 0 0 1px #cbd9e4}
+.bg-removal-color-row code{color:#66798c;font-size:.7rem}
+.bg-removal-color-row .mini-link{margin-left:auto}
+.bg-removal-tip{margin-top:12px;padding:10px 12px;border:1px solid #cfe4f1;border-radius:10px;background:#eff8fd;color:#41667f;font-size:.72rem;line-height:1.45}
+.bg-removal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:15px;padding-top:14px;border-top:1px solid #e2e9ef}
+@media(max-width:700px){
+  .bg-removal-backdrop{padding:7px}
+  .bg-removal-dialog{padding:15px;max-height:96vh}
+  .bg-removal-preview-grid,.bg-removal-controls{grid-template-columns:1fr}
+  .bg-removal-image{height:220px}
+  .bg-removal-color-row{grid-column:1}
+  .bg-removal-color-row{flex-wrap:wrap}
+  .bg-removal-color-row .mini-link{margin-left:0;width:100%;text-align:left}
+  .bg-removal-actions{display:grid;grid-template-columns:1fr 1fr}
+}

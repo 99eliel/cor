@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import BackgroundRemovalDialog from '../components/BackgroundRemovalDialog';
 import CustomerStage from '../components/CustomerStage';
 import MartinpelBrand from '../components/MartinpelBrand';
 import PdfLogoLibrary from '../components/PdfLogoLibrary';
@@ -7,6 +8,7 @@ import { ensureClientUser } from '../lib/clientAuth';
 import { getGarment, listGarments } from '../lib/garmentRepo';
 import { createOrder } from '../lib/orderRepo';
 import { renderPdfLogoPreviews } from '../lib/pdfLogoPreview';
+import { backgroundRemovedFile } from '../lib/localBackgroundRemoval';
 import { uploadClientLogo, uploadClientLogoOriginalPdf, uploadFinalRender } from '../lib/storageImages';
 import '../customer.css';
 
@@ -94,6 +96,8 @@ export default function CustomizerPage() {
   const [checkoutError, setCheckoutError] = useState('');
   const [pdfLibrary, setPdfLibrary] = useState(null);
   const [pdfBusyPage, setPdfBusyPage] = useState(null);
+  const [backgroundToolLogo, setBackgroundToolLogo] = useState(null);
+  const [backgroundApplying, setBackgroundApplying] = useState(false);
 
   const selectedRegion = useMemo(
     () => garment?.regions?.find((region) => region.id === selectedRegionId) ?? null,
@@ -247,9 +251,13 @@ export default function CustomizerPage() {
             : `PDF carregado com ${pageCount} páginas. Escolha qualquer página abaixo e adicione onde quiser.`,
         );
       } else {
+        const processingSource = URL.createObjectURL(file);
         const url = await uploadClientLogo(file, user.uid);
         await stageRef.current?.addLogo(url, {
           sourceUrl: url,
+          originalUrl: url,
+          processingSource,
+          processingSourceOwned: true,
           sourceName: file.name,
           sourceType: 'image',
           sourcePage: 1,
@@ -264,6 +272,52 @@ export default function CustomizerPage() {
     } finally {
       setBusy(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  function openBackgroundRemoval() {
+    const selected = stageRef.current?.getSelectedLogo();
+    if (!selected) {
+      setError('Clique primeiro na logo da qual deseja remover o fundo.');
+      setMessage('');
+      return;
+    }
+    if (selected.sourceType === 'pdf') {
+      setError('PDF vetorial não precisa deste tratamento. Use a ferramenta em logos PNG, JPG ou WEBP.');
+      setMessage('');
+      return;
+    }
+    setError('');
+    setBackgroundToolLogo(selected);
+  }
+
+  async function applyBackgroundRemoval(blob) {
+    if (!backgroundToolLogo) return;
+    setBackgroundApplying(true);
+    setError('');
+    try {
+      const user = clientUser ?? await ensureClientUser();
+      setClientUser(user);
+      const processedFile = backgroundRemovedFile(blob, backgroundToolLogo.sourceName || 'logo.png');
+      const processedUrl = await uploadClientLogo(processedFile, user.uid);
+      const originalUrl = backgroundToolLogo.originalUrl || backgroundToolLogo.sourceUrl || backgroundToolLogo.storageUrl;
+
+      const replaced = await stageRef.current?.replaceSelectedLogoImage(processedUrl, {
+        originalUrl,
+        sourceUrl: backgroundToolLogo.sourceUrl || originalUrl,
+        sourceName: backgroundToolLogo.sourceName || processedFile.name,
+        processedUrl,
+        backgroundRemoved: true,
+      });
+      if (!replaced) throw new Error('A logo selecionada não está mais disponível.');
+
+      setBackgroundToolLogo(null);
+      setMessage('Fundo removido localmente. O arquivo original foi preservado para conferência e produção.');
+    } catch (err) {
+      setError(err.message);
+      setMessage('');
+    } finally {
+      setBackgroundApplying(false);
     }
   }
 
@@ -473,6 +527,7 @@ export default function CustomizerPage() {
               onClose={closePdfLibrary}
             />
           )}
+          <button type="button" className="button button-background-local full-width" disabled={busy || logos.length === 0} onClick={openBackgroundRemoval}>✦ Remover fundo da logo</button>
           <button type="button" className="button button-secondary full-width" disabled={busy || logos.length === 0} onClick={removeLogo}>Remover logo selecionada</button>
           <div className="logo-count">{logos.length} logo(s) adicionada(s)</div>
 
@@ -482,6 +537,14 @@ export default function CustomizerPage() {
           {views.length > 1 && <p className="download-help">Troque entre as abas acima para baixar cada vista separadamente.</p>}
         </aside>
       </section>
+
+      <BackgroundRemovalDialog
+        open={Boolean(backgroundToolLogo)}
+        source={backgroundToolLogo?.processingSource || backgroundToolLogo?.originalUrl || backgroundToolLogo?.sourceUrl}
+        fileName={backgroundToolLogo?.sourceName}
+        onCancel={() => { if (!backgroundApplying) setBackgroundToolLogo(null); }}
+        onApply={applyBackgroundRemoval}
+      />
 
       {checkoutOpen && (
         <div className="checkout-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeCheckout(); }}>
