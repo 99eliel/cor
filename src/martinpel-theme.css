@@ -1422,3 +1422,106 @@ body{
   position:relative;
   z-index:1;
 }
+
+/* Cliente: reforço de contraste 2026-09-21 */
+.customer-flow-strip>div{
+  color:#536b7f!important;
+}
+.customer-flow-strip>div strong{
+  color:#3f596f!important;
+  font-weight:850;
+}
+.customer-flow-strip>div small{
+  color:#6e8294!important;
+  font-weight:650;
+}
+.customer-flow-strip>div span{
+  background:#c8d9e5!important;
+  color:#35566f!important;
+  border:1px solid #afc7d7;
+}
+.customer-flow-strip>div.is-active strong{
+  color:#0a426f!important;
+}
+.customer-flow-strip>div.is-active small{
+  color:#55758d!important;
+}
+.customer-flow-strip>div.is-active span{
+  border-color:transparent;
+  background:linear-gradient(135deg,#0a4f84,#147ab7)!important;
+  color:#fff!important;
+}
+
+.customer-piece-header .customer-view-tabs{
+  background:rgba(255,255,255,.18)!important;
+  border:1px solid rgba(255,255,255,.42)!important;
+}
+.customer-piece-header .customer-view-tabs button{
+  color:#ffffff!important;
+  font-weight:800;
+  opacity:1!important;
+  text-shadow:0 1px 2px rgba(0,0,0,.18);
+}
+.customer-piece-header .customer-view-tabs button:not(.active){
+  background:rgba(255,255,255,.08)!important;
+}
+.customer-piece-header .customer-view-tabs button.active{
+  background:#fff!important;
+  color:#06375f!important;
+  text-shadow:none;
+  box-shadow:0 5px 14px rgba(0,0,0,.14)!important;
+}
+
+.customer-tools-v2{
+  background:
+    linear-gradient(180deg,#08345e 0,#062a4e 188px,#f7fafc 188px,#f7fafc 100%)!important;
+}
+.customer-tools-v2 .customer-help{
+  color:#e0edf5!important;
+  font-weight:550;
+}
+.customer-tool-section-title{
+  position:relative;
+  z-index:1;
+  margin:10px 0 8px;
+  padding:5px 7px;
+  border-radius:9px;
+  background:#eef5fa;
+  color:#294e69!important;
+  border:1px solid #d8e7f0;
+}
+.customer-tool-section-title strong{
+  color:#294e69!important;
+  font-weight:900;
+}
+.customer-tool-section-title span{
+  background:#d5ebf7!important;
+  color:#075d91!important;
+  border:1px solid #b9d8e9;
+}
+.customer-tools-v2 .tool-divider{
+  height:1px!important;
+  background:#c8d8e3!important;
+}
+.logo-upload-help,
+.customer-tools-v2 .logo-count,
+.customer-tools-v2 .download-help{
+  color:#526b7e!important;
+  font-weight:600;
+}
+.customer-tools-v2 .button-secondary,
+.customer-tools-v2 .button-background-local{
+  color:#1f587c!important;
+  border-color:#9fc6db!important;
+  background:#f8fcff!important;
+  font-weight:800!important;
+  opacity:1!important;
+}
+.customer-tools-v2 .button-secondary:disabled,
+.customer-tools-v2 .button-background-local:disabled{
+  color:#718493!important;
+  border-color:#c8d5de!important;
+  background:#eef3f6!important;
+  opacity:1!important;
+  cursor:not-allowed;
+}
