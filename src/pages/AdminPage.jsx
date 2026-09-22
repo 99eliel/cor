@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import AdminAuth from '../components/AdminAuth';
 import AdminLogoTester from '../components/AdminLogoTester';
 import GarmentEditorCanvas from '../components/GarmentEditorCanvas';
@@ -345,6 +345,7 @@ function CatalogManager({ garments, onAdd, onEdit, onPreview }) {
 }
 
 function AdminWorkspace({ logout }) {
+  const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [section, setSection] = useState('dashboard');
   const [garments, setGarments] = useState([]);
@@ -426,9 +427,8 @@ function AdminWorkspace({ logout }) {
   }
 
   function previewGarment(id = garmentId) {
-    if (!id) return setError('Salve a peça antes de abrir a tela do cliente.');
-    const base = `${window.location.origin}${window.location.pathname}`;
-    window.open(`${base}#/customizar/${id}`, '_blank', 'noopener,noreferrer');
+    if (!id) return setError('Salve a peça antes de abrir a personalização.');
+    navigate(`/customizar/${id}`);
   }
 
   function resetEditor() {
