@@ -123,6 +123,7 @@ function OrdersView({ orders, loading, error, onRefresh }) {
                 <div><span>WhatsApp</span><strong>{order.whatsapp || 'Não informado'}</strong>{whatsappLink && <a href={whatsappLink} target="_blank" rel="noreferrer">Abrir WhatsApp</a>}</div>
                 <div><span>Quantidade</span><strong>{order.quantity ?? 'Não informada (opcional)'}</strong></div>
                 <div><span>Peça</span><strong>{order.garmentName || order.garmentId || 'Não identificada'}</strong></div>
+                <div><span>Vendedor</span><strong>{order.sellerEmail || 'Não identificado'}</strong></div>
               </div>
 
               {completed && order.completedAt && <div className="order-completed-note">Concluído em {formatOrderDate(order.completedAt)}</div>}
@@ -205,7 +206,7 @@ function AdminDashboard({
         <div>
           <p className="eyebrow">Central de gestão</p>
           <h2>O que você quer fazer?</h2>
-          <p>Cadastre peças para o catálogo, acompanhe os pedidos dos clientes e avance cada solicitação até o orçamento e a produção.</p>
+          <p>Cadastre peças para o catálogo, acompanhe os pedidos registrados pelos vendedores e avance cada solicitação até o orçamento e a produção.</p>
         </div>
         <div className="dashboard-hero-mark">GP</div>
       </div>
@@ -233,7 +234,7 @@ function AdminDashboard({
           <span className="dashboard-action-icon">◎</span>
           <span className="dashboard-action-copy">
             <strong>Ver pedidos</strong>
-            <small>Acompanhe clientes, artes finais, orçamentos e andamento dos pedidos.</small>
+            <small>Acompanhe clientes atendidos, vendedores responsáveis, artes finais, orçamentos e andamento.</small>
           </span>
           <span className="dashboard-action-arrow">→</span>
         </button>
@@ -331,7 +332,7 @@ function CatalogManager({ garments, onAdd, onEdit, onPreview }) {
                   </div>
                   <div className="catalog-manager-card-actions">
                     <button className="button button-primary" type="button" onClick={() => onEdit(garment.id)}>Editar peça</button>
-                    <button className="button button-secondary" type="button" onClick={() => onPreview(garment.id)}>Ver como cliente</button>
+                    <button className="button button-secondary" type="button" onClick={() => onPreview(garment.id)}>Abrir personalização</button>
                   </div>
                 </div>
               </article>
@@ -628,7 +629,7 @@ function AdminWorkspace({ logout }) {
         )}
 
         <div className="admin-sidebar-footer">
-          <Link className="admin-sidebar-public" to="/">↗ Abrir catálogo público</Link>
+          <Link className="admin-sidebar-public" to="/">↗ Abrir central de vendas</Link>
           <button className="admin-sidebar-logout" type="button" onClick={logout}>Sair do painel</button>
         </div>
       </aside>
@@ -696,7 +697,7 @@ function AdminWorkspace({ logout }) {
             <input ref={fileInputRef} className="sr-only" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => handleImageFile(event.target.files?.[0])} />
             <button className="button button-secondary" type="button" onClick={() => fileInputRef.current?.click()} disabled={busy}>Enviar foto: {VIEW_LABELS[view]}</button>
             <button className="button button-primary" type="button" onClick={() => setRegionDialogOpen(true)} disabled={!images[view]}>+ Nova região</button>
-            <button className={`button ${mode === 'preview' ? 'button-success' : 'button-secondary'}`} type="button" onClick={() => setMode((value) => value === 'preview' ? 'idle' : 'preview')} disabled={!images[view]}>Pré-visualizar como cliente</button>
+            <button className={`button ${mode === 'preview' ? 'button-success' : 'button-secondary'}`} type="button" onClick={() => setMode((value) => value === 'preview' ? 'idle' : 'preview')} disabled={!images[view]}>Pré-visualizar personalização</button>
             <button className={`button ${mode === 'logoTest' ? 'button-success' : 'button-secondary'}`} type="button" onClick={() => setMode((value) => value === 'logoTest' ? 'idle' : 'logoTest')} disabled={!images[view]}>Testar logos</button>
             <div className="zoom-controls"><button type="button" onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}>−</button><span>{Math.round(zoom * 100)}%</span><button type="button" onClick={() => setZoom((z) => Math.min(3, z + 0.1))}>+</button></div>
           </div>

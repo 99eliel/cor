@@ -1525,3 +1525,26 @@ body{
   opacity:1!important;
   cursor:not-allowed;
 }
+
+
+/* Fluxo interno de vendedores */
+.seller-global-actions{display:flex;align-items:center;gap:8px;min-width:0}
+.seller-session{
+  display:flex;flex-direction:column;align-items:flex-end;gap:2px;
+  min-width:0;padding:7px 10px;border:1px solid rgba(255,255,255,.14);border-radius:11px;
+  background:rgba(255,255,255,.06);
+}
+.seller-session span{color:#90b6cf;font-size:.55rem;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.seller-session strong{
+  max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  color:#fff;font-size:.7rem;
+}
+.seller-session.compact{padding:6px 9px}
+.seller-catalog-hero .catalog-hero-badge strong{color:#fff}
+.staff-login-card .login-brand-block{margin-bottom:2px}
+@media(max-width:760px){
+  .seller-brandbar{align-items:stretch!important;flex-direction:column}
+  .seller-global-actions{width:100%;display:grid;grid-template-columns:1fr auto}
+  .seller-session{grid-column:1/-1;align-items:flex-start}
+  .seller-global-actions .button{min-width:0}
+}

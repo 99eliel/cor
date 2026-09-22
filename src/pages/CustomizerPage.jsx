@@ -31,7 +31,7 @@ function safeFileName(value) {
     .toLowerCase() || 'uniforme';
 }
 
-function Catalog() {
+function Catalog({ staffUser, isAdmin, logout }) {
   const [items, setItems] = useState([]);
   const [error, setError] = useState('');
 
@@ -40,21 +40,28 @@ function Catalog() {
   }, []);
 
   return (
-    <main className="app-shell catalog-shell">
-      <div className="martinpel-appbar customer-brandbar">
-        <MartinpelBrand compact subtitle="Uniformes e EPI's personalizados" />
-        <Link className="button button-light catalog-admin-link" to="/admin">Área administrativa</Link>
+    <main className="app-shell catalog-shell seller-catalog-shell">
+      <div className="martinpel-appbar customer-brandbar seller-brandbar">
+        <MartinpelBrand compact subtitle="Central interna de vendas" />
+        <div className="seller-global-actions">
+          <div className="seller-session">
+            <span>Vendedor conectado</span>
+            <strong>{staffUser?.email || 'Equipe Martinpel'}</strong>
+          </div>
+          {isAdmin && <Link className="button button-light catalog-admin-link" to="/admin">Painel administrativo</Link>}
+          <button className="button admin-logout-button" type="button" onClick={logout}>Sair</button>
+        </div>
       </div>
 
-      <header className="customer-header catalog-header catalog-hero">
+      <header className="customer-header catalog-header catalog-hero seller-catalog-hero">
         <div className="catalog-hero-copy">
-          <span className="catalog-kicker">Personalização Martinpel</span>
-          <h1>Monte seu uniforme do seu jeito.</h1>
-          <p>Escolha uma peça, altere as cores, posicione sua marca e envie a solicitação pronta para orçamento e produção.</p>
+          <span className="catalog-kicker">Central de vendas Martinpel</span>
+          <h1>Monte a personalização junto com o cliente.</h1>
+          <p>Escolha uma peça, defina cores, posicione as logos e registre o pedido com os dados do cliente para orçamento e produção.</p>
         </div>
         <div className="catalog-hero-badge">
-          <strong>Visualização em tempo real</strong>
-          <span>Cores • Logos • Frente e costas</span>
+          <strong>Atendimento assistido</strong>
+          <span>Vendedor • Cliente • Pedido • Produção</span>
         </div>
       </header>
       {error && <div className="notice notice-error">{error}</div>}
@@ -64,7 +71,7 @@ function Catalog() {
           return (
             <Link className="panel catalog-card" key={item.id} to={`/customizar/${item.id}`}>
               <div className="catalog-image-wrap">{thumb ? <img src={thumb} alt={item.name} /> : <span>Sem imagem</span>}</div>
-              <div className="catalog-card-body"><strong>{item.name}</strong><span>Personalizar →</span></div>
+              <div className="catalog-card-body"><strong>{item.name}</strong><span>Montar pedido →</span></div>
             </Link>
           );
         })}
@@ -74,12 +81,12 @@ function Catalog() {
   );
 }
 
-export default function CustomizerPage() {
+export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
   const { garmentId } = useParams();
   const stageRef = useRef(null);
   const fileInputRef = useRef(null);
   const [garment, setGarment] = useState(null);
-  const [clientUser, setClientUser] = useState(null);
+  const [clientUser, setClientUser] = useState(staffUser);
   const [view, setView] = useState('front');
   const [selectedRegionId, setSelectedRegionId] = useState(null);
   const [colorChoices, setColorChoices] = useState({});
@@ -119,7 +126,7 @@ export default function CustomizerPage() {
       .finally(() => setLoading(false));
   }, [garmentId]);
 
-  if (!garmentId) return <Catalog />;
+  if (!garmentId) return <Catalog staffUser={staffUser} isAdmin={isAdmin} logout={logout} />;
   if (loading) return <main className="loading-screen">Carregando peça…</main>;
   if (!garment) return <main className="loading-screen"><div><p>{error || 'Peça não encontrada.'}</p><Link to="/">Voltar</Link></div></main>;
 
@@ -416,7 +423,8 @@ export default function CustomizerPage() {
       const id = await createOrder({
         garmentId,
         garmentName: garment.name,
-        clientUid: user.uid,
+        sellerUid: user.uid,
+        sellerEmail: user.email || '',
         customerName: cleanName,
         whatsapp: cleanWhatsapp,
         quantity: parsedQuantity,
@@ -428,7 +436,7 @@ export default function CustomizerPage() {
 
       setCheckoutOpen(false);
       setOrderId(id);
-      setMessage('Pedido enviado com sucesso. A arte final e seus dados foram anexados ao pedido.');
+      setMessage('Pedido registrado com sucesso. A arte final, os dados do cliente e o vendedor responsável foram anexados ao pedido.');
     } catch (err) {
       setCheckoutError(err.message || 'Não foi possível enviar o pedido.');
       setMessage('');
@@ -445,23 +453,30 @@ export default function CustomizerPage() {
 
   return (
     <main className="app-shell customer-shell">
-      <div className="martinpel-appbar customer-brandbar">
-        <MartinpelBrand compact subtitle="Personalização em tempo real" />
-        <Link className="button button-light back-to-catalog" to="/">← Voltar ao catálogo</Link>
+      <div className="martinpel-appbar customer-brandbar seller-brandbar">
+        <MartinpelBrand compact subtitle="Atendimento de venda" />
+        <div className="seller-global-actions">
+          <div className="seller-session compact">
+            <span>Vendedor</span>
+            <strong>{staffUser?.email || 'Equipe Martinpel'}</strong>
+          </div>
+          <Link className="button button-light back-to-catalog" to="/">← Catálogo</Link>
+          <button className="button admin-logout-button" type="button" onClick={logout}>Sair</button>
+        </div>
       </div>
 
       <div className="customer-flow-strip" aria-label="Etapas da personalização">
         <div className="is-active"><span>1</span><strong>Cores</strong><small>Escolha as áreas</small></div>
         <div className={logos.length > 0 ? 'is-active' : ''}><span>2</span><strong>Logos</strong><small>Posicione sua marca</small></div>
         <div className={logos.length > 0 ? 'is-active' : ''}><span>3</span><strong>Revisar</strong><small>Confira o resultado</small></div>
-        <div className={orderId ? 'is-active' : ''}><span>4</span><strong>Pedido</strong><small>Enviar solicitação</small></div>
+        <div className={orderId ? 'is-active' : ''}><span>4</span><strong>Pedido</strong><small>Registrar atendimento</small></div>
       </div>
 
       <header className="customer-header martinpel-page-header customer-piece-header">
         <div className="page-heading-block">
-          <p className="eyebrow">Customização da peça</p>
+          <p className="eyebrow">Montagem do pedido</p>
           <h1>{garment.name}</h1>
-          <p className="page-subtitle">Personalize as áreas disponíveis, posicione sua logo e visualize o resultado antes de enviar o pedido.</p>
+          <p className="page-subtitle">Configure a peça junto com o cliente, posicione as logos e confira o resultado antes de registrar o pedido.</p>
         </div>
         <div className="customer-view-tabs">
           {views.map((targetView) => (
@@ -545,7 +560,7 @@ export default function CustomizerPage() {
 
           <div className="tool-divider" />
           <div className="customer-tool-section-title"><span>03</span><strong>Finalizar</strong></div>
-          <button type="button" className="button button-success finalize-button" disabled={busy} onClick={openCheckout}>{busy ? 'Processando…' : 'Finalizar pedido'}</button>
+          <button type="button" className="button button-success finalize-button" disabled={busy} onClick={openCheckout}>{busy ? 'Processando…' : 'Registrar pedido'}</button>
           <button type="button" className="button button-secondary full-width download-final-button" disabled={busy} onClick={downloadCurrentImage}>Baixar imagem pronta · {VIEW_LABELS[view]}</button>
           {views.length > 1 && <p className="download-help">Troque entre as abas acima para baixar cada vista separadamente.</p>}
         </aside>
@@ -563,9 +578,9 @@ export default function CustomizerPage() {
         <div className="checkout-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeCheckout(); }}>
           <form className="panel checkout-card" onSubmit={handleCheckoutSubmit}>
             <div>
-              <p className="eyebrow">Finalizar pedido</p>
-              <h2>Dados do cliente</h2>
-              <p className="muted checkout-intro">A imagem será salva exatamente como você deixou a peça, incluindo cores e logos.</p>
+              <p className="eyebrow">Registrar pedido</p>
+              <h2>Dados do cliente atendido</h2>
+              <p className="muted checkout-intro">A arte será salva exatamente como o vendedor montou a peça, incluindo cores e logos.</p>
             </div>
 
             <label>Nome
