@@ -582,22 +582,71 @@ function AdminWorkspace({ logout }) {
     setZoom(1);
   }
 
+  const currentPage = section === 'dashboard'
+    ? { eyebrow: 'Painel administrativo', title: 'Visão geral', description: 'Acompanhe catálogo, pedidos e andamento da personalização em um só lugar.' }
+    : section === 'catalog'
+      ? { eyebrow: 'Catálogo', title: 'Gerenciar peças', description: 'Cadastre, revise e abra as peças disponíveis para os clientes.' }
+      : section === 'orders'
+        ? { eyebrow: 'Comercial', title: 'Pedidos & Orçamentos', description: 'Acompanhe solicitações, gere orçamentos e conclua pedidos.' }
+        : { eyebrow: garmentId ? 'Editor de peça' : 'Cadastro de peça', title: garmentId ? (name || 'Editar peça') : 'Nova peça', description: 'Configure imagens, regiões, cores e testes antes de publicar.' };
+
   return (
-    <main className="app-shell admin-shell">
-      <div className="martinpel-appbar admin-brandbar official-admin-bar">
-        <MartinpelBrand compact subtitle="Uniformes • EPI's • Produção" />
-        <div className="official-admin-global-actions">
-          <Link className="button button-light" to="/">Abrir catálogo público</Link>
-          <button className="button admin-logout-button" type="button" onClick={logout}>Sair</button>
+    <main className="admin-shell admin-shell-v2">
+      <aside className="admin-sidebar-v2">
+        <div className="admin-sidebar-brand">
+          <MartinpelBrand compact subtitle="Gestão de Personalização" />
         </div>
-      </div>
 
-      <nav className="panel admin-main-tabs admin-structure-tabs official-admin-nav" aria-label="Navegação administrativa">
-        <button type="button" className={section === 'dashboard' ? 'active' : ''} onClick={openDashboard}>Visão geral</button>
-        <button type="button" className={section === 'catalog' || section === 'editor' ? 'active' : ''} onClick={openCatalog}>Catálogo <span>{garments.length}</span></button>
-        <button type="button" className={section === 'orders' ? 'active' : ''} onClick={openOrders}>Pedidos{orders.length > 0 && <span>{orders.length}</span>}</button>
-      </nav>
+        <div className="admin-sidebar-section-label">Navegação</div>
+        <nav className="admin-sidebar-nav" aria-label="Navegação administrativa">
+          <button type="button" className={section === 'dashboard' ? 'active' : ''} onClick={openDashboard}>
+            <span className="admin-nav-icon">⌂</span>
+            <span><strong>Visão geral</strong><small>Resumo da operação</small></span>
+          </button>
+          <button type="button" className={section === 'catalog' ? 'active' : ''} onClick={openCatalog}>
+            <span className="admin-nav-icon">▦</span>
+            <span><strong>Catálogo</strong><small>{garments.length} peça(s) cadastrada(s)</small></span>
+            <b>{garments.length}</b>
+          </button>
+          <button type="button" className={section === 'editor' && !garmentId ? 'active' : ''} onClick={addNewGarment}>
+            <span className="admin-nav-icon">＋</span>
+            <span><strong>Nova peça</strong><small>Adicionar ao catálogo</small></span>
+          </button>
+          <button type="button" className={section === 'orders' ? 'active' : ''} onClick={openOrders}>
+            <span className="admin-nav-icon">◎</span>
+            <span><strong>Pedidos & Orçamentos</strong><small>Atendimento comercial</small></span>
+            {orders.length > 0 && <b>{orders.length}</b>}
+          </button>
+        </nav>
 
+        {section === 'editor' && garmentId && (
+          <div className="admin-sidebar-context">
+            <span>Editando agora</span>
+            <strong>{name || 'Peça sem nome'}</strong>
+            <button type="button" onClick={openCatalog}>← Voltar ao catálogo</button>
+          </div>
+        )}
+
+        <div className="admin-sidebar-footer">
+          <Link className="admin-sidebar-public" to="/">↗ Abrir catálogo público</Link>
+          <button className="admin-sidebar-logout" type="button" onClick={logout}>Sair do painel</button>
+        </div>
+      </aside>
+
+      <section className="admin-main-v2">
+        <header className="admin-topbar-v2">
+          <div>
+            <p className="eyebrow">{currentPage.eyebrow}</p>
+            <h1>{currentPage.title}</h1>
+            <p>{currentPage.description}</p>
+          </div>
+          <div className="admin-topbar-status">
+            <span className="admin-live-dot" />
+            <span>Sistema operacional</span>
+          </div>
+        </header>
+
+        <div className="admin-content-v2">
       {section === 'dashboard' ? (
         <AdminDashboard
           garments={garments}
@@ -620,7 +669,7 @@ function AdminWorkspace({ logout }) {
         <>
           <section className="panel editor-context-bar">
             <div>
-              <button className="editor-back-link" type="button" onClick={openCatalog}>← Voltar ao catálogo</button>
+              <div className="editor-context-kicker"><span>{garmentId ? 'Peça cadastrada' : 'Novo cadastro'}</span><b>{VIEW_LABELS[view]}</b></div>
               <p className="eyebrow">{garmentId ? 'Editar peça' : 'Nova peça'}</p>
               <h1>{garmentId ? (name || 'Peça sem nome') : 'Adicionar peça ao catálogo'}</h1>
               <p>{garmentId ? 'Edite a configuração da peça e salve para publicar as alterações.' : 'Cadastre a peça, envie as imagens e marque as áreas que poderão ser personalizadas.'}</p>
@@ -715,6 +764,9 @@ function AdminWorkspace({ logout }) {
           </section>
         </>
       )}
+
+        </div>
+      </section>
 
       {section === 'editor' && <NewRegionDialog open={regionDialogOpen} onClose={() => setRegionDialogOpen(false)} onCreate={createRegion} />}
     </main>

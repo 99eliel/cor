@@ -450,7 +450,14 @@ export default function CustomizerPage() {
         <Link className="button button-light back-to-catalog" to="/">← Voltar ao catálogo</Link>
       </div>
 
-      <header className="customer-header martinpel-page-header">
+      <div className="customer-flow-strip" aria-label="Etapas da personalização">
+        <div className="is-active"><span>1</span><strong>Cores</strong><small>Escolha as áreas</small></div>
+        <div className={logos.length > 0 ? 'is-active' : ''}><span>2</span><strong>Logos</strong><small>Posicione sua marca</small></div>
+        <div className={logos.length > 0 ? 'is-active' : ''}><span>3</span><strong>Revisar</strong><small>Confira o resultado</small></div>
+        <div className={orderId ? 'is-active' : ''}><span>4</span><strong>Pedido</strong><small>Enviar solicitação</small></div>
+      </div>
+
+      <header className="customer-header martinpel-page-header customer-piece-header">
         <div className="page-heading-block">
           <p className="eyebrow">Customização da peça</p>
           <h1>{garment.name}</h1>
@@ -484,10 +491,14 @@ export default function CustomizerPage() {
           />
         </section>
 
-        <aside className="panel customer-tools">
-          <div><p className="eyebrow">Personalização</p><h2>Cores e logos</h2></div>
-          <p className="muted customer-help">Clique numa área da roupa para alterar a cor. Clique numa logo para mover, girar ou redimensionar.</p>
+        <aside className="panel customer-tools customer-tools-v2">
+          <div className="customer-tools-head">
+            <div><p className="eyebrow">Personalização</p><h2>Monte sua peça</h2></div>
+            <span className="customer-tools-badge">{logos.length} logo(s)</span>
+          </div>
+          <p className="customer-help">Clique numa área da roupa para alterar a cor. Selecione uma logo para mover, girar, redimensionar ou remover o fundo.</p>
 
+          <div className="customer-tool-section-title"><span>01</span><strong>Cores da peça</strong></div>
           <div className="region-choice-list">
             {regionsInView.map((region) => (
               <button
@@ -512,6 +523,7 @@ export default function CustomizerPage() {
           )}
 
           <div className="tool-divider" />
+          <div className="customer-tool-section-title"><span>02</span><strong>Aplicar sua marca</strong></div>
           <input ref={fileInputRef} className="sr-only" type="file" accept="image/png,image/jpeg,image/webp,application/pdf,.pdf" onChange={(event) => handleLogo(event.target.files?.[0])} />
           <button type="button" className="button button-primary full-width" disabled={busy} onClick={() => fileInputRef.current?.click()}>+ Adicionar logo</button>
           <p className="logo-upload-help">Aceita PNG, JPG, WEBP ou PDF vetorial. PDFs viram uma biblioteca de páginas para você usar livremente.</p>
@@ -532,6 +544,7 @@ export default function CustomizerPage() {
           <div className="logo-count">{logos.length} logo(s) adicionada(s)</div>
 
           <div className="tool-divider" />
+          <div className="customer-tool-section-title"><span>03</span><strong>Finalizar</strong></div>
           <button type="button" className="button button-success finalize-button" disabled={busy} onClick={openCheckout}>{busy ? 'Processando…' : 'Finalizar pedido'}</button>
           <button type="button" className="button button-secondary full-width download-final-button" disabled={busy} onClick={downloadCurrentImage}>Baixar imagem pronta · {VIEW_LABELS[view]}</button>
           {views.length > 1 && <p className="download-help">Troque entre as abas acima para baixar cada vista separadamente.</p>}
