@@ -1,9 +1,11 @@
+import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { storage } from './firebase';
+import { db, storage } from './firebase';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_PDF_BYTES = 15 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
+const logoAssetCache = new Map();
 
 function validateImage(file) {
   if (!file) throw new Error('Selecione uma imagem.');
@@ -20,7 +22,61 @@ function validatePdf(file) {
 }
 
 function safeName(name) {
-  return name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  return String(name || 'arquivo').replace(/[^a-zA-Z0-9._-]/g, '_');
+}
+
+function extensionFor(file, kind) {
+  if (kind === 'pdf') return 'pdf';
+  if (file.type === 'image/jpeg') return 'jpg';
+  if (file.type === 'image/webp') return 'webp';
+  return 'png';
+}
+
+async function sha256Blob(blob) {
+  const buffer = await blob.arrayBuffer();
+  const digest = await crypto.subtle.digest('SHA-256', buffer);
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+export async function resolveLogoAsset(file, uid, kind = 'image') {
+  if (kind === 'pdf') validatePdf(file);
+  else validateImage(file);
+
+  const hash = await sha256Blob(file);
+  if (logoAssetCache.has(hash)) return logoAssetCache.get(hash);
+
+  const assetDoc = doc(db, 'logoAssets', hash);
+  const existing = await getDoc(assetDoc);
+  if (existing.exists() && existing.data()?.url) {
+    const asset = { hash, ...existing.data(), reused: true };
+    logoAssetCache.set(hash, asset);
+    return asset;
+  }
+
+  const ext = extensionFor(file, kind);
+  const fileName = kind === 'pdf' ? 'original.pdf' : `asset.${ext}`;
+  const objectRef = ref(storage, `logo-assets/${hash}/${fileName}`);
+  await uploadBytes(objectRef, file, { contentType: kind === 'pdf' ? 'application/pdf' : file.type });
+  const url = await getDownloadURL(objectRef);
+
+  const asset = {
+    hash,
+    url,
+    kind,
+    contentType: kind === 'pdf' ? 'application/pdf' : file.type,
+    originalName: safeName(file.name),
+    size: file.size,
+    createdBy: uid,
+    reused: false,
+  };
+
+  await setDoc(assetDoc, {
+    ...asset,
+    createdAt: serverTimestamp(),
+  }, { merge: true });
+
+  logoAssetCache.set(hash, asset);
+  return asset;
 }
 
 export async function uploadGarmentImage(file, garmentId, view) {
@@ -31,22 +87,21 @@ export async function uploadGarmentImage(file, garmentId, view) {
 }
 
 export async function uploadClientLogo(file, uid) {
-  validateImage(file);
-  const objectRef = ref(storage, `logos/${uid}/${Date.now()}-${safeName(file.name)}`);
-  await uploadBytes(objectRef, file, { contentType: file.type });
-  return getDownloadURL(objectRef);
+  const asset = await resolveLogoAsset(file, uid, 'image');
+  return asset.url;
 }
 
 export async function uploadClientLogoOriginalPdf(file, uid) {
-  validatePdf(file);
-  const objectRef = ref(storage, `logo-originals/${uid}/${Date.now()}-${safeName(file.name)}`);
-  await uploadBytes(objectRef, file, { contentType: 'application/pdf' });
-  return getDownloadURL(objectRef);
+  const asset = await resolveLogoAsset(file, uid, 'pdf');
+  return asset.url;
 }
 
 export async function uploadFinalRender(blob, uid, label = 'final') {
   if (!blob || blob.size > 10 * 1024 * 1024) throw new Error('Render final inválido.');
   const objectRef = ref(storage, `final-renders/${uid}/${Date.now()}-${safeName(label)}.png`);
-  await uploadBytes(objectRef, blob, { contentType: 'image/png' });
+  await uploadBytes(objectRef, blob, {
+    contentType: 'image/png',
+    customMetadata: { retention: '90-days' },
+  });
   return getDownloadURL(objectRef);
 }

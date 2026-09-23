@@ -23,12 +23,23 @@ service firebase.storage {
         && request.resource.contentType == 'application/pdf';
     }
 
+    function isLogoAsset() {
+      return isImage(5 * 1024 * 1024) || isPdf(15 * 1024 * 1024);
+    }
+
     match /garments/{garmentId}/{fileName} {
       allow read: if isSignedIn();
       allow create, update: if isAdmin() && isImage(10 * 1024 * 1024);
       allow delete: if isAdmin();
     }
 
+    match /logo-assets/{hash}/{fileName} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && isLogoAsset();
+      allow delete: if isAdmin();
+    }
+
+    // Compatibilidade com arquivos antigos já salvos antes da biblioteca deduplicada.
     match /logos/{uid}/{fileName} {
       allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
       allow create, update: if isSignedIn()

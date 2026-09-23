@@ -1,6 +1,10 @@
 import { collection, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
+const GARMENT_LIST_CACHE_MS = 5 * 60 * 1000;
+let listCache = { at: 0, items: null };
+const garmentCache = new Map();
+
 function serializeRegions(regions = []) {
   return regions.map((region) => ({
     ...region,
@@ -27,14 +31,40 @@ function normalizeGarment(id, data) {
   };
 }
 
-export async function getGarment(id) {
-  const snapshot = await getDoc(doc(db, 'garments', id));
-  return snapshot.exists() ? normalizeGarment(snapshot.id, snapshot.data()) : null;
+function cacheItems(items) {
+  listCache = { at: Date.now(), items };
+  items.forEach((item) => garmentCache.set(item.id, item));
+  return items;
 }
 
-export async function listGarments() {
+function invalidateGarmentCache(id = '') {
+  listCache = { at: 0, items: null };
+  if (id) garmentCache.delete(id);
+  else garmentCache.clear();
+}
+
+export async function getGarment(id, { force = false } = {}) {
+  if (!force && garmentCache.has(id)) return garmentCache.get(id);
+
+  if (!force && listCache.items && Date.now() - listCache.at < GARMENT_LIST_CACHE_MS) {
+    const cached = listCache.items.find((item) => item.id === id);
+    if (cached) return cached;
+  }
+
+  const snapshot = await getDoc(doc(db, 'garments', id));
+  if (!snapshot.exists()) return null;
+  const item = normalizeGarment(snapshot.id, snapshot.data());
+  garmentCache.set(id, item);
+  return item;
+}
+
+export async function listGarments({ force = false } = {}) {
+  if (!force && listCache.items && Date.now() - listCache.at < GARMENT_LIST_CACHE_MS) {
+    return listCache.items;
+  }
+
   const snapshot = await getDocs(query(collection(db, 'garments'), orderBy('name')));
-  return snapshot.docs.map((item) => normalizeGarment(item.id, item.data()));
+  return cacheItems(snapshot.docs.map((item) => normalizeGarment(item.id, item.data())));
 }
 
 export async function saveGarment(id, data) {
@@ -43,6 +73,7 @@ export async function saveGarment(id, data) {
     regions: serializeRegions(data.regions ?? []),
     updatedAt: serverTimestamp(),
   }, { merge: true });
+  invalidateGarmentCache(id);
 }
 
 export function createGarmentId(name) {

@@ -26,6 +26,18 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
+    match /customers/{customerId} {
+      allow read, create, update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    match /logoAssets/{hash} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn()
+        && request.resource.data.hash == hash;
+      allow delete: if isAdmin();
+    }
+
     match /admins/{uid} {
       allow read: if isSignedIn() && request.auth.uid == uid;
       allow write: if false;
