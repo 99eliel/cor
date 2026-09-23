@@ -11,6 +11,23 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin';
     }
 
+    function isPublicApprovalUpdate() {
+      return request.auth == null
+        && resource.data.approvalStatus == 'pending'
+        && resource.data.approvalToken is string
+        && request.resource.data.approvalProof == resource.data.approvalToken
+        && request.resource.data.approvalStatus in ['approved', 'changes_requested']
+        && request.resource.data.status in ['approved', 'approval']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'approvalProof',
+          'approvalStatus',
+          'approvalNote',
+          'approvalRespondedAt',
+          'status',
+          'updatedAt'
+        ]);
+    }
+
     match /garments/{garmentId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isAdmin();
@@ -23,7 +40,25 @@ service cloud.firestore {
         && request.resource.data.colorChoices is map
         && request.resource.data.logos is list
         && request.resource.data.finalImages is map;
-      allow read, update, delete: if isAdmin();
+      allow read, delete: if isAdmin();
+      allow update: if isAdmin() || isPublicApprovalUpdate();
+    }
+
+    match /approvalPreviews/{token} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if isSignedIn()
+        && request.resource.data.sellerUid == request.auth.uid
+        && request.resource.data.orderId is string;
+      allow update: if request.auth == null
+        && resource.data.status == 'pending'
+        && request.resource.data.status in ['approved', 'changes_requested']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'note',
+          'respondedAt'
+        ]);
+      allow delete: if isAdmin();
     }
 
     match /customers/{customerId} {
@@ -33,9 +68,11 @@ service cloud.firestore {
 
     match /logoAssets/{hash} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn()
-        && request.resource.data.hash == hash;
-      allow delete: if isAdmin();
+      allow create: if isSignedIn()
+        && request.resource.data.hash == hash
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.url is string;
+      allow update, delete: if isAdmin();
     }
 
     match /admins/{uid} {

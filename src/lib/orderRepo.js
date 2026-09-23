@@ -1,5 +1,4 @@
 import {
-  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -10,6 +9,7 @@ import {
   serverTimestamp,
   Timestamp,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -33,14 +33,25 @@ function lightweightDesignSnapshot(data) {
   };
 }
 
+function approvalToken() {
+  const random = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `${random.replace(/[^a-zA-Z0-9-]/g, '')}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 export async function createOrder(data) {
   const now = new Date();
   const expireAt = Timestamp.fromDate(new Date(now.getTime() + (90 * 24 * 60 * 60 * 1000)));
   const snapshot = lightweightDesignSnapshot(data);
+  const token = approvalToken();
+  const orderRef = doc(collection(db, 'orders'));
+  const previewRef = doc(db, 'approvalPreviews', token);
+  const batch = writeBatch(db);
 
-  const result = await addDoc(collection(db, 'orders'), {
+  batch.set(orderRef, {
     ...data,
     status: 'pending',
+    approvalStatus: 'pending',
+    approvalToken: token,
     designVersion: 1,
     designHistory: [{
       version: 1,
@@ -59,8 +70,29 @@ export async function createOrder(data) {
     updatedAt: serverTimestamp(),
   });
 
+  batch.set(previewRef, {
+    orderId: orderRef.id,
+    customerName: data.customerName || '',
+    garmentName: data.garmentName || data.garmentId || '',
+    quantity: Number(data.quantity) || 0,
+    designVersion: 1,
+    finalImageUrl: data.finalImageUrl || '',
+    sellerUid: data.sellerUid || '',
+    status: 'pending',
+    expireAt,
+    createdAt: serverTimestamp(),
+  });
+
+  await batch.commit();
   invalidateOrderCache();
-  return result.id;
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('martinpel:order-created', {
+      detail: { id: orderRef.id, approvalToken: token },
+    }));
+  }
+
+  return orderRef.id;
 }
 
 export async function listOrders({ force = false, maxItems = DEFAULT_ORDER_LIMIT } = {}) {

@@ -21,16 +21,24 @@ const CHECKS = [
   ['finalChecked', 'Conferência final'],
 ];
 
+const APPROVAL_LABELS = {
+  pending: 'Ainda não respondida',
+  approved: 'Arte aprovada pelo cliente',
+  changes_requested: 'Cliente solicitou alteração',
+};
+
 export default function OrderOperationsPanel({ order, disabled = false, onSaved }) {
   const [status, setStatus] = useState(order.status || 'pending');
   const [checklist, setChecklist] = useState(order.productionChecklist || {});
   const [saving, setSaving] = useState('');
   const [error, setError] = useState('');
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     setStatus(order.status || 'pending');
     setChecklist(order.productionChecklist || {});
-  }, [order.status, order.productionChecklist]);
+    setLinkCopied(false);
+  }, [order.status, order.productionChecklist, order.approvalStatus]);
 
   const checkedCount = useMemo(
     () => CHECKS.filter(([key]) => Boolean(checklist[key])).length,
@@ -78,6 +86,18 @@ export default function OrderOperationsPanel({ order, disabled = false, onSaved 
     }
   }
 
+  async function copyApprovalLink() {
+    if (!order.approvalToken) return;
+    const base = `${window.location.origin}${window.location.pathname}`;
+    const url = `${base}#/aprovar/${order.id}/${order.approvalToken}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+    } catch {
+      window.prompt('Copie o link de aprovação:', url);
+    }
+  }
+
   return (
     <section className="order-operations-panel">
       <div className="order-operations-head">
@@ -87,6 +107,18 @@ export default function OrderOperationsPanel({ order, disabled = false, onSaved 
         </div>
         <span className="order-version-pill">Versão {order.designVersion || 1}</span>
       </div>
+
+      {order.approvalToken && (
+        <div className="approval-admin-row">
+          <div>
+            <span>Aprovação do cliente</span>
+            <strong>{APPROVAL_LABELS[order.approvalStatus || 'pending'] || 'Aguardando resposta'}</strong>
+          </div>
+          <button className="button button-secondary" type="button" onClick={copyApprovalLink} disabled={disabled}>
+            {linkCopied ? '✓ Link copiado' : 'Copiar link de aprovação'}
+          </button>
+        </div>
+      )}
 
       <div className="order-status-control">
         <label>Status do pedido

@@ -1,6 +1,6 @@
 # Retenção e custo do Firebase
 
-A arquitetura do sistema separa arquivos permanentes de arquivos temporários para evitar crescimento infinito do Storage.
+A arquitetura do sistema separa arquivos permanentes de arquivos temporários para evitar crescimento infinito do Storage e leituras desnecessárias.
 
 ## Permanentes
 
@@ -11,11 +11,17 @@ A arquitetura do sistema separa arquivos permanentes de arquivos temporários pa
 ## Retenção de 90 dias
 
 - `orders`: todo pedido novo recebe o campo `expireAt` com 90 dias de validade.
-- `final-renders/`: artes finais do pedido recebem metadata `retention=90-days` e devem ser removidas por lifecycle do bucket.
+- `approvalPreviews`: a prova pública de aprovação usa o mesmo `expireAt` de 90 dias.
+- `final-renders/`: artes finais do pedido recebem metadata `retention=90-days` e devem ser removidas pelo lifecycle do bucket.
 
 ### Firestore
 
-No Firebase Console, habilitar TTL para a collection group `orders` usando o campo `expireAt`.
+No Firebase Console, habilitar TTL para:
+
+1. collection group `orders`, campo `expireAt`;
+2. collection group `approvalPreviews`, campo `expireAt`.
+
+A aprovação pública usa um token aleatório como ID do documento. `list` é bloqueado pelas regras; o cliente acessa apenas a prova cujo token recebeu.
 
 ### Cloud Storage
 
@@ -30,3 +36,5 @@ Aplicar o arquivo `storage-lifecycle.json` ao bucket `personalizamartinpel.fireb
 - Ficha técnica e QR são gerados localmente e não ocupam Storage.
 - Artes finais são convertidas para WEBP quando isso realmente reduz o tamanho; o PNG continua sendo usado como fallback.
 - Histórico de versão guarda somente dados de design, não cópias adicionais da imagem final.
+- Aprovação do cliente não exige login nem catálogo: uma leitura da prova e, na resposta, duas gravações atômicas.
+- O link de aprovação pode ser reconstruído no admin usando o token já carregado no pedido, sem leitura extra.
