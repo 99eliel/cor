@@ -35,10 +35,8 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
   const imagesRef = useRef({});
   const currentViewRef = useRef(view);
 
-  function notifyLogos() {
-    const canvas = fabricRef.current;
-    if (!canvas) return;
-    const logos = canvas.getObjects().map((object) => ({
+  function serializeLogo(object) {
+    return {
       id: object.logoId,
       storageUrl: object.storageUrl,
       sourceUrl: object.sourceUrl || object.storageUrl,
@@ -49,6 +47,8 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
       originalUrl: object.originalUrl || object.sourceUrl || object.storageUrl,
       processedUrl: object.processedUrl || '',
       backgroundRemoved: Boolean(object.backgroundRemoved),
+      placementLabel: object.placementLabel || 'Livre',
+      widthCm: Number(object.widthCm) || 9,
       position: {
         x: object.normX,
         y: object.normY,
@@ -56,8 +56,13 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
         rotation: object.angle ?? 0,
         view: object.logoView,
       },
-    }));
-    onLogosChange?.(logos);
+    };
+  }
+
+  function notifyLogos() {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    onLogosChange?.(canvas.getObjects().filter((object) => object.logoId).map(serializeLogo));
   }
 
   function captureObject(object) {
@@ -164,7 +169,7 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
         originY: 'center',
         left: canvas.getWidth() / 2,
         top: canvas.getHeight() / 2,
-        angle: 0,
+        angle: Number(metadata.rotation) || 0,
         transparentCorners: false,
         cornerStyle: 'circle',
       });
@@ -180,10 +185,12 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
       object.backgroundRemoved = Boolean(metadata.backgroundRemoved);
       object.processingSource = metadata.processingSource || storageUrl;
       object.processingSourceOwned = Boolean(metadata.processingSourceOwned);
-      object.logoView = metadata.targetView || currentViewRef.current;
-      object.normX = Number.isFinite(metadata.initialX) ? metadata.initialX : 0.5;
-      object.normY = Number.isFinite(metadata.initialY) ? metadata.initialY : 0.5;
-      object.normScale = 0.2;
+      object.logoView = metadata.targetView || metadata.position?.view || currentViewRef.current;
+      object.normX = Number.isFinite(metadata.initialX) ? metadata.initialX : Number(metadata.position?.x) || 0.5;
+      object.normY = Number.isFinite(metadata.initialY) ? metadata.initialY : Number(metadata.position?.y) || 0.5;
+      object.normScale = Number(metadata.position?.scale) || 0.2;
+      object.placementLabel = metadata.placementLabel || 'Livre';
+      object.widthCm = Number(metadata.widthCm) || 9;
       object.set({
         left: object.normX * canvas.getWidth(),
         top: object.normY * canvas.getHeight(),
@@ -205,16 +212,31 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
       const active = canvas?.getActiveObject();
       if (!active?.logoId) return null;
       return {
-        id: active.logoId,
-        storageUrl: active.storageUrl,
-        sourceUrl: active.sourceUrl || active.storageUrl,
-        originalUrl: active.originalUrl || active.sourceUrl || active.storageUrl,
-        sourceName: active.sourceName || '',
-        sourceType: active.sourceType || 'image',
-        processedUrl: active.processedUrl || '',
-        backgroundRemoved: Boolean(active.backgroundRemoved),
+        ...serializeLogo(active),
         processingSource: active.processingSource || active.originalUrl || active.sourceUrl || active.storageUrl,
       };
+    },
+
+    updateSelectedLogoProductionMeta(metadata = {}) {
+      const canvas = fabricRef.current;
+      const active = canvas?.getActiveObject();
+      if (!canvas || !active?.logoId) return false;
+
+      if (metadata.placementLabel !== undefined) active.placementLabel = metadata.placementLabel || 'Livre';
+      if (metadata.widthCm !== undefined) active.widthCm = Number(metadata.widthCm) || 9;
+      if (Number.isFinite(metadata.x)) active.normX = metadata.x;
+      if (Number.isFinite(metadata.y)) active.normY = metadata.y;
+      if (Number.isFinite(metadata.x) || Number.isFinite(metadata.y)) {
+        active.set({
+          left: active.normX * canvas.getWidth(),
+          top: active.normY * canvas.getHeight(),
+        });
+        active.setCoords();
+      }
+      canvas.setActiveObject(active);
+      canvas.requestRenderAll();
+      notifyLogos();
+      return true;
     },
 
     async replaceSelectedLogoImage(storageUrl, metadata = {}) {
@@ -251,6 +273,20 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
       return true;
     },
 
+    clearLogos() {
+      const canvas = fabricRef.current;
+      if (!canvas) return;
+      canvas.getObjects().filter((object) => object.logoId).forEach((object) => {
+        if (object.processingSourceOwned && object.processingSource?.startsWith('blob:')) {
+          URL.revokeObjectURL(object.processingSource);
+        }
+        canvas.remove(object);
+      });
+      canvas.discardActiveObject();
+      canvas.requestRenderAll();
+      notifyLogos();
+    },
+
     async exportView(targetView) {
       const url = garment.images?.[targetView];
       if (!url) return null;
@@ -283,7 +319,7 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
             else reject(new Error('Não foi possível gerar a imagem final.'));
           }, 'image/png', 0.96);
         } catch {
-          reject(new Error('A imagem foi exibida, mas o navegador bloqueou a exportação final.')); 
+          reject(new Error('A imagem foi exibida, mas o navegador bloqueou a exportação final.'));
         }
       });
     },
