@@ -38,6 +38,26 @@ async function sha256Blob(blob) {
   return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+async function optimizeFinalRender(blob) {
+  if (!blob || typeof createImageBitmap !== 'function') return { blob, contentType: 'image/png', ext: 'png' };
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext('2d');
+    context.drawImage(bitmap, 0, 0);
+    bitmap.close?.();
+    const webp = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.9));
+    if (webp && webp.size > 0 && webp.size < blob.size) {
+      return { blob: webp, contentType: 'image/webp', ext: 'webp' };
+    }
+  } catch {
+    // Mantém o PNG original quando o navegador não suportar a otimização.
+  }
+  return { blob, contentType: 'image/png', ext: 'png' };
+}
+
 export async function resolveLogoAsset(file, uid, kind = 'image') {
   if (kind === 'pdf') validatePdf(file);
   else validateImage(file);
@@ -70,11 +90,7 @@ export async function resolveLogoAsset(file, uid, kind = 'image') {
     reused: false,
   };
 
-  await setDoc(assetDoc, {
-    ...asset,
-    createdAt: serverTimestamp(),
-  }, { merge: true });
-
+  await setDoc(assetDoc, { ...asset, createdAt: serverTimestamp() }, { merge: true });
   logoAssetCache.set(hash, asset);
   return asset;
 }
@@ -87,21 +103,24 @@ export async function uploadGarmentImage(file, garmentId, view) {
 }
 
 export async function uploadClientLogo(file, uid) {
-  const asset = await resolveLogoAsset(file, uid, 'image');
-  return asset.url;
+  return (await resolveLogoAsset(file, uid, 'image')).url;
 }
 
 export async function uploadClientLogoOriginalPdf(file, uid) {
-  const asset = await resolveLogoAsset(file, uid, 'pdf');
-  return asset.url;
+  return (await resolveLogoAsset(file, uid, 'pdf')).url;
 }
 
 export async function uploadFinalRender(blob, uid, label = 'final') {
   if (!blob || blob.size > 10 * 1024 * 1024) throw new Error('Render final inválido.');
-  const objectRef = ref(storage, `final-renders/${uid}/${Date.now()}-${safeName(label)}.png`);
-  await uploadBytes(objectRef, blob, {
-    contentType: 'image/png',
-    customMetadata: { retention: '90-days' },
+  const optimized = await optimizeFinalRender(blob);
+  const objectRef = ref(storage, `final-renders/${uid}/${Date.now()}-${safeName(label)}.${optimized.ext}`);
+  await uploadBytes(objectRef, optimized.blob, {
+    contentType: optimized.contentType,
+    customMetadata: {
+      retention: '90-days',
+      originalBytes: String(blob.size),
+      optimizedBytes: String(optimized.blob.size),
+    },
   });
   return getDownloadURL(objectRef);
 }
