@@ -7,7 +7,7 @@ import NewRegionDialog from '../components/NewRegionDialog';
 import OrderQuoteBuilder from '../components/OrderQuoteBuilder';
 import MartinpelBrand from '../components/MartinpelBrand';
 import RegionSidebar from '../components/RegionSidebar';
-import { createGarmentId, getGarment, listGarments, saveGarment } from '../lib/garmentRepo';
+import { createGarmentId, getGarment, listGarments, saveGarment, setGarmentArchived } from '../lib/garmentRepo';
 import { slugifyRegionId } from '../lib/geometry';
 import { deleteOrder, listOrders, setOrderCompleted } from '../lib/orderRepo';
 import { uploadGarmentImage } from '../lib/storageImages';
@@ -198,6 +198,7 @@ function AdminDashboard({
 }) {
   const completed = orders.filter((order) => order.status === 'completed').length;
   const pending = orders.length - completed;
+  const activeGarments = garments.filter((garment) => !garment.archived).length;
   const latestOrders = orders.slice(0, 3);
 
   return (
@@ -243,7 +244,7 @@ function AdminDashboard({
       <div className="dashboard-stats-grid">
         <article className="panel dashboard-stat">
           <span>Peças no catálogo</span>
-          <strong>{garments.length}</strong>
+          <strong>{activeGarments}</strong>
           <small>disponíveis para personalização</small>
         </article>
         <article className="panel dashboard-stat is-pending">
@@ -294,14 +295,14 @@ function AdminDashboard({
   );
 }
 
-function CatalogManager({ garments, onAdd, onEdit, onPreview }) {
+function CatalogManager({ garments, onAdd, onEdit, onPreview, onArchive, onRestore, actionId }) {
   return (
     <section className="catalog-manager">
       <div className="panel catalog-manager-head">
         <div>
           <p className="eyebrow">Catálogo</p>
           <h2>Peças disponíveis</h2>
-          <p>Gerencie as peças que aparecem para o cliente. Abra uma peça para editar ou cadastre um novo modelo.</p>
+          <p>Gerencie as peças disponíveis para os vendedores. Peças excluídas do catálogo ficam arquivadas e podem ser restauradas.</p>
         </div>
         <button className="button button-primary" type="button" onClick={onAdd}>+ Adicionar peça</button>
       </div>
@@ -317,8 +318,9 @@ function CatalogManager({ garments, onAdd, onEdit, onPreview }) {
         <div className="catalog-manager-grid">
           {garments.map((garment) => {
             const thumbnail = garment.images?.front || garment.images?.combined || garment.images?.back;
+            const working = actionId === garment.id;
             return (
-              <article className="panel catalog-manager-card" key={garment.id}>
+              <article className={`panel catalog-manager-card ${garment.archived ? 'is-archived' : ''}`} key={garment.id}>
                 <div className="catalog-manager-thumb">
                   {thumbnail
                     ? <img src={thumbnail} alt={garment.name} />
@@ -329,10 +331,22 @@ function CatalogManager({ garments, onAdd, onEdit, onPreview }) {
                     <span className="catalog-manager-card-label">Peça</span>
                     <h3>{garment.name}</h3>
                     <code>{garment.id}</code>
+                    {garment.archived && <span className="order-status is-completed">Arquivada · fora do catálogo</span>}
                   </div>
                   <div className="catalog-manager-card-actions">
-                    <button className="button button-primary" type="button" onClick={() => onEdit(garment.id)}>Editar peça</button>
-                    <button className="button button-secondary" type="button" onClick={() => onPreview(garment.id)}>Abrir personalização</button>
+                    {garment.archived ? (
+                      <button className="button button-success" type="button" disabled={working} onClick={() => onRestore(garment)}>
+                        {working ? 'Restaurando…' : 'Restaurar peça'}
+                      </button>
+                    ) : (
+                      <>
+                        <button className="button button-primary" type="button" disabled={working} onClick={() => onEdit(garment.id)}>Editar peça</button>
+                        <button className="button button-secondary" type="button" disabled={working} onClick={() => onPreview(garment.id)}>Abrir personalização</button>
+                        <button className="button order-delete-button" type="button" disabled={working} onClick={() => onArchive(garment)}>
+                          {working ? 'Excluindo…' : 'Excluir do catálogo'}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </article>
@@ -349,6 +363,7 @@ function AdminWorkspace({ logout }) {
   const fileInputRef = useRef(null);
   const [section, setSection] = useState('dashboard');
   const [garments, setGarments] = useState([]);
+  const [garmentActionId, setGarmentActionId] = useState('');
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState('');
@@ -372,6 +387,7 @@ function AdminWorkspace({ logout }) {
     [regions, selectedRegionId],
   );
   const isPreviewMode = mode === 'preview' || mode === 'logoTest';
+  const activeGarmentCount = useMemo(() => garments.filter((garment) => !garment.archived).length, [garments]);
 
   useEffect(() => {
     refreshGarments();
@@ -380,7 +396,7 @@ function AdminWorkspace({ logout }) {
 
   async function refreshGarments() {
     try {
-      const items = await listGarments();
+      const items = await listGarments({ includeArchived: true });
       setGarments(items);
     } catch (err) {
       setError(`Não foi possível listar as peças: ${err.message}`);
@@ -424,6 +440,36 @@ function AdminWorkspace({ logout }) {
   async function editGarment(id) {
     await loadGarment(id);
     setSection('editor');
+  }
+
+  async function archiveGarment(garment) {
+    const confirmed = window.confirm(`Excluir “${garment.name}” do catálogo?\n\nA peça deixará de aparecer para os vendedores, mas pedidos antigos serão preservados e você poderá restaurá-la depois.`);
+    if (!confirmed) return;
+    setGarmentActionId(garment.id);
+    setError('');
+    try {
+      await setGarmentArchived(garment.id, true);
+      await refreshGarments();
+      setMessage(`Peça “${garment.name}” removida do catálogo e arquivada com segurança.`);
+    } catch (err) {
+      setError(`Não foi possível excluir a peça do catálogo: ${err.message}`);
+    } finally {
+      setGarmentActionId('');
+    }
+  }
+
+  async function restoreGarment(garment) {
+    setGarmentActionId(garment.id);
+    setError('');
+    try {
+      await setGarmentArchived(garment.id, false);
+      await refreshGarments();
+      setMessage(`Peça “${garment.name}” restaurada no catálogo.`);
+    } catch (err) {
+      setError(`Não foi possível restaurar a peça: ${err.message}`);
+    } finally {
+      setGarmentActionId('');
+    }
   }
 
   function previewGarment(id = garmentId) {
@@ -586,7 +632,7 @@ function AdminWorkspace({ logout }) {
   const currentPage = section === 'dashboard'
     ? { eyebrow: 'Painel administrativo', title: 'Visão geral', description: 'Acompanhe catálogo, pedidos e andamento da personalização em um só lugar.' }
     : section === 'catalog'
-      ? { eyebrow: 'Catálogo', title: 'Gerenciar peças', description: 'Cadastre, revise e abra as peças disponíveis para os clientes.' }
+      ? { eyebrow: 'Catálogo', title: 'Gerenciar peças', description: 'Cadastre, revise, arquive e restaure as peças disponíveis para os vendedores.' }
       : section === 'orders'
         ? { eyebrow: 'Comercial', title: 'Pedidos & Orçamentos', description: 'Acompanhe solicitações, gere orçamentos e conclua pedidos.' }
         : { eyebrow: garmentId ? 'Editor de peça' : 'Cadastro de peça', title: garmentId ? (name || 'Editar peça') : 'Nova peça', description: 'Configure imagens, regiões, cores e testes antes de publicar.' };
@@ -606,8 +652,8 @@ function AdminWorkspace({ logout }) {
           </button>
           <button type="button" className={section === 'catalog' ? 'active' : ''} onClick={openCatalog}>
             <span className="admin-nav-icon">▦</span>
-            <span><strong>Catálogo</strong><small>{garments.length} peça(s) cadastrada(s)</small></span>
-            <b>{garments.length}</b>
+            <span><strong>Catálogo</strong><small>{activeGarmentCount} peça(s) ativa(s)</small></span>
+            <b>{activeGarmentCount}</b>
           </button>
           <button type="button" className={section === 'editor' && !garmentId ? 'active' : ''} onClick={addNewGarment}>
             <span className="admin-nav-icon">＋</span>
@@ -663,6 +709,9 @@ function AdminWorkspace({ logout }) {
           onAdd={addNewGarment}
           onEdit={editGarment}
           onPreview={previewGarment}
+          onArchive={archiveGarment}
+          onRestore={restoreGarment}
+          actionId={garmentActionId}
         />
       ) : section === 'orders' ? (
         <OrdersView orders={orders} loading={ordersLoading} error={ordersError} onRefresh={refreshOrders} />
