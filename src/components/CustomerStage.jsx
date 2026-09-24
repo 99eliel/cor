@@ -5,18 +5,11 @@ import { renderGarment } from '../lib/renderGarment';
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
-    function attempt(useCors) {
-      const image = new Image();
-      if (useCors) image.crossOrigin = 'anonymous';
-      image.onload = () => resolve(image);
-      image.onerror = () => {
-        if (useCors) attempt(false);
-        else reject(new Error('Não foi possível carregar uma imagem.'));
-      };
-      image.src = url;
-    }
-
-    attempt(true);
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Não foi possível carregar a imagem com segurança para exportação. Verifique o CORS do Cloud Storage.'));
+    image.src = url;
   });
 }
 
@@ -152,18 +145,18 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
 
   useEffect(() => {
     currentViewRef.current = view;
-    paint(view);
+    paint(view).catch((err) => console.error(err));
   }, [view, garment.images?.front, garment.images?.back, garment.images?.combined]);
 
   useEffect(() => {
-    paint(view);
+    paint(view).catch((err) => console.error(err));
   }, [colorChoices, garment.regions]);
 
   useImperativeHandle(ref, () => ({
     async addLogo(storageUrl, metadata = {}) {
       const canvas = fabricRef.current;
       if (!canvas) return;
-      const imageElement = await loadImage(storageUrl);
+      const imageElement = await loadImage(metadata.processingSource || storageUrl);
       const object = new FabricImage(imageElement, {
         originX: 'center',
         originY: 'center',
@@ -244,7 +237,7 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
       const active = canvas?.getActiveObject();
       if (!canvas || !active?.logoId) return false;
 
-      const imageElement = await loadImage(storageUrl);
+      const imageElement = await loadImage(metadata.processingSource || storageUrl);
       active.setElement(imageElement);
       active.storageUrl = storageUrl;
       active.processedUrl = metadata.processedUrl || storageUrl;
@@ -252,6 +245,11 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
       if (metadata.originalUrl) active.originalUrl = metadata.originalUrl;
       if (metadata.sourceUrl) active.sourceUrl = metadata.sourceUrl;
       if (metadata.sourceName) active.sourceName = metadata.sourceName;
+      if (metadata.processingSource) {
+        if (active.processingSourceOwned && active.processingSource?.startsWith('blob:')) URL.revokeObjectURL(active.processingSource);
+        active.processingSource = metadata.processingSource;
+        active.processingSourceOwned = Boolean(metadata.processingSourceOwned);
+      }
       active.scaleToWidth(active.normScale * canvas.getWidth());
       active.setCoords();
       canvas.setActiveObject(active);
@@ -290,7 +288,7 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
     async exportView(targetView) {
       const url = garment.images?.[targetView];
       if (!url) return null;
-      const image = imagesRef.current[targetView] ?? await loadImage(url);
+      const image = await loadImage(url);
       imagesRef.current[targetView] = image;
       const { width, height } = dimensionsFor(image);
       const result = document.createElement('canvas');
@@ -300,8 +298,9 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
       const ctx = result.getContext('2d');
       const canvas = fabricRef.current;
 
-      canvas.getObjects().filter((object) => object.logoView === targetView).forEach((object) => {
-        const element = object.getElement();
+      for (const object of canvas.getObjects().filter((item) => item.logoView === targetView)) {
+        const source = object.processingSource || object.processedUrl || object.storageUrl || object.sourceUrl;
+        const element = source ? await loadImage(source) : object.getElement();
         const drawWidth = object.normScale * width;
         const ratio = element.naturalHeight / element.naturalWidth;
         const drawHeight = drawWidth * ratio;
@@ -310,7 +309,7 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
         ctx.rotate(((object.angle ?? 0) * Math.PI) / 180);
         ctx.drawImage(element, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
         ctx.restore();
-      });
+      }
 
       return new Promise((resolve, reject) => {
         try {
@@ -318,8 +317,8 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
             if (blob) resolve(blob);
             else reject(new Error('Não foi possível gerar a imagem final.'));
           }, 'image/png', 0.96);
-        } catch {
-          reject(new Error('A imagem foi exibida, mas o navegador bloqueou a exportação final.'));
+        } catch (error) {
+          reject(new Error(`A exportação foi bloqueada por uma imagem sem permissão CORS. ${error?.message || ''}`.trim()));
         }
       });
     },
