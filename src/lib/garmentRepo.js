@@ -27,6 +27,7 @@ function normalizeGarment(id, data) {
   return {
     id,
     ...data,
+    archived: Boolean(data?.archived),
     regions: deserializeRegions(data?.regions ?? []),
   };
 }
@@ -58,19 +59,33 @@ export async function getGarment(id, { force = false } = {}) {
   return item;
 }
 
-export async function listGarments({ force = false } = {}) {
+export async function listGarments({ force = false, includeArchived = false } = {}) {
+  let items;
   if (!force && listCache.items && Date.now() - listCache.at < GARMENT_LIST_CACHE_MS) {
-    return listCache.items;
+    items = listCache.items;
+  } else {
+    const snapshot = await getDocs(query(collection(db, 'garments'), orderBy('name')));
+    items = cacheItems(snapshot.docs.map((item) => normalizeGarment(item.id, item.data())));
   }
 
-  const snapshot = await getDocs(query(collection(db, 'garments'), orderBy('name')));
-  return cacheItems(snapshot.docs.map((item) => normalizeGarment(item.id, item.data())));
+  return includeArchived ? items : items.filter((item) => !item.archived);
 }
 
 export async function saveGarment(id, data) {
   await setDoc(doc(db, 'garments', id), {
     ...data,
+    archived: false,
     regions: serializeRegions(data.regions ?? []),
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+  invalidateGarmentCache(id);
+}
+
+export async function setGarmentArchived(id, archived) {
+  if (!id) throw new Error('Peça inválida.');
+  await setDoc(doc(db, 'garments', id), {
+    archived: Boolean(archived),
+    archivedAt: archived ? serverTimestamp() : null,
     updatedAt: serverTimestamp(),
   }, { merge: true });
   invalidateGarmentCache(id);
