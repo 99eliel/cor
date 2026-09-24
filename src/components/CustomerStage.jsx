@@ -13,6 +13,15 @@ function loadImage(url) {
   });
 }
 
+function loadDisplayImage(url) {
+  return loadImage(url).catch(() => new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Não foi possível carregar a imagem da peça.'));
+    image.src = url;
+  }));
+}
+
 function dimensionsFor(image) {
   const ratio = Math.min(1, 1200 / image.naturalWidth);
   return {
@@ -91,7 +100,7 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
   async function paint(targetView) {
     const url = garment.images?.[targetView];
     if (!url) return;
-    const image = imagesRef.current[targetView] ?? await loadImage(url);
+    const image = imagesRef.current[targetView] ?? await loadDisplayImage(url);
     imagesRef.current[targetView] = image;
     if (targetView !== currentViewRef.current) return;
 
@@ -156,7 +165,7 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
     async addLogo(storageUrl, metadata = {}) {
       const canvas = fabricRef.current;
       if (!canvas) return;
-      const imageElement = await loadImage(metadata.processingSource || storageUrl);
+      const imageElement = await loadDisplayImage(metadata.processingSource || storageUrl);
       const object = new FabricImage(imageElement, {
         originX: 'center',
         originY: 'center',
@@ -237,7 +246,7 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
       const active = canvas?.getActiveObject();
       if (!canvas || !active?.logoId) return false;
 
-      const imageElement = await loadImage(metadata.processingSource || storageUrl);
+      const imageElement = await loadDisplayImage(metadata.processingSource || storageUrl);
       active.setElement(imageElement);
       active.storageUrl = storageUrl;
       active.processedUrl = metadata.processedUrl || storageUrl;
@@ -289,7 +298,6 @@ const CustomerStage = forwardRef(function CustomerStage({ garment, view, colorCh
       const url = garment.images?.[targetView];
       if (!url) return null;
       const image = await loadImage(url);
-      imagesRef.current[targetView] = image;
       const { width, height } = dimensionsFor(image);
       const result = document.createElement('canvas');
       result.width = width;
