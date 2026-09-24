@@ -44,19 +44,22 @@ function invalidateGarmentCache(id = '') {
   else garmentCache.clear();
 }
 
-export async function getGarment(id, { force = false } = {}) {
-  if (!force && garmentCache.has(id)) return garmentCache.get(id);
+export async function getGarment(id, { force = false, includeArchived = false } = {}) {
+  if (!force && garmentCache.has(id)) {
+    const cached = garmentCache.get(id);
+    return !includeArchived && cached.archived ? null : cached;
+  }
 
   if (!force && listCache.items && Date.now() - listCache.at < GARMENT_LIST_CACHE_MS) {
     const cached = listCache.items.find((item) => item.id === id);
-    if (cached) return cached;
+    if (cached) return !includeArchived && cached.archived ? null : cached;
   }
 
   const snapshot = await getDoc(doc(db, 'garments', id));
   if (!snapshot.exists()) return null;
   const item = normalizeGarment(snapshot.id, snapshot.data());
   garmentCache.set(id, item);
-  return item;
+  return !includeArchived && item.archived ? null : item;
 }
 
 export async function listGarments({ force = false, includeArchived = false } = {}) {
