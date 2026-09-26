@@ -1,3 +1,29 @@
+.admin-archive-shortcut{
+  position:fixed;
+  right:28px;
+  bottom:28px;
+  z-index:120;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:44px;
+  padding:0 18px;
+  border:1px solid #c9d8e6;
+  border-radius:999px;
+  background:#fff;
+  color:#062b52;
+  font-weight:900;
+  text-decoration:none;
+  box-shadow:0 14px 34px rgba(6,43,82,.18);
+  transition:.18s ease;
+}
+
+.admin-archive-shortcut:hover{
+  transform:translateY(-2px);
+  background:#062b52;
+  color:#fff;
+}
+
 .trash-shell{
   min-height:100vh;
   padding:24px;
@@ -200,6 +226,7 @@
 }
 
 @media (max-width:760px){
+  .admin-archive-shortcut{right:14px;bottom:14px}
   .trash-shell{padding:12px}
   .trash-topbar,.trash-hero{align-items:stretch;flex-direction:column}
   .trash-topbar-actions{justify-content:flex-start}
