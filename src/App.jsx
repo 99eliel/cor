@@ -3,6 +3,7 @@ import ApprovalShareToast from './components/ApprovalShareToast';
 import StaffAuth from './components/StaffAuth';
 import AdminPage from './pages/AdminPage';
 import ApprovalPage from './pages/ApprovalPage';
+import ArchivedGarmentsPage from './pages/ArchivedGarmentsPage';
 import CustomizerPage from './pages/CustomizerPage';
 
 function SellerRoute() {
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/" element={<SellerRoute />} />
         <Route path="/customizar/:garmentId" element={<SellerRoute />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/admin/arquivadas" element={<ArchivedGarmentsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <ApprovalShareToast />
