@@ -1,5 +1,5 @@
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from './firebase';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -58,6 +58,14 @@ async function optimizeFinalRender(blob) {
   return { blob, contentType: 'image/png', ext: 'png' };
 }
 
+async function deleteStorageFolder(folderRef) {
+  const listing = await listAll(folderRef);
+  await Promise.all(listing.items.map((itemRef) => deleteObject(itemRef)));
+  for (const childFolder of listing.prefixes) {
+    await deleteStorageFolder(childFolder);
+  }
+}
+
 export async function resolveLogoAsset(file, uid, kind = 'image') {
   if (kind === 'pdf') validatePdf(file);
   else validateImage(file);
@@ -100,6 +108,11 @@ export async function uploadGarmentImage(file, garmentId, view) {
   const objectRef = ref(storage, `garments/${garmentId}/${view}-${Date.now()}-${safeName(file.name)}`);
   await uploadBytes(objectRef, file, { contentType: file.type });
   return getDownloadURL(objectRef);
+}
+
+export async function deleteGarmentStorageFiles(garmentId) {
+  if (!garmentId) throw new Error('Peça inválida.');
+  await deleteStorageFolder(ref(storage, `garments/${garmentId}`));
 }
 
 export async function uploadClientLogo(file, uid) {
