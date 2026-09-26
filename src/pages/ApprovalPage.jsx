@@ -44,12 +44,13 @@ export default function ApprovalPage() {
     setError('');
     try {
       const batch = writeBatch(db);
+      const nextStatus = nextDecision === 'approved' ? 'approved' : 'approval';
       batch.update(doc(db, 'orders', orderId), {
         approvalProof: token,
         approvalStatus: nextDecision,
         approvalNote: note.trim(),
         approvalRespondedAt: serverTimestamp(),
-        status: nextDecision === 'approved' ? 'approved' : 'approval',
+        status: nextStatus,
         updatedAt: serverTimestamp(),
       });
       batch.update(doc(db, 'approvalPreviews', token), {
@@ -57,6 +58,14 @@ export default function ApprovalPage() {
         note: note.trim(),
         respondedAt: serverTimestamp(),
       });
+      if (preview?.sellerUid) {
+        batch.update(doc(db, 'sellerOrders', preview.sellerUid, 'orders', orderId), {
+          approvalProof: token,
+          approvalStatus: nextDecision,
+          status: nextStatus,
+          updatedAt: serverTimestamp(),
+        });
+      }
       await batch.commit();
       setDecision(nextDecision);
     } catch (err) {
@@ -85,7 +94,7 @@ export default function ApprovalPage() {
       <section className="approval-card">
         <header className="approval-brand"><MartinpelBrand compact subtitle="Aprovação de arte" /></header>
         <div className="approval-heading">
-          <span>Pedido {orderId}</span>
+          <span>Pedido {preview?.displayCode || orderId}</span>
           <h1>Confira a personalização</h1>
           <p>Esta página serve somente para aprovar a arte montada pela equipe Martinpel. Nenhuma configuração do sistema fica disponível aqui.</p>
         </div>
