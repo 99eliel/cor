@@ -11,6 +11,7 @@ export default function ApprovalShareToast() {
       const base = `${window.location.origin}${window.location.pathname}`;
       setApproval({
         id: detail.id,
+        displayCode: detail.displayCode || detail.id,
         url: `${base}#/aprovar/${detail.id}/${detail.approvalToken}`,
       });
       setCopied(false);
@@ -33,7 +34,7 @@ export default function ApprovalShareToast() {
   return (
     <div className="approval-share-toast">
       <div>
-        <span>Pedido {approval.id}</span>
+        <span>Pedido {approval.displayCode}</span>
         <strong>Link de aprovação pronto</strong>
         <small>Envie somente esta prova para o cliente. Ele não terá acesso ao sistema.</small>
       </div>
