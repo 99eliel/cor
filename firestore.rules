@@ -28,6 +28,21 @@ service cloud.firestore {
         ]);
     }
 
+    function isPublicSellerSummaryApprovalUpdate() {
+      return request.auth == null
+        && resource.data.approvalStatus == 'pending'
+        && resource.data.approvalToken is string
+        && request.resource.data.approvalProof == resource.data.approvalToken
+        && request.resource.data.approvalStatus in ['approved', 'changes_requested']
+        && request.resource.data.status in ['approved', 'approval']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'approvalProof',
+          'approvalStatus',
+          'status',
+          'updatedAt'
+        ]);
+    }
+
     match /garments/{garmentId} {
       allow read: if isSignedIn();
       allow create, update, delete: if isAdmin();
@@ -42,6 +57,27 @@ service cloud.firestore {
         && request.resource.data.finalImages is map;
       allow read, delete: if isAdmin();
       allow update: if isAdmin() || isPublicApprovalUpdate();
+    }
+
+    match /sellerOrders/{uid}/orders/{orderId} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      allow create: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.sellerUid == uid
+        && request.resource.data.orderId == orderId
+        && request.resource.data.displayCode is string;
+      allow update: if isAdmin() || isPublicSellerSummaryApprovalUpdate();
+      allow delete: if isAdmin();
+    }
+
+    match /system/orderCounter {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.next == 2;
+      allow update: if isSignedIn()
+        && request.resource.data.next == resource.data.next + 1
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['next', 'updatedAt']);
+      allow delete: if false;
     }
 
     match /approvalPreviews/{token} {
