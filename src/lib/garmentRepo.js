@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 const GARMENT_LIST_CACHE_MS = 5 * 60 * 1000;
@@ -91,6 +91,21 @@ export async function setGarmentArchived(id, archived) {
     archivedAt: archived ? serverTimestamp() : null,
     updatedAt: serverTimestamp(),
   }, { merge: true });
+  invalidateGarmentCache(id);
+}
+
+export async function deleteGarmentPermanently(id) {
+  if (!id) throw new Error('Peça inválida.');
+  const garmentRef = doc(db, 'garments', id);
+  const snapshot = await getDoc(garmentRef);
+  if (!snapshot.exists()) {
+    invalidateGarmentCache(id);
+    return;
+  }
+  if (!snapshot.data()?.archived) {
+    throw new Error('Arquive a peça antes de excluí-la permanentemente.');
+  }
+  await deleteDoc(garmentRef);
   invalidateGarmentCache(id);
 }
 
