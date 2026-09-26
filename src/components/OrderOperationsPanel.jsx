@@ -51,7 +51,7 @@ export default function OrderOperationsPanel({ order, disabled = false, onSaved 
     setSaving('status');
     setError('');
     try {
-      await setOrderStatus(order.id, next);
+      await setOrderStatus(order.id, next, order.sellerUid || '');
       await onSaved?.();
     } catch (err) {
       setStatus(order.status || 'pending');
