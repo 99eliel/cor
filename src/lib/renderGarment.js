@@ -105,8 +105,6 @@ function buildSubjectMask(image, width, height) {
     const background = estimateBackgroundColor(data, width, height);
     const maskData = new ImageData(width, height);
 
-    // Remove apenas pixels realmente próximos do fundo estimado. A transição suave
-    // evita recortes duros e preserva sombras/bordas da própria peça.
     const fullyBackgroundDistance = 14;
     const fullyGarmentDistance = 48;
 
@@ -137,15 +135,21 @@ function buildSubjectMask(image, width, height) {
     cacheBySize.set(cacheKey, subjectMask);
     return subjectMask;
   } catch {
-    // Imagens sem CORS ainda podem ser exibidas. Nesse caso mantemos a máscara
-    // tradicional em vez de quebrar o editor ou a tela do cliente.
     cacheBySize.set(cacheKey, null);
     return null;
   }
 }
 
-function createRegionMask(width, height, polygons, image) {
+function createRegionMask(width, height, polygons, image, useSubjectMask = false) {
   const polygonMask = createBlurredMask(width, height, polygons, 1.5);
+
+  // As regiões já são desenhadas manualmente sobre a peça e, portanto, são a
+  // fonte de verdade da máscara. Não tentamos remover o fundo por cor por padrão:
+  // esse tipo de inferência confundia tecido branco com fundo branco e deixava a
+  // máscara semitransparente, fazendo branco virar cinza. O recorte automático
+  // permanece disponível apenas para regiões que optarem explicitamente por ele.
+  if (!useSubjectMask) return polygonMask;
+
   const subjectMask = buildSubjectMask(image, width, height);
   if (!subjectMask) return polygonMask;
 
@@ -173,13 +177,14 @@ function createMaskedSolidLayer(width, height, mask, color) {
   return layer;
 }
 
-function createMaskedDetailLayer(width, height, mask, image, contrast = 1.18) {
+function createMaskedDetailLayer(width, height, mask, image, contrast = 1.12) {
   const layer = document.createElement('canvas');
   layer.width = width;
   layer.height = height;
   const layerCtx = layer.getContext('2d');
 
-  // Recupera somente luminância/textura. Nenhuma matiz original volta para a região.
+  // Somente luz, sombra e textura retornam para a região. A matiz original da
+  // fotografia é descartada para não contaminar a cor escolhida pelo vendedor.
   layerCtx.filter = `grayscale(1) contrast(${contrast})`;
   layerCtx.drawImage(image, 0, 0, width, height);
   layerCtx.filter = 'none';
@@ -206,31 +211,21 @@ function colorBrightness(color) {
 }
 
 function inferColorMode(region) {
-  if (region?.colorMode === 'replace' || region?.colorMode === 'tint') {
-    return region.colorMode;
-  }
-
-  const id = String(region?.id ?? '').toLowerCase();
-  const label = String(region?.label ?? '').toLowerCase();
-  const text = `${id} ${label}`;
-
-  if (
-    text.includes('faixa') ||
-    text.includes('listra') ||
-    text.includes('stripe') ||
-    text.includes('band')
-  ) {
-    return 'replace';
-  }
-
-  return 'tint';
+  // O modo normal do sistema agora é substituição cromática real. O modo tint
+  // fica disponível apenas para regiões antigas/especiais que o solicitem de
+  // forma explícita. Isso impede que a cor original da foto ofusque a nova cor.
+  return region?.colorMode === 'tint' ? 'tint' : 'replace';
 }
 
 function recolorRegionTint(ctx, image, region, chosenColor, width, height) {
-  const mask = createRegionMask(width, height, region.polygons ?? [], image);
+  const mask = createRegionMask(
+    width,
+    height,
+    region.polygons ?? [],
+    image,
+    region?.useSubjectMask === true,
+  );
   const brightness = colorBrightness(chosenColor);
-
-  // Quanto mais clara for a cor desejada, mais neutralizamos/clareamos a base.
   const liftAlpha = Math.min(0.82, 0.08 + brightness * 0.78);
   const whiteLayer = createMaskedSolidLayer(width, height, mask, '#ffffff');
 
@@ -250,25 +245,24 @@ function recolorRegionTint(ctx, image, region, chosenColor, width, height) {
   const detailLayer = createMaskedDetailLayer(width, height, mask, image);
   ctx.save();
   ctx.globalCompositeOperation = 'soft-light';
-  ctx.globalAlpha = 0.42;
+  ctx.globalAlpha = 0.34;
   ctx.drawImage(detailLayer, 0, 0);
   ctx.restore();
 }
 
 function recolorRegionReplace(ctx, image, region, chosenColor, width, height) {
-  const mask = createRegionMask(width, height, region.polygons ?? [], image);
+  const mask = createRegionMask(
+    width,
+    height,
+    region.polygons ?? [],
+    image,
+    region?.useSubjectMask === true,
+  );
+  const brightness = colorBrightness(chosenColor);
 
-  // Apaga visualmente a matiz original dentro da máscara, sem perder o contorno.
-  // A região passa a começar de uma base neutra, então verde/amarelo/azul antigos
-  // não conseguem contaminar a nova cor escolhida pelo cliente.
-  const neutralBase = createMaskedSolidLayer(width, height, mask, '#d8d8d8');
-  ctx.save();
-  ctx.globalCompositeOperation = 'source-over';
-  ctx.globalAlpha = 1;
-  ctx.drawImage(neutralBase, 0, 0);
-  ctx.restore();
-
-  // A nova cor é aplicada como a cor dominante da região.
+  // A cor escolhida substitui totalmente a cromaticidade original. Não existe
+  // multiply com a foto original; portanto branco, amarelo claro e tons pastéis
+  // chegam ao valor correto em vez de herdarem cinza/azul da peça fotografada.
   const colorLayer = createMaskedSolidLayer(width, height, mask, chosenColor);
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
@@ -276,22 +270,26 @@ function recolorRegionReplace(ctx, image, region, chosenColor, width, height) {
   ctx.drawImage(colorLayer, 0, 0);
   ctx.restore();
 
-  // Recoloca somente luz/sombra/textura em escala de cinza.
-  const detailLayer = createMaskedDetailLayer(width, height, mask, image, 1.28);
+  // Reaplicamos apenas textura e volume. Em cores muito claras a intensidade é
+  // propositalmente menor: branco deve continuar visualmente branco, com sombra
+  // suficiente apenas para não parecer uma área chapada.
+  const detailContrast = 1.06 + ((1 - brightness) * 0.18);
+  const detailAlpha = 0.12 + ((1 - brightness) * 0.34);
+  const detailLayer = createMaskedDetailLayer(width, height, mask, image, detailContrast);
   ctx.save();
   ctx.globalCompositeOperation = 'soft-light';
-  ctx.globalAlpha = 0.46;
+  ctx.globalAlpha = detailAlpha;
   ctx.drawImage(detailLayer, 0, 0);
   ctx.restore();
 }
 
 function recolorRegion(ctx, image, region, chosenColor, width, height) {
-  if (inferColorMode(region) === 'replace') {
-    recolorRegionReplace(ctx, image, region, chosenColor, width, height);
+  if (inferColorMode(region) === 'tint') {
+    recolorRegionTint(ctx, image, region, chosenColor, width, height);
     return;
   }
 
-  recolorRegionTint(ctx, image, region, chosenColor, width, height);
+  recolorRegionReplace(ctx, image, region, chosenColor, width, height);
 }
 
 export function renderGarment({
