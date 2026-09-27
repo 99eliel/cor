@@ -7,15 +7,16 @@ import ArchivedGarmentsPage from './pages/ArchivedGarmentsPage';
 import CustomizerPage from './pages/CustomizerPage';
 import ProductionPipelinePage from './pages/ProductionPipelinePage';
 import SellerOrdersPage from './pages/SellerOrdersPage';
+import TeamManagementPage from './pages/TeamManagementPage';
 import './catalog-trash.css';
 import './operations.css';
 
 function SellerRoute() {
   return (
-    <StaffAuth>
-      {({ user, isAdmin, logout }) => (
+    <StaffAuth allowedRoles={['seller', 'admin']}>
+      {({ user, isAdmin, logout, profile }) => (
         <>
-          <CustomizerPage staffUser={user} isAdmin={isAdmin} logout={logout} />
+          <CustomizerPage staffUser={user} staffProfile={profile} isAdmin={isAdmin} logout={logout} />
           <Link className="seller-orders-shortcut" to="/meus-pedidos">Meus pedidos</Link>
         </>
       )}
@@ -25,9 +26,9 @@ function SellerRoute() {
 
 function SellerOrdersRoute() {
   return (
-    <StaffAuth>
-      {({ user, isAdmin, logout }) => (
-        <SellerOrdersPage user={user} isAdmin={isAdmin} logout={logout} />
+    <StaffAuth allowedRoles={['seller', 'admin']}>
+      {({ user, isAdmin, logout, profile }) => (
+        <SellerOrdersPage user={user} profile={profile} isAdmin={isAdmin} logout={logout} />
       )}
     </StaffAuth>
   );
@@ -38,6 +39,7 @@ function AdminRoute() {
     <>
       <AdminPage />
       <Link className="admin-production-shortcut" to="/admin/producao">Produção</Link>
+      <Link className="admin-team-shortcut" to="/admin/equipe">Equipe</Link>
       <Link className="admin-archive-shortcut" to="/admin/arquivadas">Peças arquivadas</Link>
     </>
   );
@@ -53,6 +55,7 @@ export default function App() {
         <Route path="/meus-pedidos" element={<SellerOrdersRoute />} />
         <Route path="/admin" element={<AdminRoute />} />
         <Route path="/admin/producao" element={<ProductionPipelinePage />} />
+        <Route path="/admin/equipe" element={<TeamManagementPage />} />
         <Route path="/admin/arquivadas" element={<ArchivedGarmentsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
