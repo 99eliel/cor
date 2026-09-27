@@ -53,11 +53,17 @@ function TeamManagement({ user, profile, legacyAccess, logout }) {
 
   async function submit(event) {
     event.preventDefault();
+    const cleanUid = form.uid.trim();
+    if (cleanUid === user.uid && (form.role !== 'admin' || form.active !== true)) {
+      setError('Sua própria conta deve permanecer ativa como Administrador.');
+      return;
+    }
+
     setSaving(true);
     setError('');
     setMessage('');
     try {
-      await saveStaffProfile(form.uid, form);
+      await saveStaffProfile(cleanUid, form);
       setForm(EMPTY_FORM);
       await load();
       setMessage('Membro da equipe salvo com sucesso.');
