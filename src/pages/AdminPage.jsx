@@ -10,6 +10,7 @@ import RegionSidebar from '../components/RegionSidebar';
 import { createGarmentId, getGarment, listGarments, saveGarment, setGarmentArchived } from '../lib/garmentRepo';
 import { slugifyRegionId } from '../lib/geometry';
 import { deleteOrder, listOrders, setOrderCompleted } from '../lib/orderRepo';
+import { DEFAULT_SIZE_SCALE_TYPE, getSizeScaleLabel, normalizeSizeScale, parseCustomSizeLabels, SIZE_SCALE_PRESETS } from '../lib/sizeScales';
 import { uploadGarmentImage } from '../lib/storageImages';
 import '../admin.css';
 import '../orders-actions.css';
@@ -111,7 +112,7 @@ function OrdersView({ orders, loading, error, onRefresh }) {
           return (
             <article className={`panel order-card ${completed ? 'order-card-completed' : ''}`} key={order.id}>
               <div className="order-card-head">
-                <div><span>Pedido</span><code>{order.id}</code></div>
+                <div><span>Pedido</span><code>{order.displayCode || order.id}</code></div>
                 <div className="order-head-right">
                   <span className={`order-status ${completed ? 'is-completed' : 'is-pending'}`}>{completed ? 'Concluído' : 'Pendente'}</span>
                   <time>{formatOrderDate(order.createdAt)}</time>
@@ -331,6 +332,7 @@ function CatalogManager({ garments, onAdd, onEdit, onPreview, onArchive, onResto
                     <span className="catalog-manager-card-label">Peça</span>
                     <h3>{garment.name}</h3>
                     <code>{garment.id}</code>
+                    <small className="catalog-size-scale">Grade: {getSizeScaleLabel(garment.sizeScale)}</small>
                     {garment.archived && <span className="order-status is-completed">Arquivada · fora do catálogo</span>}
                   </div>
                   <div className="catalog-manager-card-actions">
@@ -369,6 +371,8 @@ function AdminWorkspace({ logout }) {
   const [ordersError, setOrdersError] = useState('');
   const [garmentId, setGarmentId] = useState('');
   const [name, setName] = useState('');
+  const [sizeScaleType, setSizeScaleType] = useState(DEFAULT_SIZE_SCALE_TYPE);
+  const [customSizeLabels, setCustomSizeLabels] = useState('');
   const [images, setImages] = useState(EMPTY_IMAGES);
   const [regions, setRegions] = useState([]);
   const [view, setView] = useState('front');
@@ -480,6 +484,8 @@ function AdminWorkspace({ logout }) {
   function resetEditor() {
     setGarmentId('');
     setName('');
+    setSizeScaleType(DEFAULT_SIZE_SCALE_TYPE);
+    setCustomSizeLabels('');
     setImages(EMPTY_IMAGES);
     setRegions([]);
     setVisibleIds(new Set());
@@ -504,8 +510,11 @@ function AdminWorkspace({ logout }) {
         back: data.images?.back ?? '',
         combined: data.images?.combined ?? '',
       };
+      const loadedSizeScale = normalizeSizeScale(data.sizeScale);
       setGarmentId(id);
       setName(data.name ?? '');
+      setSizeScaleType(loadedSizeScale.type);
+      setCustomSizeLabels(loadedSizeScale.type === 'custom' ? loadedSizeScale.labels.join(', ') : '');
       setImages(loadedImages);
       setRegions(Array.isArray(data.regions) ? data.regions : []);
       setVisibleIds(new Set((data.regions ?? []).map((region) => region.id)));
@@ -605,12 +614,18 @@ function AdminWorkspace({ logout }) {
       return setError('Há uma região sem polígono. Desenhe ou remova essa região antes de salvar.');
     }
 
+    const customLabels = parseCustomSizeLabels(customSizeLabels);
+    if (sizeScaleType === 'custom' && customLabels.length === 0) {
+      return setError('Informe pelo menos um tamanho para a grade personalizada. Ex.: 36, 38, 40, 42.');
+    }
+    const sizeScale = normalizeSizeScale({ type: sizeScaleType, labels: customLabels });
+
     setBusy(true);
     try {
       const id = ensureGarmentId();
-      await saveGarment(id, { name: name.trim(), images, regions });
+      await saveGarment(id, { name: name.trim(), images, regions, sizeScale });
       await refreshGarments();
-      setMessage('Peça salva no Firestore com sucesso.');
+      setMessage(`Peça salva com grade “${getSizeScaleLabel(sizeScale)}”.`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -635,7 +650,7 @@ function AdminWorkspace({ logout }) {
       ? { eyebrow: 'Catálogo', title: 'Gerenciar peças', description: 'Cadastre, revise, arquive e restaure as peças disponíveis para os vendedores.' }
       : section === 'orders'
         ? { eyebrow: 'Comercial', title: 'Pedidos & Orçamentos', description: 'Acompanhe solicitações, gere orçamentos e conclua pedidos.' }
-        : { eyebrow: garmentId ? 'Editor de peça' : 'Cadastro de peça', title: garmentId ? (name || 'Editar peça') : 'Nova peça', description: 'Configure imagens, regiões, cores e testes antes de publicar.' };
+        : { eyebrow: garmentId ? 'Editor de peça' : 'Cadastro de peça', title: garmentId ? (name || 'Editar peça') : 'Nova peça', description: 'Configure imagens, regiões, cores, numeração e testes antes de publicar.' };
 
   return (
     <main className="admin-shell admin-shell-v2">
@@ -722,7 +737,7 @@ function AdminWorkspace({ logout }) {
               <div className="editor-context-kicker"><span>{garmentId ? 'Peça cadastrada' : 'Novo cadastro'}</span><b>{VIEW_LABELS[view]}</b></div>
               <p className="eyebrow">{garmentId ? 'Editar peça' : 'Nova peça'}</p>
               <h1>{garmentId ? (name || 'Peça sem nome') : 'Adicionar peça ao catálogo'}</h1>
-              <p>{garmentId ? 'Edite a configuração da peça e salve para publicar as alterações.' : 'Cadastre a peça, envie as imagens e marque as áreas que poderão ser personalizadas.'}</p>
+              <p>{garmentId ? 'Edite a configuração da peça e salve para publicar as alterações.' : 'Cadastre a peça, escolha a numeração, envie as imagens e marque as áreas que poderão ser personalizadas.'}</p>
             </div>
             <div className="editor-context-actions">
               {garmentId && <button className="button button-secondary" type="button" onClick={openCustomer}>Pré-visualizar</button>}
@@ -733,6 +748,30 @@ function AdminWorkspace({ logout }) {
           <section className="panel garment-meta-bar official-garment-meta">
             <label className="grow-field">Nome da peça<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Ex.: Camisa Polo Refletiva" /></label>
             <div className="garment-id-box"><span>ID da peça</span><code>{garmentId || 'será criado ao enviar a primeira imagem'}</code></div>
+          </section>
+
+          <section className="panel garment-size-scale-panel">
+            <div className="garment-size-scale-copy">
+              <p className="eyebrow">Grade de produção</p>
+              <h3>Tipo de numeração da peça</h3>
+              <p>Essa configuração define quais tamanhos o vendedor verá ao registrar o pedido.</p>
+            </div>
+            <label>Tipo de grade
+              <select value={sizeScaleType} onChange={(event) => setSizeScaleType(event.target.value)} disabled={busy}>
+                {Object.entries(SIZE_SCALE_PRESETS).map(([value, preset]) => <option value={value} key={value}>{preset.label}</option>)}
+              </select>
+            </label>
+            {sizeScaleType === 'custom' && (
+              <label className="garment-custom-sizes">Tamanhos personalizados
+                <input
+                  value={customSizeLabels}
+                  onChange={(event) => setCustomSizeLabels(event.target.value)}
+                  placeholder="Ex.: 36, 38, 40, 42, 44, 46"
+                  disabled={busy}
+                />
+                <small>Separe por vírgula. A ordem digitada será a ordem exibida ao vendedor.</small>
+              </label>
+            )}
           </section>
 
           {(message || error) && <div className={error ? 'notice notice-error' : 'notice notice-success'}>{error || message}</div>}
