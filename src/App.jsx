@@ -13,12 +13,16 @@ import './operations.css';
 
 function SellerRoute() {
   return (
-    <StaffAuth allowedRoles={['seller', 'admin']}>
-      {({ user, isAdmin, logout, profile }) => (
-        <>
-          <CustomizerPage staffUser={user} staffProfile={profile} isAdmin={isAdmin} logout={logout} />
-          <Link className="seller-orders-shortcut" to="/meus-pedidos">Meus pedidos</Link>
-        </>
+    <StaffAuth>
+      {({ user, isAdmin, logout, profile, role }) => (
+        role === 'production'
+          ? <Navigate to="/admin/producao" replace />
+          : (
+            <>
+              <CustomizerPage staffUser={user} staffProfile={profile} isAdmin={isAdmin} logout={logout} />
+              <Link className="seller-orders-shortcut" to="/meus-pedidos">Meus pedidos</Link>
+            </>
+          )
       )}
     </StaffAuth>
   );
@@ -26,9 +30,11 @@ function SellerRoute() {
 
 function SellerOrdersRoute() {
   return (
-    <StaffAuth allowedRoles={['seller', 'admin']}>
-      {({ user, isAdmin, logout, profile }) => (
-        <SellerOrdersPage user={user} profile={profile} isAdmin={isAdmin} logout={logout} />
+    <StaffAuth>
+      {({ user, isAdmin, logout, profile, role }) => (
+        role === 'production'
+          ? <Navigate to="/admin/producao" replace />
+          : <SellerOrdersPage user={user} profile={profile} isAdmin={isAdmin} logout={logout} />
       )}
     </StaffAuth>
   );
