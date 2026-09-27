@@ -10,6 +10,7 @@ import { getGarment, listGarments } from '../lib/garmentRepo';
 import { backgroundRemovedFile } from '../lib/localBackgroundRemoval';
 import { createOrder } from '../lib/orderRepo';
 import { renderPdfLogoPreviews } from '../lib/pdfLogoPreview';
+import { createEmptySizeGrid, getSizeScaleLabel, getSizeScaleLabels, normalizeSizeScale } from '../lib/sizeScales';
 import { uploadClientLogo, uploadClientLogoOriginalPdf, uploadFinalRender } from '../lib/storageImages';
 import '../customer.css';
 
@@ -19,8 +20,6 @@ const VIEW_LABELS = {
   combined: 'Frente + Costas',
 };
 
-const SIZE_LABELS = ['PP', 'P', 'M', 'G', 'GG', 'XGG', 'EXGG'];
-const EMPTY_SIZE_GRID = Object.fromEntries(SIZE_LABELS.map((size) => [size, 0]));
 const PLACEMENT_PRESETS = [
   { label: 'Livre', x: null, y: null },
   { label: 'Peito esquerdo', x: 0.35, y: 0.27 },
@@ -118,7 +117,7 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
   const [customerName, setCustomerName] = useState('');
   const [customerWhatsapp, setCustomerWhatsapp] = useState('');
   const [quantity, setQuantity] = useState('');
-  const [sizeGrid, setSizeGrid] = useState(EMPTY_SIZE_GRID);
+  const [sizeGrid, setSizeGrid] = useState({});
   const [checkoutError, setCheckoutError] = useState('');
   const [customerRecord, setCustomerRecord] = useState(null);
   const [customerLookupBusy, setCustomerLookupBusy] = useState(false);
@@ -134,6 +133,11 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
     [garment, selectedRegionId],
   );
 
+  const sizeLabels = useMemo(
+    () => getSizeScaleLabels(garment?.sizeScale),
+    [garment?.sizeScale],
+  );
+
   const sizeTotal = useMemo(
     () => Object.values(sizeGrid).reduce((sum, value) => sum + (Number(value) || 0), 0),
     [sizeGrid],
@@ -147,6 +151,7 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
         if (!data) throw new Error('Peça não encontrada.');
         setGarment(data);
         setClientUser(user);
+        setSizeGrid(createEmptySizeGrid(getSizeScaleLabels(data.sizeScale)));
         const views = availableViews(data);
         setView(views[0] ?? 'front');
       })
@@ -410,7 +415,7 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
     setBusy(true);
     try {
       setColorChoices(template.colorChoices || {});
-      setSizeGrid({ ...EMPTY_SIZE_GRID, ...(template.sizeGrid || {}) });
+      setSizeGrid(createEmptySizeGrid(sizeLabels, template.sizeGrid || {}));
       setQuantity(template.quantity ? String(template.quantity) : '');
       stageRef.current?.clearLogos();
       for (const logo of template.logos || []) {
@@ -483,6 +488,7 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
 
       const effectiveColors = Object.fromEntries((garment.regions ?? []).map((region) => [region.id, colorChoices[region.id] ?? region.defaultColor]));
       const compactGrid = cleanSizeGrid(sizeGrid);
+      const normalizedSizeScale = normalizeSizeScale(garment.sizeScale);
       const firstFinalImage = finalImages.front || finalImages.combined || finalImages.back || '';
       const id = await createOrder({
         garmentId,
@@ -492,6 +498,7 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
         customerName: cleanName,
         whatsapp: cleanWhatsapp,
         quantity: parsedQuantity,
+        sizeScale: normalizedSizeScale,
         sizeGrid: compactGrid,
         colorChoices: effectiveColors,
         logos,
@@ -646,9 +653,9 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
             </label>
 
             <div className="size-grid-editor">
-              <div className="size-grid-title"><strong>Grade de tamanhos</strong><span>Total pela grade: {sizeTotal}</span></div>
+              <div className="size-grid-title"><strong>Grade de tamanhos</strong><span>{getSizeScaleLabel(garment.sizeScale)} · Total pela grade: {sizeTotal}</span></div>
               <div className="size-grid-inputs">
-                {SIZE_LABELS.map((size) => <label key={size}><span>{size}</span><input type="number" min="0" step="1" value={sizeGrid[size]} onChange={(event) => setSizeGrid((current) => ({ ...current, [size]: Math.max(0, Number(event.target.value) || 0) }))} disabled={busy} /></label>)}
+                {sizeLabels.map((size) => <label key={size}><span>{size}</span><input type="number" min="0" step="1" value={sizeGrid[size] ?? 0} onChange={(event) => setSizeGrid((current) => ({ ...current, [size]: Math.max(0, Number(event.target.value) || 0) }))} disabled={busy} /></label>)}
               </div>
             </div>
 
