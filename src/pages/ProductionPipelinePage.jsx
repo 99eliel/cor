@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import AdminAuth from '../components/AdminAuth';
+import StaffAuth from '../components/StaffAuth';
 import MartinpelBrand from '../components/MartinpelBrand';
 import { listOrders, setOrderStatus } from '../lib/orderRepo';
 
@@ -21,7 +21,7 @@ function formatDate(value) {
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(date);
 }
 
-function PipelineBoard({ logout }) {
+function PipelineBoard({ logout, isAdmin, profile }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [movingId, setMovingId] = useState('');
@@ -69,7 +69,8 @@ function PipelineBoard({ logout }) {
       <header className="pipeline-topbar">
         <MartinpelBrand compact subtitle="Fluxo de produção" />
         <div className="pipeline-topbar-actions">
-          <Link className="button button-light" to="/admin">Painel administrativo</Link>
+          <span className="pipeline-user-role">{profile?.name || 'Equipe'} · {isAdmin ? 'Administrador' : 'Produção'}</span>
+          {isAdmin && <Link className="button button-light" to="/admin">Painel administrativo</Link>}
           <button className="button admin-logout-button" type="button" onClick={logout}>Sair</button>
         </div>
       </header>
@@ -129,5 +130,9 @@ function PipelineBoard({ logout }) {
 }
 
 export default function ProductionPipelinePage() {
-  return <AdminAuth>{({ logout }) => <PipelineBoard logout={logout} />}</AdminAuth>;
+  return (
+    <StaffAuth allowedRoles={['production', 'admin']}>
+      {({ logout, isAdmin, profile }) => <PipelineBoard logout={logout} isAdmin={isAdmin} profile={profile} />}
+    </StaffAuth>
+  );
 }
