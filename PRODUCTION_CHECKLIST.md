@@ -10,6 +10,8 @@ Este arquivo registra o que precisa estar concluído antes de liberar o sistema 
 - [x] Perfis em `staff/{uid}` com funções `admin`, `seller` e `production`.
 - [x] Bloqueio por `active: false`.
 - [x] Área administrativa de Equipe em `#/admin/equipe`.
+- [x] Criação de novos funcionários diretamente pelo painel, sem copiar UID.
+- [x] E-mail para o funcionário definir/redefinir a própria senha.
 - [x] Compatibilidade temporária com o administrador antigo em `admins/{uid}`.
 - [x] Firestore Rules separadas por função.
 - [x] Storage Rules separadas por função.
@@ -23,8 +25,9 @@ Este arquivo registra o que precisa estar concluído antes de liberar o sistema 
 - [ ] Publicar `storage.rules`.
 - [ ] Publicar a versão atual do Hosting.
 - [ ] Abrir `#/admin/equipe` e migrar a conta administrativa atual para `staff/{uid}`.
-- [ ] Criar no Firebase Authentication cada funcionário real.
-- [ ] Copiar o UID de cada usuário e vinculá-lo em Admin > Equipe.
+- [ ] Confirmar que E-mail/Senha está habilitado no Firebase Authentication.
+- [ ] Criar um funcionário de teste pelo próprio Admin > Equipe.
+- [ ] Confirmar recebimento do e-mail de definição de senha.
 - [ ] Testar um usuário Vendedor.
 - [ ] Testar um usuário Produção.
 - [ ] Testar um usuário Bloqueado.
