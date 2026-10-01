@@ -8,6 +8,22 @@ function isTypingTarget(target) {
   return tag === 'input' || tag === 'textarea' || tag === 'select' || target?.isContentEditable;
 }
 
+function clamp(value) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function smoothPolygon(polygon = []) {
+  if (polygon.length < 3) return polygon;
+  const next = [];
+  for (let index = 0; index < polygon.length; index += 1) {
+    const a = polygon[index];
+    const b = polygon[(index + 1) % polygon.length];
+    next.push({ x: (0.75 * a.x) + (0.25 * b.x), y: (0.75 * a.y) + (0.25 * b.y) });
+    next.push({ x: (0.25 * a.x) + (0.75 * b.x), y: (0.25 * a.y) + (0.75 * b.y) });
+  }
+  return next;
+}
+
 export default function GarmentEditorCanvas({
   imageUrl,
   view,
@@ -46,32 +62,22 @@ export default function GarmentEditorCanvas({
   useEffect(() => {
     setImage(null);
     setImageError('');
-
     if (!imageUrl) return undefined;
-
     let cancelled = false;
     let activeImage = null;
-
     function attempt(useCors) {
       const nextImage = new Image();
       activeImage = nextImage;
       if (useCors) nextImage.crossOrigin = 'anonymous';
-
-      nextImage.onload = () => {
-        if (!cancelled) setImage(nextImage);
-      };
-
+      nextImage.onload = () => { if (!cancelled) setImage(nextImage); };
       nextImage.onerror = () => {
         if (cancelled) return;
         if (useCors) attempt(false);
         else setImageError('A imagem foi enviada, mas não pôde ser carregada no editor.');
       };
-
       nextImage.src = imageUrl;
     }
-
     attempt(true);
-
     return () => {
       cancelled = true;
       if (activeImage) {
@@ -84,8 +90,7 @@ export default function GarmentEditorCanvas({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !image) return;
-    const maxWidth = 1200;
-    const ratio = Math.min(1, maxWidth / image.naturalWidth);
+    const ratio = Math.min(1, 1200 / image.naturalWidth);
     canvas.width = Math.round(image.naturalWidth * ratio);
     canvas.height = Math.round(image.naturalHeight * ratio);
   }, [image]);
@@ -127,10 +132,64 @@ export default function GarmentEditorCanvas({
     setDraggingVertex(null);
   }
 
+  function deleteSelectedPart() {
+    if (mode !== 'edit' || !selectedVertex || !selectedRegionId) return;
+    const polygonIndex = selectedVertex.polygonIndex;
+    setRegions((items) => items.map((region) => (
+      region.id === selectedRegionId
+        ? { ...region, polygons: (region.polygons || []).filter((_, index) => index !== polygonIndex) }
+        : region
+    )));
+    setSelectedVertex(null);
+  }
+
+  function mirrorSelectedRegion() {
+    if (!selectedRegionId) return;
+    setRegions((items) => items.map((region) => (
+      region.id === selectedRegionId
+        ? { ...region, polygons: (region.polygons || []).map((polygon) => polygon.map((point) => ({ x: 1 - point.x, y: point.y }))) }
+        : region
+    )));
+    setSelectedVertex(null);
+  }
+
+  function smoothSelectedRegion() {
+    if (!selectedRegionId) return;
+    setRegions((items) => items.map((region) => (
+      region.id === selectedRegionId
+        ? { ...region, polygons: (region.polygons || []).map(smoothPolygon) }
+        : region
+    )));
+    setSelectedVertex(null);
+  }
+
+  function duplicateSelectedRegion() {
+    if (!selectedRegion) return;
+    const taken = new Set(regions.map((region) => region.id));
+    let index = 2;
+    let id = `${selectedRegion.id}-copia`;
+    while (taken.has(id)) {
+      id = `${selectedRegion.id}-copia-${index}`;
+      index += 1;
+    }
+    const copy = {
+      ...selectedRegion,
+      id,
+      label: `${selectedRegion.label} cópia`,
+      zIndex: Math.max(0, ...regions.filter((region) => region.view === view).map((region) => Number(region.zIndex) || 0)) + 1,
+      polygons: (selectedRegion.polygons || []).map((polygon) => polygon.map((point) => ({
+        x: clamp(point.x + 0.025),
+        y: clamp(point.y + 0.025),
+      }))),
+    };
+    setRegions((items) => [...items, copy]);
+    onSelectRegion?.(id);
+    setSelectedVertex(null);
+  }
+
   useEffect(() => {
     function onKeyDown(event) {
       if (isTypingTarget(event.target)) return;
-
       if (mode === 'draw') {
         if (event.key === 'Enter' && currentPolygon.length >= 3) {
           event.preventDefault();
@@ -148,7 +207,6 @@ export default function GarmentEditorCanvas({
         }
         return;
       }
-
       if ((event.key === 'Delete' || event.key === 'Backspace') && mode === 'edit' && selectedVertex && selectedRegionId) {
         event.preventDefault();
         deleteSelectedVertex();
@@ -176,7 +234,6 @@ export default function GarmentEditorCanvas({
     const canvas = canvasRef.current;
     if (!canvas || !image) return;
     const point = normalizedPointFromEvent(event, canvas);
-
     if (mode === 'draw' && selectedRegionId) {
       if (currentPolygon.length >= 3 && distancePixels(point, currentPolygon[0], canvas.width, canvas.height) <= 10) {
         finishPolygon();
@@ -185,7 +242,6 @@ export default function GarmentEditorCanvas({
       setCurrentPolygon((items) => [...items, point]);
       return;
     }
-
     if (mode === 'preview') {
       const hit = getRegionAtPoint(regions.filter((region) => visibleIds.has(region.id)), point, view);
       if (hit) onSelectRegion?.(hit.id);
@@ -208,7 +264,6 @@ export default function GarmentEditorCanvas({
       event.currentTarget.setPointerCapture?.(event.pointerId);
       return;
     }
-
     if (event.button !== 0 || mode !== 'edit' || !selectedRegion) return;
     const canvas = canvasRef.current;
     const point = normalizedPointFromEvent(event, canvas);
@@ -237,7 +292,6 @@ export default function GarmentEditorCanvas({
       scroller.scrollTop = pan.scrollTop - (event.clientY - pan.clientY);
       return;
     }
-
     const canvas = canvasRef.current;
     if (!canvas || !image) return;
     const point = normalizedPointFromEvent(event, canvas);
@@ -263,24 +317,13 @@ export default function GarmentEditorCanvas({
   }
 
   if (!imageUrl) {
-    return <div className="canvas-placeholder"><strong>Envie a foto desta vista</strong><span>Você pode usar frente, costas ou frente + costas na mesma imagem.</span></div>;
+    return <div className="canvas-placeholder"><strong>Envie uma foto da peça</strong><span>Você pode cadastrar até três fotos diferentes para a mesma peça.</span></div>;
   }
-
-  if (imageError) {
-    return <div className="canvas-placeholder"><strong>Não foi possível abrir a imagem</strong><span>{imageError}</span></div>;
-  }
-
-  if (!image) {
-    return <div className="canvas-placeholder"><strong>Carregando imagem…</strong><span>Aguarde um instante.</span></div>;
-  }
+  if (imageError) return <div className="canvas-placeholder"><strong>Não foi possível abrir a imagem</strong><span>{imageError}</span></div>;
+  if (!image) return <div className="canvas-placeholder"><strong>Carregando imagem…</strong><span>Aguarde um instante.</span></div>;
 
   return (
-    <div
-      ref={scrollRef}
-      className={`editor-scroll ${isPanning ? 'is-panning' : ''}`}
-      onWheel={handleWheel}
-      onContextMenu={(event) => event.preventDefault()}
-    >
+    <div ref={scrollRef} className={`editor-scroll ${isPanning ? 'is-panning' : ''}`} onWheel={handleWheel} onContextMenu={(event) => event.preventDefault()}>
       {(mode === 'draw' || mode === 'edit') && (
         <div className="editor-point-actions" onWheel={(event) => event.stopPropagation()}>
           {mode === 'draw' && (
@@ -292,8 +335,12 @@ export default function GarmentEditorCanvas({
           )}
           {mode === 'edit' && (
             <>
-              <button className="button button-secondary" type="button" disabled={!selectedVertex} onClick={deleteSelectedVertex}>Excluir vértice selecionado</button>
-              <span>{selectedVertex ? 'Vértice selecionado. Delete/Backspace também remove.' : 'Clique em um ponto para selecioná-lo.'}</span>
+              <button className="button button-secondary" type="button" onClick={duplicateSelectedRegion}>Duplicar região</button>
+              <button className="button button-secondary" type="button" onClick={mirrorSelectedRegion}>Espelhar</button>
+              <button className="button button-secondary" type="button" onClick={smoothSelectedRegion}>Suavizar contorno</button>
+              <button className="button button-secondary" type="button" disabled={!selectedVertex} onClick={deleteSelectedVertex}>Excluir vértice</button>
+              <button className="button button-secondary" type="button" disabled={!selectedVertex} onClick={deleteSelectedPart}>Excluir parte</button>
+              <span>{selectedVertex ? 'Ponto selecionado.' : 'Clique num ponto ou numa aresta.'}</span>
             </>
           )}
         </div>
@@ -312,7 +359,7 @@ export default function GarmentEditorCanvas({
         />
       </div>
       {mode === 'draw' && <div className="canvas-hint">Enter = fechar área · Backspace/Delete = desfazer último ponto · Esc = cancelar desenho · Botão direito + arrastar = mover imagem.</div>}
-      {mode === 'edit' && <div className="canvas-hint">Arraste pontos · Clique numa aresta para adicionar · Delete/Backspace remove o ponto selecionado · Botão direito + arrastar move a imagem.</div>}
+      {mode === 'edit' && <div className="canvas-hint">Arraste pontos · clique numa aresta para adicionar ponto · use Espelhar/Duplicar/Suavizar para ajustes rápidos · botão direito + arrastar move a imagem.</div>}
     </div>
   );
 }
