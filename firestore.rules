@@ -79,8 +79,7 @@ service cloud.firestore {
     }
 
     function isPublicApprovalUpdate() {
-      return request.auth == null
-        && resource.data.approvalStatus == 'pending'
+      return resource.data.approvalStatus == 'pending'
         && resource.data.approvalToken is string
         && request.resource.data.approvalProof == resource.data.approvalToken
         && request.resource.data.approvalStatus in ['approved', 'changes_requested']
@@ -96,8 +95,7 @@ service cloud.firestore {
     }
 
     function isPublicSellerSummaryApprovalUpdate() {
-      return request.auth == null
-        && resource.data.approvalStatus == 'pending'
+      return resource.data.approvalStatus == 'pending'
         && resource.data.approvalToken is string
         && request.resource.data.approvalProof == resource.data.approvalToken
         && request.resource.data.approvalStatus in ['approved', 'changes_requested']
@@ -154,8 +152,7 @@ service cloud.firestore {
       allow create: if canSell()
         && request.resource.data.sellerUid == request.auth.uid
         && request.resource.data.orderId is string;
-      allow update: if request.auth == null
-        && resource.data.status == 'pending'
+      allow update: if resource.data.status == 'pending'
         && request.resource.data.status in ['approved', 'changes_requested']
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'status',
