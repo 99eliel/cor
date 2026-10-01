@@ -120,6 +120,7 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'colorChoices',
           'logos',
+          'texts',
           'finalImages',
           'finalImageUrl',
           'designVersion',
@@ -236,8 +237,6 @@ service cloud.firestore {
       allow delete: if isAdmin() && request.auth.uid != uid;
     }
 
-    // Compatibilidade de migração. Depois que todos os administradores
-    // estiverem em staff/{uid}, esta coleção pode ser removida.
     match /admins/{uid} {
       allow read: if isSignedIn() && request.auth.uid == uid;
       allow write: if false;
