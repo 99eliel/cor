@@ -44,6 +44,7 @@ export default function ApprovalPage() {
     setError('');
     try {
       const nextStatus = nextDecision === 'approved' ? 'approved' : 'approval';
+      const cleanNote = note.trim();
 
       // A decisão do cliente precisa ser atômica somente entre o pedido oficial
       // e a prova pública. O resumo do vendedor é uma conveniência de interface
@@ -52,14 +53,14 @@ export default function ApprovalPage() {
       batch.update(doc(db, 'orders', orderId), {
         approvalProof: token,
         approvalStatus: nextDecision,
-        approvalNote: note.trim(),
+        approvalNote: cleanNote,
         approvalRespondedAt: serverTimestamp(),
         status: nextStatus,
         updatedAt: serverTimestamp(),
       });
       batch.update(doc(db, 'approvalPreviews', token), {
         status: nextDecision,
-        note: note.trim(),
+        note: cleanNote,
         respondedAt: serverTimestamp(),
       });
       await batch.commit();
@@ -70,6 +71,7 @@ export default function ApprovalPage() {
         updateDoc(doc(db, 'sellerOrders', preview.sellerUid, 'orders', orderId), {
           approvalProof: token,
           approvalStatus: nextDecision,
+          approvalNote: cleanNote,
           status: nextStatus,
           updatedAt: serverTimestamp(),
         }).catch((syncError) => {
@@ -122,6 +124,7 @@ export default function ApprovalPage() {
           <div className={`approval-result ${decision === 'approved' ? 'approved' : 'changes'}`}>
             <strong>{decision === 'approved' ? '✓ Arte aprovada' : '↺ Alteração solicitada'}</strong>
             <p>{decision === 'approved' ? 'A Martinpel já pode seguir com o fluxo interno deste pedido.' : 'A equipe Martinpel recebeu sua solicitação de alteração.'}</p>
+            {decision === 'changes_requested' && note && <p><strong>Solicitação registrada:</strong> {note}</p>}
           </div>
         ) : (
           <>
