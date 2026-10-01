@@ -36,6 +36,7 @@ function lightweightDesignSnapshot(data) {
     garmentName: data.garmentName,
     colorChoices: data.colorChoices ?? {},
     logos: data.logos ?? [],
+    texts: data.texts ?? [],
     sizeScale: data.sizeScale ?? null,
     sizeGrid: data.sizeGrid ?? {},
     quantity: data.quantity ?? null,
@@ -184,7 +185,7 @@ export async function saveOrderRevision(orderId, data) {
   const previewRef = doc(db, 'approvalPreviews', token);
   const sellerOrderRef = sellerUid ? doc(db, 'sellerOrders', sellerUid, 'orders', orderId) : null;
   const history = Array.isArray(current.designHistory) ? current.designHistory : [];
-  const finalImageUrl = data.finalImageUrl || data.finalImages?.front || data.finalImages?.combined || data.finalImages?.back || '';
+  const finalImageUrl = data.finalImageUrl || Object.values(data.finalImages || {}).find(Boolean) || current.finalImageUrl || '';
 
   const nextHistory = [
     ...history,
@@ -196,6 +197,7 @@ export async function saveOrderRevision(orderId, data) {
       garmentName: current.garmentName,
       colorChoices: data.colorChoices ?? current.colorChoices ?? {},
       logos: data.logos ?? current.logos ?? [],
+      texts: data.texts ?? current.texts ?? [],
       sizeScale: current.sizeScale ?? null,
       sizeGrid: current.sizeGrid ?? {},
       quantity: current.quantity ?? null,
@@ -207,6 +209,7 @@ export async function saveOrderRevision(orderId, data) {
   batch.update(orderRef, {
     colorChoices: data.colorChoices ?? current.colorChoices ?? {},
     logos: data.logos ?? current.logos ?? [],
+    texts: data.texts ?? current.texts ?? [],
     finalImages: data.finalImages ?? current.finalImages ?? {},
     finalImageUrl,
     designVersion: nextVersion,
