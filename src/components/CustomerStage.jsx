@@ -344,7 +344,7 @@ const CustomerStage = forwardRef(function CustomerStage({
       if (!active?.logoId) return null;
       return {
         ...serializeLogo(active),
-        processingSource: active.processingSource || active.originalUrl || active.sourceUrl || active.storageUrl,
+        processingSource: active.processedUrl || active.processingSource || active.originalUrl || active.sourceUrl || active.storageUrl,
       };
     },
     getSelectedItem() {
@@ -470,7 +470,7 @@ const CustomerStage = forwardRef(function CustomerStage({
 
       for (const object of designObjects().filter((item) => item.designView === targetView)) {
         if (object.logoId) {
-          const source = object.processingSource || object.processedUrl || object.storageUrl || object.sourceUrl;
+          const source = object.processedUrl || object.processingSource || object.storageUrl || object.sourceUrl;
           const element = source ? await loadImage(source) : object.getElement();
           const drawWidth = object.normScale * width;
           const ratio = element.naturalHeight / element.naturalWidth;
