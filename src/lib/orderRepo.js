@@ -136,6 +136,7 @@ export async function createOrder(data) {
       garmentName: data.garmentName || data.garmentId || '',
       quantity: Number(data.quantity) || 0,
       designVersion: 1,
+      finalImages: data.finalImages ?? {},
       finalImageUrl: data.finalImageUrl || '',
       sellerUid: data.sellerUid || '',
       status: 'pending',
@@ -185,7 +186,8 @@ export async function saveOrderRevision(orderId, data) {
   const previewRef = doc(db, 'approvalPreviews', token);
   const sellerOrderRef = sellerUid ? doc(db, 'sellerOrders', sellerUid, 'orders', orderId) : null;
   const history = Array.isArray(current.designHistory) ? current.designHistory : [];
-  const finalImageUrl = data.finalImageUrl || Object.values(data.finalImages || {}).find(Boolean) || current.finalImageUrl || '';
+  const nextFinalImages = data.finalImages ?? current.finalImages ?? {};
+  const finalImageUrl = data.finalImageUrl || Object.values(nextFinalImages).find(Boolean) || current.finalImageUrl || '';
 
   const nextHistory = [
     ...history,
@@ -210,7 +212,7 @@ export async function saveOrderRevision(orderId, data) {
     colorChoices: data.colorChoices ?? current.colorChoices ?? {},
     logos: data.logos ?? current.logos ?? [],
     texts: data.texts ?? current.texts ?? [],
-    finalImages: data.finalImages ?? current.finalImages ?? {},
+    finalImages: nextFinalImages,
     finalImageUrl,
     designVersion: nextVersion,
     designHistory: nextHistory,
@@ -231,6 +233,7 @@ export async function saveOrderRevision(orderId, data) {
     garmentName: current.garmentName || current.garmentId || '',
     quantity: Number(current.quantity) || 0,
     designVersion: nextVersion,
+    finalImages: nextFinalImages,
     finalImageUrl,
     sellerUid,
     status: 'pending',
