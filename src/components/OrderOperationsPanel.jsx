@@ -140,7 +140,7 @@ export default function OrderOperationsPanel({ order, disabled = false, onSaved 
           </select>
         </label>
         <button className="button button-secondary" type="button" onClick={printSheet} disabled={disabled || saving === 'sheet'}>
-          {saving === 'sheet' ? 'Gerando…' : 'Ficha técnica + QR'}
+          {saving === 'sheet' ? 'Gerando…' : 'Layout de personalização'}
         </button>
       </div>
 
