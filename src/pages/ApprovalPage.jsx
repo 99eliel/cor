@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { doc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
 import { useParams } from 'react-router-dom';
 import MartinpelBrand from '../components/MartinpelBrand';
 import { db } from '../lib/firebase';
@@ -43,8 +43,12 @@ export default function ApprovalPage() {
     setBusy(true);
     setError('');
     try {
-      const batch = writeBatch(db);
       const nextStatus = nextDecision === 'approved' ? 'approved' : 'approval';
+
+      // A decisão do cliente precisa ser atômica somente entre o pedido oficial
+      // e a prova pública. O resumo do vendedor é uma conveniência de interface
+      // e não pode impedir a aprovação se estiver ausente ou desatualizado.
+      const batch = writeBatch(db);
       batch.update(doc(db, 'orders', orderId), {
         approvalProof: token,
         approvalStatus: nextDecision,
@@ -58,16 +62,20 @@ export default function ApprovalPage() {
         note: note.trim(),
         respondedAt: serverTimestamp(),
       });
+      await batch.commit();
+
+      setDecision(nextDecision);
+
       if (preview?.sellerUid) {
-        batch.update(doc(db, 'sellerOrders', preview.sellerUid, 'orders', orderId), {
+        updateDoc(doc(db, 'sellerOrders', preview.sellerUid, 'orders', orderId), {
           approvalProof: token,
           approvalStatus: nextDecision,
           status: nextStatus,
           updatedAt: serverTimestamp(),
+        }).catch((syncError) => {
+          console.warn('Não foi possível sincronizar o resumo do vendedor.', syncError);
         });
       }
-      await batch.commit();
-      setDecision(nextDecision);
     } catch (err) {
       setError(`Não foi possível registrar a resposta: ${err.message}`);
     } finally {
