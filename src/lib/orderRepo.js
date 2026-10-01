@@ -1,6 +1,5 @@
 import {
   collection,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -69,6 +68,7 @@ function sellerSummary(data, orderId, displayCode, token, expireAt, now) {
     status: 'pending',
     approvalStatus: 'pending',
     approvalToken: token,
+    approvalNote: '',
     designVersion: 1,
     finalImageUrl: data.finalImageUrl || '',
     expireAt,
@@ -109,6 +109,7 @@ export async function createOrder(data) {
       status: 'pending',
       approvalStatus: 'pending',
       approvalToken: token,
+      approvalNote: '',
       designVersion: 1,
       designHistory: [{
         version: 1,
@@ -157,6 +158,108 @@ export async function createOrder(data) {
   }
 
   return orderRef.id;
+}
+
+export async function getOrderForRevision(orderId) {
+  if (!orderId) return null;
+  const snapshot = await getDoc(doc(db, 'orders', orderId));
+  return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+}
+
+export async function saveOrderRevision(orderId, data) {
+  const orderRef = doc(db, 'orders', orderId);
+  const orderSnapshot = await getDoc(orderRef);
+  if (!orderSnapshot.exists()) throw new Error('Pedido não encontrado.');
+
+  const current = orderSnapshot.data();
+  if (current.approvalStatus !== 'changes_requested') {
+    throw new Error('Este pedido não está aguardando uma alteração solicitada pelo cliente.');
+  }
+
+  const now = new Date();
+  const nextVersion = Math.max(1, Number(current.designVersion) || 1) + 1;
+  const token = approvalToken();
+  const expireAt = Timestamp.fromDate(new Date(now.getTime() + (90 * 24 * 60 * 60 * 1000)));
+  const sellerUid = current.sellerUid || '';
+  const previewRef = doc(db, 'approvalPreviews', token);
+  const sellerOrderRef = sellerUid ? doc(db, 'sellerOrders', sellerUid, 'orders', orderId) : null;
+  const history = Array.isArray(current.designHistory) ? current.designHistory : [];
+  const finalImageUrl = data.finalImageUrl || data.finalImages?.front || data.finalImages?.combined || data.finalImages?.back || '';
+
+  const nextHistory = [
+    ...history,
+    {
+      version: nextVersion,
+      savedAt: now.toISOString(),
+      requestedChange: current.approvalNote || '',
+      garmentId: current.garmentId,
+      garmentName: current.garmentName,
+      colorChoices: data.colorChoices ?? current.colorChoices ?? {},
+      logos: data.logos ?? current.logos ?? [],
+      sizeScale: current.sizeScale ?? null,
+      sizeGrid: current.sizeGrid ?? {},
+      quantity: current.quantity ?? null,
+      finalImageUrl,
+    },
+  ];
+
+  const batch = writeBatch(db);
+  batch.update(orderRef, {
+    colorChoices: data.colorChoices ?? current.colorChoices ?? {},
+    logos: data.logos ?? current.logos ?? [],
+    finalImages: data.finalImages ?? current.finalImages ?? {},
+    finalImageUrl,
+    designVersion: nextVersion,
+    designHistory: nextHistory,
+    approvalToken: token,
+    approvalStatus: 'pending',
+    approvalProof: null,
+    approvalNote: '',
+    approvalRespondedAt: null,
+    status: 'approval',
+    expireAt,
+    updatedAt: serverTimestamp(),
+  });
+
+  batch.set(previewRef, {
+    orderId,
+    displayCode: current.displayCode || orderId,
+    customerName: current.customerName || '',
+    garmentName: current.garmentName || current.garmentId || '',
+    quantity: Number(current.quantity) || 0,
+    designVersion: nextVersion,
+    finalImageUrl,
+    sellerUid,
+    status: 'pending',
+    expireAt,
+    createdAt: serverTimestamp(),
+  });
+
+  if (sellerOrderRef) {
+    batch.set(sellerOrderRef, {
+      approvalToken: token,
+      approvalStatus: 'pending',
+      approvalProof: null,
+      approvalNote: '',
+      designVersion: nextVersion,
+      finalImageUrl,
+      status: 'approval',
+      expireAt,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+  }
+
+  await batch.commit();
+  invalidateOrderCache();
+  invalidateSellerOrderCache(sellerUid);
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('martinpel:order-revised', {
+      detail: { id: orderId, displayCode: current.displayCode || orderId, designVersion: nextVersion, approvalToken: token },
+    }));
+  }
+
+  return { orderId, designVersion: nextVersion, approvalToken: token };
 }
 
 export async function listOrders({ force = false, maxItems = DEFAULT_ORDER_LIMIT } = {}) {
