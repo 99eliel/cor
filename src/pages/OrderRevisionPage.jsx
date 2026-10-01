@@ -10,22 +10,8 @@ import { uploadClientLogo, uploadClientLogoOriginalPdf, uploadFinalRender } from
 import '../customer.css';
 import '../revision.css';
 
-const VIEW_LABELS = {
-  front: 'Frente',
-  back: 'Costas',
-  combined: 'Frente + Costas',
-};
-
-const PLACEMENT_PRESETS = [
-  { label: 'Livre', x: null, y: null },
-  { label: 'Peito esquerdo', x: 0.35, y: 0.27 },
-  { label: 'Peito direito', x: 0.65, y: 0.27 },
-  { label: 'Centro frontal', x: 0.5, y: 0.35 },
-  { label: 'Costas superior', x: 0.5, y: 0.24 },
-  { label: 'Costas central', x: 0.5, y: 0.42 },
-  { label: 'Manga esquerda', x: 0.2, y: 0.32 },
-  { label: 'Manga direita', x: 0.8, y: 0.32 },
-];
+const VIEW_LABELS = { front: 'Foto 1', back: 'Foto 2', combined: 'Foto 3' };
+const COLOR_PRESETS = ['#ffffff', '#111827', '#0b2b52', '#2563eb', '#dc2626', '#16a34a', '#facc15', '#9ca3af'];
 
 function availableViews(garment) {
   return ['front', 'back', 'combined'].filter((key) => garment?.images?.[key]);
@@ -41,18 +27,23 @@ export default function OrderRevisionPage({ user, isAdmin = false, logout }) {
   const stageRef = useRef(null);
   const fileInputRef = useRef(null);
   const restoredRef = useRef(false);
+  const undoStackRef = useRef([]);
+  const redoStackRef = useRef([]);
+  const suppressHistoryRef = useRef(false);
+  const [historyTick, setHistoryTick] = useState(0);
   const [order, setOrder] = useState(null);
   const [garment, setGarment] = useState(null);
   const [view, setView] = useState('front');
   const [selectedRegionId, setSelectedRegionId] = useState(null);
   const [colorChoices, setColorChoices] = useState({});
   const [logos, setLogos] = useState([]);
+  const [texts, setTexts] = useState([]);
+  const [textDraft, setTextDraft] = useState('');
+  const [textColor, setTextColor] = useState('#111827');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [logoPlacement, setLogoPlacement] = useState('Livre');
-  const [logoWidthCm, setLogoWidthCm] = useState('9');
   const [pdfLibrary, setPdfLibrary] = useState(null);
   const [pdfBusyPage, setPdfBusyPage] = useState(null);
   const [newApproval, setNewApproval] = useState(null);
@@ -61,18 +52,83 @@ export default function OrderRevisionPage({ user, isAdmin = false, logout }) {
     () => garment?.regions?.find((region) => region.id === selectedRegionId) ?? null,
     [garment, selectedRegionId],
   );
-
   const views = useMemo(() => availableViews(garment), [garment]);
   const regionsInView = useMemo(
     () => (garment?.regions ?? []).filter((region) => region.view === view).sort((a, b) => (b.zIndex ?? 0) - (a.zIndex ?? 0)),
     [garment, view],
   );
 
+  function resetHistory() {
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+    stageRef.current?.resetHistory?.();
+    setHistoryTick((value) => value + 1);
+  }
+
+  function recordStageAction() {
+    if (suppressHistoryRef.current) return;
+    undoStackRef.current.push({ type: 'stage' });
+    redoStackRef.current = [];
+    setHistoryTick((value) => value + 1);
+  }
+
+  function setColorWithHistory(regionId, color) {
+    const next = { ...colorChoices, [regionId]: color };
+    undoStackRef.current.push({ type: 'color', previous: colorChoices, next });
+    redoStackRef.current = [];
+    setColorChoices(next);
+    setHistoryTick((value) => value + 1);
+  }
+
+  async function undoDesign() {
+    const action = undoStackRef.current.pop();
+    if (!action) return;
+    suppressHistoryRef.current = true;
+    try {
+      if (action.type === 'stage') await stageRef.current?.undo?.();
+      else setColorChoices(action.previous);
+      redoStackRef.current.push(action);
+    } finally {
+      suppressHistoryRef.current = false;
+      setHistoryTick((value) => value + 1);
+    }
+  }
+
+  async function redoDesign() {
+    const action = redoStackRef.current.pop();
+    if (!action) return;
+    suppressHistoryRef.current = true;
+    try {
+      if (action.type === 'stage') await stageRef.current?.redo?.();
+      else setColorChoices(action.next);
+      undoStackRef.current.push(action);
+    } finally {
+      suppressHistoryRef.current = false;
+      setHistoryTick((value) => value + 1);
+    }
+  }
+
+  useEffect(() => {
+    function onKeyDown(event) {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      const key = event.key.toLowerCase();
+      if (key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        undoDesign();
+      } else if (key === 'y' || (key === 'z' && event.shiftKey)) {
+        event.preventDefault();
+        redoDesign();
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  });
+
   useEffect(() => {
     let active = true;
     setLoading(true);
-    Promise.all([getOrderForRevision(orderId), Promise.resolve(user)])
-      .then(async ([orderData]) => {
+    getOrderForRevision(orderId)
+      .then(async (orderData) => {
         if (!active) return;
         if (!orderData) throw new Error('Pedido não encontrado ou sem permissão para revisão.');
         const garmentData = await getGarment(orderData.garmentId);
@@ -81,13 +137,12 @@ export default function OrderRevisionPage({ user, isAdmin = false, logout }) {
         setOrder(orderData);
         setGarment(garmentData);
         setColorChoices(orderData.colorChoices || {});
-        const firstView = availableViews(garmentData)[0] || 'front';
-        setView(firstView);
+        setView(availableViews(garmentData)[0] || 'front');
       })
       .catch((err) => active && setError(err.message))
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [orderId, user]);
+  }, [orderId]);
 
   useEffect(() => {
     if (!order || !garment || restoredRef.current || !stageRef.current) return;
@@ -95,59 +150,31 @@ export default function OrderRevisionPage({ user, isAdmin = false, logout }) {
     let cancelled = false;
     (async () => {
       try {
-        stageRef.current?.clearLogos();
-        for (const logo of order.logos || []) {
-          if (cancelled) return;
-          const url = logo.processedUrl || logo.storageUrl || logo.sourceUrl;
-          if (!url) continue;
-          await stageRef.current?.addLogo(url, {
-            ...logo,
-            targetView: logo.position?.view || view,
-            initialX: logo.position?.x,
-            initialY: logo.position?.y,
-            rotation: logo.position?.rotation,
-          });
-        }
+        await stageRef.current.restoreDesignState({ logos: order.logos || [], texts: order.texts || [] }, { resetHistory: true });
+        if (!cancelled) resetHistory();
       } catch (err) {
-        if (!cancelled) setError(`Não foi possível restaurar todas as logos da versão anterior: ${err.message}`);
+        if (!cancelled) setError(`Não foi possível restaurar toda a versão anterior: ${err.message}`);
       }
     })();
     return () => { cancelled = true; };
-  }, [order, garment, view]);
+  }, [order, garment]);
 
   function selectRegion(region) {
     if (!region.locked) setSelectedRegionId(region.id);
   }
 
-  function changeSelectedColor(color) {
-    if (!selectedRegion || selectedRegion.locked) return;
-    setColorChoices((current) => ({ ...current, [selectedRegion.id]: color }));
+  function removeSelectedItem() {
+    const removed = stageRef.current?.removeSelectedItem?.();
+    setMessage(removed ? 'Item selecionado removido.' : 'Clique primeiro em uma logo ou texto para remover.');
   }
 
-  function applyLogoProductionSettings() {
-    const preset = PLACEMENT_PRESETS.find((item) => item.label === logoPlacement) || PLACEMENT_PRESETS[0];
-    const widthCm = Number(logoWidthCm);
-    if (!Number.isFinite(widthCm) || widthCm <= 0 || widthCm > 100) {
-      setError('Informe uma largura válida da logo em centímetros.');
-      return;
-    }
-    const updated = stageRef.current?.updateSelectedLogoProductionMeta({
-      placementLabel: preset.label,
-      widthCm,
-      x: Number.isFinite(preset.x) ? preset.x : undefined,
-      y: Number.isFinite(preset.y) ? preset.y : undefined,
-    });
-    if (!updated) {
-      setError('Clique primeiro na logo que deseja configurar.');
-      return;
-    }
+  function addText() {
+    const clean = textDraft.trim();
+    if (!clean) return setError('Digite um nome, número ou texto para adicionar.');
+    stageRef.current?.addText(clean, { color: textColor, targetView: view, fontWeight: '700' });
+    setTextDraft('');
     setError('');
-    setMessage(`Logo ajustada: ${preset.label} · ${widthCm} cm.`);
-  }
-
-  function removeLogo() {
-    const removed = stageRef.current?.removeSelectedLogo();
-    setMessage(removed ? 'Logo removida desta nova versão.' : 'Clique primeiro na logo que deseja remover.');
+    setMessage('Texto adicionado. Arraste, gire e redimensione livremente na peça.');
   }
 
   function releasePdfLibrary(library = pdfLibrary) {
@@ -186,8 +213,6 @@ export default function OrderRevisionPage({ user, isAdmin = false, logout }) {
         sourcePage: pageNumber,
         sourcePageCount: pdfLibrary.pageCount,
         targetView: view,
-        placementLabel: 'Livre',
-        widthCm: 9,
       });
       setMessage(`Página ${pageNumber} adicionada à nova versão.`);
     } catch (err) {
@@ -228,10 +253,8 @@ export default function OrderRevisionPage({ user, isAdmin = false, logout }) {
           sourcePage: 1,
           sourcePageCount: 1,
           targetView: view,
-          placementLabel: 'Livre',
-          widthCm: 9,
         });
-        setMessage('Nova logo adicionada à revisão.');
+        setMessage('Nova logo adicionada à revisão. Movimente e redimensione livremente.');
       }
     } catch (err) {
       setError(err.message);
@@ -247,12 +270,6 @@ export default function OrderRevisionPage({ user, isAdmin = false, logout }) {
       setError('Este pedido não está aguardando uma correção solicitada pelo cliente.');
       return;
     }
-    const incompleteLogo = logos.find((logo) => !logo.placementLabel || !Number(logo.widthCm));
-    if (incompleteLogo) {
-      setError('Há uma logo sem posição ou medida de produção. Configure-a antes de gerar a nova versão.');
-      return;
-    }
-
     setBusy(true);
     setError('');
     setMessage('Gerando nova versão da arte…');
@@ -263,10 +280,11 @@ export default function OrderRevisionPage({ user, isAdmin = false, logout }) {
         if (blob) finalImages[targetView] = await uploadFinalRender(blob, user.uid, `${targetView}-${order.garmentId}-v${(order.designVersion || 1) + 1}`);
       }
       const effectiveColors = Object.fromEntries((garment.regions ?? []).map((region) => [region.id, colorChoices[region.id] ?? region.defaultColor]));
-      const firstFinalImage = finalImages.front || finalImages.combined || finalImages.back || '';
+      const firstFinalImage = Object.values(finalImages).find(Boolean) || '';
       const result = await saveOrderRevision(order.id, {
         colorChoices: effectiveColors,
         logos,
+        texts,
         finalImages,
         finalImageUrl: firstFinalImage,
       });
@@ -275,6 +293,7 @@ export default function OrderRevisionPage({ user, isAdmin = false, logout }) {
         ...current,
         colorChoices: effectiveColors,
         logos,
+        texts,
         finalImages,
         finalImageUrl: firstFinalImage,
         designVersion: result.designVersion,
@@ -351,23 +370,54 @@ export default function OrderRevisionPage({ user, isAdmin = false, logout }) {
             <div className="customer-view-tabs">{views.map((targetView) => <button key={targetView} type="button" className={view === targetView ? 'active' : ''} onClick={() => { setView(targetView); setSelectedRegionId(null); }}>{VIEW_LABELS[targetView]}</button>)}</div>
           </header>
 
+          <div className="design-history-toolbar panel">
+            <button type="button" className="button button-secondary" onClick={undoDesign} disabled={undoStackRef.current.length === 0}>↶ Desfazer</button>
+            <button type="button" className="button button-secondary" onClick={redoDesign} disabled={redoStackRef.current.length === 0}>↷ Refazer</button>
+            <span>Ctrl+Z / Ctrl+Y · {historyTick >= 0 ? 'histórico local desta edição' : ''}</span>
+          </div>
+
           <section className="customer-layout customer-workspace">
-            <section className="panel customer-stage-panel"><CustomerStage ref={stageRef} garment={garment} view={view} colorChoices={colorChoices} onRegionClick={selectRegion} onLogosChange={setLogos} /></section>
+            <section className="panel customer-stage-panel">
+              <CustomerStage
+                ref={stageRef}
+                garment={garment}
+                view={view}
+                colorChoices={colorChoices}
+                onRegionClick={selectRegion}
+                onLogosChange={setLogos}
+                onTextsChange={setTexts}
+                onHistoryAction={recordStageAction}
+              />
+            </section>
             <aside className="panel customer-tools customer-tools-v2">
-              <div className="customer-tools-head"><div><p className="eyebrow">Versão {(order.designVersion || 1) + 1}</p><h2>Ajustar personalização</h2></div><span className="customer-tools-badge">{logos.length} logo(s)</span></div>
+              <div className="customer-tools-head"><div><p className="eyebrow">Versão {(order.designVersion || 1) + 1}</p><h2>Ajustar personalização</h2></div><span className="customer-tools-badge">{logos.length + texts.length} item(ns)</span></div>
 
               <div className="customer-tool-section-title"><span>01</span><strong>Cores da peça</strong></div>
               <div className="region-choice-list">{regionsInView.map((region) => <button key={region.id} type="button" className={`region-choice ${selectedRegionId === region.id ? 'active' : ''} ${region.locked ? 'locked' : ''}`} onClick={() => selectRegion(region)} disabled={region.locked}><span className="color-dot" style={{ background: colorChoices[region.id] ?? region.defaultColor }} /><span>{region.label}</span></button>)}</div>
-              {selectedRegion && !selectedRegion.locked && <div className="selected-color-box"><label>Cor de {selectedRegion.label}<input type="color" value={colorChoices[selectedRegion.id] ?? selectedRegion.defaultColor} onChange={(event) => changeSelectedColor(event.target.value)} /></label></div>}
+              {selectedRegion && !selectedRegion.locked && (
+                <div className="selected-color-box color-box-v2">
+                  <label>Cor de {selectedRegion.label}<input type="color" value={colorChoices[selectedRegion.id] ?? selectedRegion.defaultColor} onChange={(event) => setColorWithHistory(selectedRegion.id, event.target.value)} /></label>
+                  <div className="quick-color-palette">{COLOR_PRESETS.map((color) => <button key={color} type="button" title={color} style={{ background: color }} onClick={() => setColorWithHistory(selectedRegion.id, color)} />)}</div>
+                </div>
+              )}
 
               <div className="tool-divider" />
-              <div className="customer-tool-section-title"><span>02</span><strong>Logos</strong></div>
+              <div className="customer-tool-section-title"><span>02</span><strong>Logo livre</strong></div>
               <input ref={fileInputRef} className="sr-only" type="file" accept="image/png,image/jpeg,image/webp,application/pdf,.pdf" onChange={(event) => handleLogo(event.target.files?.[0])} />
-              <button type="button" className="button button-primary full-width" disabled={busy} onClick={() => fileInputRef.current?.click()}>+ Adicionar / trocar logo</button>
+              <button type="button" className="button button-primary full-width" disabled={busy} onClick={() => fileInputRef.current?.click()}>+ Adicionar logo</button>
+              <p className="logo-upload-help">A logo fica totalmente livre: arraste, gire e redimensione direto sobre a peça.</p>
               {pdfLibrary && <PdfLogoLibrary fileName={pdfLibrary.fileName} pages={pdfLibrary.pages} pageCount={pdfLibrary.pageCount} currentView={view} busyPage={pdfBusyPage} onAddPage={addPdfPage} onAddAll={addAllPdfPages} onClose={closePdfLibrary} />}
 
-              {logos.length > 0 && <div className="logo-production-settings"><strong>Logo selecionada</strong><label>Posição<select value={logoPlacement} onChange={(event) => setLogoPlacement(event.target.value)}>{PLACEMENT_PRESETS.map((preset) => <option key={preset.label}>{preset.label}</option>)}</select></label><label>Largura (cm)<input type="number" min="1" max="100" step="0.5" value={logoWidthCm} onChange={(event) => setLogoWidthCm(event.target.value)} /></label><button type="button" className="button button-secondary full-width" onClick={applyLogoProductionSettings}>Aplicar na logo selecionada</button></div>}
-              <button type="button" className="button button-secondary full-width" disabled={busy || logos.length === 0} onClick={removeLogo}>Remover logo selecionada</button>
+              <div className="tool-divider" />
+              <div className="customer-tool-section-title"><span>03</span><strong>Nome, número ou texto</strong></div>
+              <div className="text-design-editor">
+                <input value={textDraft} onChange={(event) => setTextDraft(event.target.value)} placeholder="Ex.: JOÃO · 10 · FINANCEIRO" />
+                <input type="color" value={textColor} onChange={(event) => setTextColor(event.target.value)} title="Cor do texto" />
+                <button type="button" className="button button-secondary" onClick={addText}>Adicionar texto</button>
+              </div>
+              <p className="logo-upload-help">Depois de inserir, o texto também pode ser movido, girado, redimensionado e editado com duplo clique.</p>
+
+              <button type="button" className="button button-secondary full-width" disabled={busy || (logos.length + texts.length === 0)} onClick={removeSelectedItem}>Remover item selecionado</button>
 
               <div className="tool-divider" />
               <button type="button" className="button button-success finalize-button" disabled={busy} onClick={saveRevision}>{busy ? 'Gerando nova versão…' : `Salvar V${(order.designVersion || 1) + 1} e gerar novo link`}</button>
