@@ -80,16 +80,25 @@ export default function SellerOrdersPage({ user, isAdmin = false, logout }) {
         )}
 
         {orders.map((order) => (
-          <article className="panel seller-order-card" key={order.id}>
+          <article className={`panel seller-order-card ${order.approvalStatus === 'changes_requested' ? 'has-change-request' : ''}`} key={order.id}>
             <div className="seller-order-code">
               <span>Pedido</span>
               <strong>{order.displayCode || order.orderId || order.id}</strong>
-              <small>{formatDate(order.createdAt)}</small>
+              <small>Versão {order.designVersion || 1} · {formatDate(order.createdAt)}</small>
             </div>
             <div className="seller-order-main">
               <div><span>Cliente</span><strong>{order.customerName || 'Não informado'}</strong></div>
               <div><span>Peça</span><strong>{order.garmentName || 'Peça não identificada'}</strong></div>
               <div><span>Quantidade</span><strong>{order.quantity || 0}</strong></div>
+              {order.approvalStatus === 'changes_requested' && (
+                <div className="seller-change-note">
+                  <span>O que o cliente pediu</span>
+                  <strong>{order.approvalNote || 'Alteração solicitada sem observação.'}</strong>
+                  <Link className="button button-primary" to={`/revisar/${order.orderId || order.id}`}>
+                    Revisar arte · criar V{(order.designVersion || 1) + 1}
+                  </Link>
+                </div>
+              )}
             </div>
             <div className="seller-order-state">
               <span className={`pipeline-status is-${order.status || 'pending'}`}>{STATUS_LABELS[order.status] || 'Atendimento'}</span>
