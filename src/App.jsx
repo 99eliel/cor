@@ -5,6 +5,7 @@ import AdminPage from './pages/AdminPage';
 import ApprovalPage from './pages/ApprovalPage';
 import ArchivedGarmentsPage from './pages/ArchivedGarmentsPage';
 import CustomizerPage from './pages/CustomizerPage';
+import OrderRevisionPage from './pages/OrderRevisionPage';
 import ProductionPipelinePage from './pages/ProductionPipelinePage';
 import SellerOrdersPage from './pages/SellerOrdersPage';
 import TeamManagementPage from './pages/TeamManagementPage';
@@ -40,6 +41,16 @@ function SellerOrdersRoute() {
   );
 }
 
+function RevisionRoute() {
+  return (
+    <StaffAuth allowedRoles={['seller', 'admin']}>
+      {({ user, isAdmin, logout }) => (
+        <OrderRevisionPage user={user} isAdmin={isAdmin} logout={logout} />
+      )}
+    </StaffAuth>
+  );
+}
+
 function AdminRoute() {
   return (
     <>
@@ -59,6 +70,7 @@ export default function App() {
         <Route path="/" element={<SellerRoute />} />
         <Route path="/customizar/:garmentId" element={<SellerRoute />} />
         <Route path="/meus-pedidos" element={<SellerOrdersRoute />} />
+        <Route path="/revisar/:orderId" element={<RevisionRoute />} />
         <Route path="/admin" element={<AdminRoute />} />
         <Route path="/admin/producao" element={<ProductionPipelinePage />} />
         <Route path="/admin/equipe" element={<TeamManagementPage />} />
