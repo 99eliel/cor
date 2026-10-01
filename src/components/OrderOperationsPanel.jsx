@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { saveProductionChecklist, setOrderStatus } from '../lib/orderRepo';
 import { openTechnicalSheet } from '../lib/technicalSheet';
 
@@ -38,7 +39,7 @@ export default function OrderOperationsPanel({ order, disabled = false, onSaved 
     setStatus(order.status || 'pending');
     setChecklist(order.productionChecklist || {});
     setLinkCopied(false);
-  }, [order.status, order.productionChecklist, order.approvalStatus]);
+  }, [order.status, order.productionChecklist, order.approvalStatus, order.approvalToken]);
 
   const checkedCount = useMemo(
     () => CHECKS.filter(([key]) => Boolean(checklist[key])).length,
@@ -117,6 +118,18 @@ export default function OrderOperationsPanel({ order, disabled = false, onSaved 
           <button className="button button-secondary" type="button" onClick={copyApprovalLink} disabled={disabled}>
             {linkCopied ? '✓ Link copiado' : 'Copiar link de aprovação'}
           </button>
+        </div>
+      )}
+
+      {order.approvalStatus === 'changes_requested' && (
+        <div className="approval-change-request-card">
+          <div>
+            <span>O cliente pediu a seguinte alteração</span>
+            <strong>{order.approvalNote || 'O cliente pediu uma alteração, mas não deixou observação.'}</strong>
+          </div>
+          <Link className="button button-primary" to={`/revisar/${order.id}`}>
+            Revisar arte e criar V{(order.designVersion || 1) + 1}
+          </Link>
         </div>
       )}
 
