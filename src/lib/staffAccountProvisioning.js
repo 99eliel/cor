@@ -17,20 +17,13 @@ function cleanEmailAddress(value) {
   return String(value || '').trim().toLowerCase();
 }
 
-function randomTemporaryPassword() {
-  const bytes = crypto.getRandomValues(new Uint8Array(24));
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
-  let random = '';
-  for (const byte of bytes) random += alphabet[byte % alphabet.length];
-  return `Mp!${random}7a`;
-}
-
 function authErrorMessage(error) {
   const code = error?.code || '';
   if (code === 'auth/email-already-in-use') {
-    return 'Já existe uma conta de acesso com este e-mail. Se ela já aparece na equipe, use “Enviar nova senha”.';
+    return 'Já existe uma conta de acesso com este e-mail.';
   }
   if (code === 'auth/invalid-email') return 'Informe um e-mail válido.';
+  if (code === 'auth/weak-password') return 'A senha é muito fraca. Use pelo menos 8 caracteres.';
   if (code === 'auth/operation-not-allowed') {
     return 'O login por E-mail/Senha ainda não está habilitado no Firebase Authentication.';
   }
@@ -45,10 +38,14 @@ function getProvisioningApp() {
     || initializeApp(firebaseConfig, PROVISIONING_APP_NAME);
 }
 
-export async function createStaffAccount({ name, email, role, active = true }) {
+export async function createStaffAccount({ name, email, password, role, active = true }) {
+  const cleanName = String(name || '').trim();
   const cleanEmail = cleanEmailAddress(email);
-  if (!String(name || '').trim()) throw new Error('Informe o nome do funcionário.');
+  const cleanPassword = String(password || '');
+
+  if (!cleanName) throw new Error('Informe o nome do funcionário.');
   if (!cleanEmail || !cleanEmail.includes('@')) throw new Error('Informe um e-mail válido.');
+  if (cleanPassword.length < 8) throw new Error('A senha deve ter pelo menos 8 caracteres.');
 
   const provisioningApp = getProvisioningApp();
   const provisioningAuth = getAuth(provisioningApp);
@@ -59,13 +56,13 @@ export async function createStaffAccount({ name, email, role, active = true }) {
     const credential = await createUserWithEmailAndPassword(
       provisioningAuth,
       cleanEmail,
-      randomTemporaryPassword(),
+      cleanPassword,
     );
     createdUser = credential.user;
 
     try {
       await saveStaffProfile(createdUser.uid, {
-        name: String(name || '').trim(),
+        name: cleanName,
         email: cleanEmail,
         role,
         active,
@@ -76,17 +73,9 @@ export async function createStaffAccount({ name, email, role, active = true }) {
       throw error;
     }
 
-    let resetEmailSent = true;
-    try {
-      await sendPasswordResetEmail(auth, cleanEmail);
-    } catch {
-      resetEmailSent = false;
-    }
-
     return {
       uid: createdUser.uid,
       email: cleanEmail,
-      resetEmailSent,
     };
   } catch (error) {
     throw new Error(authErrorMessage(error));
