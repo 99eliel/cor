@@ -37,11 +37,12 @@ if (!IText.prototype[PATCH_FLAG]) {
       const top = -(height / 2) - padY;
       const labelWidth = width + (padX * 2);
       const labelHeight = height + (padY * 2);
-      const lightText = isLightColor(this.fill);
+      const backgroundColor = this.labelBackgroundColor || (isLightColor(this.fill) ? '#111827' : '#ffffff');
+      const lightBackground = isLightColor(backgroundColor);
 
       ctx.save();
-      ctx.fillStyle = lightText ? '#111827' : '#ffffff';
-      ctx.strokeStyle = lightText ? 'rgba(255,255,255,0.85)' : 'rgba(15,23,42,0.78)';
+      ctx.fillStyle = backgroundColor;
+      ctx.strokeStyle = lightBackground ? 'rgba(15,23,42,0.78)' : 'rgba(255,255,255,0.85)';
       ctx.lineWidth = Math.max(1.5, fontSize * 0.035);
       ctx.fillRect(left, top, labelWidth, labelHeight);
       ctx.strokeRect(left, top, labelWidth, labelHeight);
