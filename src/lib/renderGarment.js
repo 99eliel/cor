@@ -173,6 +173,32 @@ function colorBrightness(color) {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
 
+function clampNumber(value, min, max, fallback) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
+function normalizeColorChoice(choice) {
+  if (typeof choice === 'string') {
+    return {
+      color: choice,
+      opacity: 100,
+      saturation: 100,
+      brightness: 100,
+    };
+  }
+  if (!choice || typeof choice !== 'object') return null;
+  const color = typeof choice.color === 'string' ? choice.color : '';
+  if (!color) return null;
+  return {
+    color,
+    opacity: clampNumber(choice.opacity, 0, 100, 100),
+    saturation: clampNumber(choice.saturation, 0, 160, 100),
+    brightness: clampNumber(choice.brightness, 50, 140, 100),
+  };
+}
+
 function profileFor(region, brightness) {
   const named = region?.materialProfile || 'balanced';
   const profiles = {
@@ -191,29 +217,35 @@ function profileFor(region, brightness) {
   };
 }
 
-function recolorRegion(ctx, image, region, chosenColor, width, height) {
+function recolorRegion(ctx, image, region, chosenChoice, width, height) {
+  const settings = normalizeColorChoice(chosenChoice);
+  if (!settings) return;
+
   const mask = createRegionMask(width, height, region.polygons ?? [], image, region?.useSubjectMask === true);
-  const brightness = colorBrightness(chosenColor);
+  const brightness = colorBrightness(settings.color);
   const profile = profileFor(region, brightness);
 
-  const colorLayer = maskedSolid(width, height, mask, chosenColor);
+  const colorLayer = maskedSolid(width, height, mask, settings.color);
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = settings.opacity / 100;
+  ctx.filter = `saturate(${settings.saturation}%) brightness(${settings.brightness}%)`;
   ctx.drawImage(colorLayer, 0, 0);
+  ctx.filter = 'none';
   ctx.restore();
 
+  const textureFactor = 0.65 + ((100 - settings.opacity) / 100) * 0.35;
   const detailLayer = maskedGray(width, height, mask, image, profile.contrast, 1.02);
   ctx.save();
   ctx.globalCompositeOperation = 'soft-light';
-  ctx.globalAlpha = profile.detail;
+  ctx.globalAlpha = Math.min(0.5, profile.detail * textureFactor);
   ctx.drawImage(detailLayer, 0, 0);
   ctx.restore();
 
   const shadowLayer = maskedGray(width, height, mask, image, 1.28, 0.72);
   ctx.save();
   ctx.globalCompositeOperation = 'multiply';
-  ctx.globalAlpha = profile.shadow;
+  ctx.globalAlpha = Math.min(0.45, profile.shadow * textureFactor);
   ctx.drawImage(shadowLayer, 0, 0);
   ctx.restore();
 
@@ -221,7 +253,7 @@ function recolorRegion(ctx, image, region, chosenColor, width, height) {
     const highlightLayer = maskedGray(width, height, mask, image, 1.18, 1.2);
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha = profile.highlight;
+    ctx.globalAlpha = Math.min(0.3, profile.highlight * textureFactor);
     ctx.drawImage(highlightLayer, 0, 0);
     ctx.restore();
   }
@@ -243,6 +275,7 @@ export function renderGarment({
   ctx.clearRect(0, 0, width, height);
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = 1;
+  ctx.filter = 'none';
   ctx.drawImage(image, 0, 0, width, height);
 
   const activeRegions = regions
