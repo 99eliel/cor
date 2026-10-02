@@ -5,7 +5,7 @@ import MartinpelBrand from '../components/MartinpelBrand';
 import { createStaffAccount, sendStaffPasswordReset } from '../lib/staffAccountProvisioning';
 import { listStaff, saveStaffProfile, setStaffActive, setStaffRole, STAFF_ROLES } from '../lib/staffRepo';
 
-const EMPTY_FORM = { name: '', email: '', role: 'seller', active: true };
+const EMPTY_FORM = { name: '', email: '', password: '', confirmPassword: '', role: 'seller', active: true };
 
 function TeamManagement({ user, profile, legacyAccess, logout }) {
   const [members, setMembers] = useState([]);
@@ -60,14 +60,19 @@ function TeamManagement({ user, profile, legacyAccess, logout }) {
     setMessage('');
 
     try {
-      const result = await createStaffAccount(form);
+      if (form.password.length < 8) throw new Error('A senha deve ter pelo menos 8 caracteres.');
+      if (form.password !== form.confirmPassword) throw new Error('As senhas digitadas não conferem.');
+
+      const result = await createStaffAccount({
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        role: form.role,
+        active: form.active,
+      });
       setForm(EMPTY_FORM);
       await load();
-      setMessage(
-        result.resetEmailSent
-          ? `Acesso criado para ${result.email}. O funcionário recebeu um e-mail para definir a senha.`
-          : `Acesso criado para ${result.email}, mas o e-mail de definição de senha não foi enviado. Use “Enviar nova senha” ao lado do funcionário.`,
-      );
+      setMessage(`Acesso criado para ${result.email}. O funcionário já pode entrar com a senha definida pelo administrador.`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -124,7 +129,7 @@ function TeamManagement({ user, profile, legacyAccess, logout }) {
     setMessage('');
     try {
       await sendStaffPasswordReset(member.email);
-      setMessage(`E-mail para definir uma nova senha enviado para ${member.email}.`);
+      setMessage(`Link de recuperação de senha enviado para ${member.email}.`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -146,7 +151,7 @@ function TeamManagement({ user, profile, legacyAccess, logout }) {
         <div>
           <p className="eyebrow">Segurança e acessos</p>
           <h1>Equipe Martinpel</h1>
-          <p>Crie funcionários, escolha a função e bloqueie acessos sem precisar entrar no Firebase Console.</p>
+          <p>Crie funcionários, defina a senha inicial, escolha a função e bloqueie acessos sem precisar entrar no Firebase Console.</p>
         </div>
         <div className="team-summary">
           <strong>{members.filter((member) => member.active === true).length}</strong>
@@ -173,7 +178,7 @@ function TeamManagement({ user, profile, legacyAccess, logout }) {
           <div>
             <p className="eyebrow">Novo funcionário</p>
             <h2>Criar acesso</h2>
-            <p>Informe os dados abaixo. O sistema cria a conta e envia um e-mail para o funcionário definir a própria senha.</p>
+            <p>O administrador define a senha aqui. Assim que o acesso for criado, o funcionário já pode entrar direto no sistema.</p>
           </div>
           <label>Nome do funcionário
             <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Nome completo" autoComplete="name" disabled={saving} required />
@@ -181,14 +186,20 @@ function TeamManagement({ user, profile, legacyAccess, logout }) {
           <label>E-mail de acesso
             <input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} placeholder="vendedor@martinpel.com.br" autoComplete="email" disabled={saving} required />
           </label>
+          <label>Senha inicial
+            <input type="password" minLength="8" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} placeholder="Mínimo de 8 caracteres" autoComplete="new-password" disabled={saving} required />
+          </label>
+          <label>Confirmar senha
+            <input type="password" minLength="8" value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} placeholder="Digite a mesma senha novamente" autoComplete="new-password" disabled={saving} required />
+          </label>
           <label>Função
             <select value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value }))} disabled={saving}>
               {Object.entries(STAFF_ROLES).map(([role, label]) => <option key={role} value={role}>{label}</option>)}
             </select>
           </label>
           <label className="team-active-check"><input type="checkbox" checked={form.active} onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))} disabled={saving} /> Liberar acesso imediatamente</label>
-          <button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Criando acesso…' : 'Criar acesso e enviar senha'}</button>
-          <small className="team-form-note">O administrador não precisa definir nem conhecer a senha do funcionário.</small>
+          <button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Criando acesso…' : 'Criar acesso'}</button>
+          <small className="team-form-note">A senha é enviada diretamente ao Firebase Authentication e não fica gravada no banco de dados do sistema.</small>
         </form>
 
         <section className="panel team-list-panel">
@@ -215,7 +226,7 @@ function TeamManagement({ user, profile, legacyAccess, logout }) {
                       {Object.entries(STAFF_ROLES).map(([role, label]) => <option key={role} value={role}>{label}</option>)}
                     </select>
                     <button className="button button-secondary" type="button" onClick={() => resetPassword(member)} disabled={resetting || !member.email}>
-                      {resetting ? 'Enviando…' : 'Enviar nova senha'}
+                      {resetting ? 'Enviando…' : 'Recuperar senha por e-mail'}
                     </button>
                     <button className={`button ${member.active === true ? 'button-secondary' : 'button-success'}`} type="button" onClick={() => toggleActive(member)} disabled={working || own}>
                       {working ? 'Salvando…' : member.active === true ? 'Bloquear' : 'Ativar'}
