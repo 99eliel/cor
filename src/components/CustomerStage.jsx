@@ -34,6 +34,30 @@ function randomId(prefix) {
   return `${prefix}-${crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 }
 
+function hexToRgb(value) {
+  const hex = String(value || '').trim().replace('#', '');
+  if (!/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(hex)) return null;
+  const normalized = hex.length === 3
+    ? hex.split('').map((char) => `${char}${char}`).join('')
+    : hex;
+  return {
+    r: Number.parseInt(normalized.slice(0, 2), 16),
+    g: Number.parseInt(normalized.slice(2, 4), 16),
+    b: Number.parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
+function isLightColor(value) {
+  const rgb = hexToRgb(value);
+  if (!rgb) return false;
+  const luminance = ((0.299 * rgb.r) + (0.587 * rgb.g) + (0.114 * rgb.b)) / 255;
+  return luminance >= 0.67;
+}
+
+function textBackgroundColor(item) {
+  return item.backgroundColor || (isLightColor(item.color) ? '#111827' : '#ffffff');
+}
+
 const CustomerStage = forwardRef(function CustomerStage({
   garment,
   view,
@@ -79,6 +103,7 @@ const CustomerStage = forwardRef(function CustomerStage({
       type: 'text',
       text: object.text || '',
       color: object.fill || '#111827',
+      backgroundColor: object.labelBackgroundColor || '',
       fontFamily: object.fontFamily || 'Arial',
       fontWeight: object.fontWeight || '700',
       fontStyle: object.fontStyle || 'normal',
@@ -240,6 +265,7 @@ const CustomerStage = forwardRef(function CustomerStage({
       editingBorderColor: '#1d8bd1',
     });
     object.textId = metadata.id || randomId('text');
+    object.labelBackgroundColor = metadata.backgroundColor || '';
     object.designView = metadata.targetView || metadata.position?.view || currentViewRef.current;
     object.normX = Number.isFinite(metadata.initialX) ? metadata.initialX : Number(metadata.position?.x) || 0.5;
     object.normY = Number.isFinite(metadata.initialY) ? metadata.initialY : Number(metadata.position?.y) || 0.5;
@@ -360,8 +386,10 @@ const CustomerStage = forwardRef(function CustomerStage({
       if (!canvas || !active?.textId) return false;
       if (metadata.text !== undefined) active.set('text', String(metadata.text));
       if (metadata.color !== undefined) active.set('fill', metadata.color);
+      if (metadata.backgroundColor !== undefined) active.labelBackgroundColor = metadata.backgroundColor;
       if (metadata.fontWeight !== undefined) active.set('fontWeight', metadata.fontWeight);
       if (metadata.fontFamily !== undefined) active.set('fontFamily', metadata.fontFamily);
+      if (metadata.fontStyle !== undefined) active.set('fontStyle', metadata.fontStyle);
       active.setCoords();
       canvas.requestRenderAll();
       captureObject(active, true);
@@ -489,11 +517,22 @@ const CustomerStage = forwardRef(function CustomerStage({
           ctx.rotate(((serialized.position.rotation || 0) * Math.PI) / 180);
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillStyle = serialized.color;
           ctx.font = `${serialized.fontStyle} ${serialized.fontWeight} ${baseFontSize}px ${serialized.fontFamily}`;
           const measured = Math.max(1, ctx.measureText(serialized.text).width);
           const scale = desiredWidth / measured;
+          const padX = Math.max(12, baseFontSize * 0.3);
+          const padY = Math.max(7, baseFontSize * 0.14);
+          const labelWidth = measured + (padX * 2);
+          const labelHeight = (baseFontSize * 1.16) + (padY * 2);
+          const backgroundColor = textBackgroundColor(serialized);
+          const lightBackground = isLightColor(backgroundColor);
           ctx.scale(scale, scale);
+          ctx.fillStyle = backgroundColor;
+          ctx.strokeStyle = lightBackground ? 'rgba(15,23,42,0.78)' : 'rgba(255,255,255,0.85)';
+          ctx.lineWidth = Math.max(1.5, baseFontSize * 0.035);
+          ctx.fillRect(-labelWidth / 2, -labelHeight / 2, labelWidth, labelHeight);
+          ctx.strokeRect(-labelWidth / 2, -labelHeight / 2, labelWidth, labelHeight);
+          ctx.fillStyle = serialized.color;
           ctx.fillText(serialized.text, 0, 0);
           ctx.restore();
         }
