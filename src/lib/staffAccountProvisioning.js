@@ -4,11 +4,10 @@ import {
   deleteUser,
   getAuth,
   inMemoryPersistence,
-  sendPasswordResetEmail,
   setPersistence,
   signOut,
 } from 'firebase/auth';
-import { auth, firebaseConfig } from './firebase';
+import { firebaseConfig } from './firebase';
 import { saveStaffProfile } from './staffRepo';
 
 const PROVISIONING_APP_NAME = 'martinpel-staff-provisioning';
@@ -19,9 +18,7 @@ function cleanEmailAddress(value) {
 
 function authErrorMessage(error) {
   const code = error?.code || '';
-  if (code === 'auth/email-already-in-use') {
-    return 'Já existe uma conta de acesso com este e-mail.';
-  }
+  if (code === 'auth/email-already-in-use') return 'Já existe uma conta de acesso com este e-mail.';
   if (code === 'auth/invalid-email') return 'Informe um e-mail válido.';
   if (code === 'auth/weak-password') return 'A senha é muito fraca. Use pelo menos 8 caracteres.';
   if (code === 'auth/operation-not-allowed') {
@@ -82,17 +79,5 @@ export async function createStaffAccount({ name, email, password, role, active =
   } finally {
     try { await signOut(provisioningAuth); } catch {}
     try { await deleteApp(provisioningApp); } catch {}
-  }
-}
-
-export async function sendStaffPasswordReset(email) {
-  const cleanEmail = cleanEmailAddress(email);
-  if (!cleanEmail || !cleanEmail.includes('@')) throw new Error('Este funcionário não possui um e-mail válido cadastrado.');
-
-  try {
-    await sendPasswordResetEmail(auth, cleanEmail);
-    return cleanEmail;
-  } catch (error) {
-    throw new Error(authErrorMessage(error));
   }
 }
