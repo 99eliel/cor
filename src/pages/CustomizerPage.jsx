@@ -114,6 +114,7 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
   const [textPanelOpen, setTextPanelOpen] = useState(false);
   const [textDraft, setTextDraft] = useState('');
   const [textColor, setTextColor] = useState('#111827');
+  const [textBackgroundColor, setTextBackgroundColor] = useState('#ffffff');
   const [textFontFamily, setTextFontFamily] = useState('Arial');
   const [textFontWeight, setTextFontWeight] = useState('700');
   const [textFontStyle, setTextFontStyle] = useState('normal');
@@ -362,6 +363,7 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
     const formattedText = textUppercase ? clean.toUpperCase() : clean;
     stageRef.current?.addText(formattedText, {
       color: textColor,
+      backgroundColor: textBackgroundColor,
       targetView: view,
       fontFamily: textFontFamily,
       fontWeight: textFontWeight,
@@ -669,7 +671,7 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
           <div className="customer-tool-section-title"><span>03</span><strong>Nome, número ou texto</strong></div>
           <button type="button" className={`text-tool-toggle ${textPanelOpen ? 'is-open' : ''}`} onClick={() => setTextPanelOpen((open) => !open)} aria-expanded={textPanelOpen}>
             <span className="text-tool-toggle-icon">Aa</span>
-            <span className="text-tool-toggle-copy"><strong>Colocar nome / número</strong><small>Fonte, estilo, tamanho e cor</small></span>
+            <span className="text-tool-toggle-copy"><strong>Colocar nome / número</strong><small>Fonte, estilo, tamanho e cores</small></span>
             <b>{textPanelOpen ? '−' : '+'}</b>
           </button>
 
@@ -706,13 +708,24 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
               </div>
 
               <div className="text-appearance-row">
-                <label className="text-color-option">Cor do texto<input type="color" value={textColor} onChange={(event) => setTextColor(event.target.value)} /></label>
-                <label className="text-uppercase-option"><input type="checkbox" checked={textUppercase} onChange={(event) => setTextUppercase(event.target.checked)} /><span>CAIXA ALTA</span></label>
+                <label className="text-color-option">Cor da letra<input type="color" value={textColor} onChange={(event) => setTextColor(event.target.value)} /></label>
+                <label className="text-color-option">Fundo da etiqueta<input type="color" value={textBackgroundColor} onChange={(event) => setTextBackgroundColor(event.target.value)} /></label>
+                <label className="text-uppercase-option" style={{ gridColumn: '1 / -1' }}><input type="checkbox" checked={textUppercase} onChange={(event) => setTextUppercase(event.target.checked)} /><span>CAIXA ALTA</span></label>
               </div>
 
               <div className="text-style-preview">
                 <span>Prévia</span>
-                <strong style={{ color: textColor, fontFamily: textFontFamily, fontWeight: textFontWeight, fontStyle: textFontStyle }}>{textPreview}</strong>
+                <strong style={{
+                  color: textColor,
+                  backgroundColor: textBackgroundColor,
+                  fontFamily: textFontFamily,
+                  fontWeight: textFontWeight,
+                  fontStyle: textFontStyle,
+                  padding: '8px 12px',
+                  border: '1px solid rgba(15,23,42,.18)',
+                  borderRadius: '2px',
+                  alignSelf: 'flex-start',
+                }}>{textPreview}</strong>
               </div>
 
               <button type="button" className="button button-secondary full-width" onClick={addText}>Adicionar na camisa</button>
