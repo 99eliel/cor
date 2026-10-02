@@ -1,6 +1,7 @@
 import { IText } from 'fabric';
 
 const originalRender = IText.prototype._render;
+const originalSetControlsVisibility = IText.prototype.setControlsVisibility;
 const PATCH_FLAG = Symbol.for('martinpel.name-label-text');
 
 function hexToRgb(value) {
@@ -25,6 +26,14 @@ function isLightColor(value) {
 
 if (!IText.prototype[PATCH_FLAG]) {
   IText.prototype[PATCH_FLAG] = true;
+
+  IText.prototype.setControlsVisibility = function setNameLabelControlsVisibility(options = {}) {
+    const visibility = this.textId
+      ? { ...options, ml: true, mr: true, mt: true, mb: true }
+      : options;
+
+    return originalSetControlsVisibility.call(this, visibility);
+  };
 
   IText.prototype._render = function renderNameLabel(ctx) {
     if (this.textId) {
