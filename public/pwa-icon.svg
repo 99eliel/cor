@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Martinpel Vendas">
+  <rect width="512" height="512" rx="116" fill="#062b52"/>
+  <rect x="64" y="64" width="384" height="384" rx="92" fill="#0b5d92"/>
+  <path d="M122 356V156h68l66 100 66-100h68v200h-62V252l-72 104-72-104v104z" fill="#fff"/>
+  <rect x="118" y="390" width="276" height="18" rx="9" fill="#f6c945"/>
+  <rect x="118" y="418" width="188" height="12" rx="6" fill="#6fc3ef"/>
+</svg>
