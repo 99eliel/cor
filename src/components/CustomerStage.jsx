@@ -1,7 +1,10 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Canvas, FabricImage, IText } from 'fabric';
 import { getRegionAtPoint } from '../lib/geometry';
 import { renderGarment } from '../lib/renderGarment';
+
+const DEFAULT_COLOR_TUNING = Object.freeze({ opacity: 82, saturation: 88, brightness: 96 });
+const FULL_COLOR_TUNING = Object.freeze({ opacity: 100, saturation: 100, brightness: 100 });
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
@@ -58,6 +61,44 @@ function textBackgroundColor(item) {
   return item.backgroundColor || (isLightColor(item.color) ? '#111827' : '#ffffff');
 }
 
+function tuneColorChoices(colorChoices, tuning) {
+  return Object.fromEntries(
+    Object.entries(colorChoices || {}).map(([regionId, choice]) => {
+      if (choice && typeof choice === 'object' && typeof choice.color === 'string') {
+        return [regionId, {
+          ...choice,
+          opacity: tuning.opacity,
+          saturation: tuning.saturation,
+          brightness: tuning.brightness,
+        }];
+      }
+      return [regionId, {
+        color: choice,
+        opacity: tuning.opacity,
+        saturation: tuning.saturation,
+        brightness: tuning.brightness,
+      }];
+    }),
+  );
+}
+
+function HarmonySlider({ label, value, min, max, onChange }) {
+  return (
+    <label style={{ display: 'grid', gridTemplateColumns: '92px minmax(0,1fr) 44px', alignItems: 'center', gap: 10, fontSize: '.76rem', fontWeight: 800, color: '#40566c' }}>
+      <span>{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        style={{ width: '100%', accentColor: '#0b5d92', cursor: 'pointer' }}
+      />
+      <strong style={{ textAlign: 'right', color: '#0b5d92', fontSize: '.72rem' }}>{value}%</strong>
+    </label>
+  );
+}
+
 const CustomerStage = forwardRef(function CustomerStage({
   garment,
   view,
@@ -73,6 +114,10 @@ const CustomerStage = forwardRef(function CustomerStage({
   const imagesRef = useRef({});
   const currentViewRef = useRef(view);
   const historyRef = useRef({ entries: [[]], index: 0, restoring: false });
+  const [colorTuning, setColorTuning] = useState(DEFAULT_COLOR_TUNING);
+
+  const tunedChoices = tuneColorChoices(colorChoices, colorTuning);
+  const hasCustomColors = Object.keys(colorChoices || {}).length > 0;
 
   function serializeLogo(object) {
     return {
@@ -185,7 +230,7 @@ const CustomerStage = forwardRef(function CustomerStage({
     const base = baseRef.current;
     base.width = width;
     base.height = height;
-    renderGarment({ canvas: base, image, regions: garment.regions ?? [], view: targetView, colorChoices });
+    renderGarment({ canvas: base, image, regions: garment.regions ?? [], view: targetView, colorChoices: tunedChoices });
 
     const fabricCanvas = fabricRef.current;
     if (fabricCanvas) {
@@ -358,7 +403,7 @@ const CustomerStage = forwardRef(function CustomerStage({
 
   useEffect(() => {
     paint(view).catch((err) => console.error(err));
-  }, [colorChoices, garment.regions]);
+  }, [colorChoices, colorTuning, garment.regions]);
 
   useImperativeHandle(ref, () => ({
     addLogo: addLogoObject,
@@ -379,6 +424,9 @@ const CustomerStage = forwardRef(function CustomerStage({
       if (active.logoId) return serializeLogo(active);
       if (active.textId) return serializeText(active);
       return null;
+    },
+    getColorTuning() {
+      return { ...colorTuning };
     },
     updateSelectedText(metadata = {}) {
       const canvas = fabricRef.current;
@@ -493,7 +541,7 @@ const CustomerStage = forwardRef(function CustomerStage({
       const result = document.createElement('canvas');
       result.width = width;
       result.height = height;
-      renderGarment({ canvas: result, image, regions: garment.regions ?? [], view: targetView, colorChoices });
+      renderGarment({ canvas: result, image, regions: garment.regions ?? [], view: targetView, colorChoices: tunedChoices });
       const ctx = result.getContext('2d');
 
       for (const object of designObjects().filter((item) => item.designView === targetView)) {
@@ -552,9 +600,41 @@ const CustomerStage = forwardRef(function CustomerStage({
   }));
 
   return (
-    <div className="customer-stage">
-      <canvas ref={baseRef} className="customer-base-canvas" />
-      <canvas ref={fabricElementRef} className="customer-fabric-canvas" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="customer-stage">
+        <canvas ref={baseRef} className="customer-base-canvas" />
+        <canvas ref={fabricElementRef} className="customer-fabric-canvas" />
+      </div>
+
+      {hasCustomColors && (
+        <section
+          aria-label="Harmonização das cores"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 9,
+            padding: '12px 14px',
+            border: '1px solid #cddbe7',
+            borderRadius: 12,
+            background: 'linear-gradient(180deg,#fff,#f7fbfe)',
+            lineHeight: 1.35,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <strong style={{ color: '#10223a', fontSize: '.86rem' }}>Harmonização da cor</strong>
+              <small style={{ color: '#667d91', fontSize: '.68rem', fontWeight: 700 }}>Suavize a cor para preservar luz, sombra e textura do tecido.</small>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button type="button" className="button button-secondary" style={{ padding: '7px 9px', fontSize: '.7rem' }} onClick={() => setColorTuning(DEFAULT_COLOR_TUNING)}>Harmonizar</button>
+              <button type="button" className="button button-secondary" style={{ padding: '7px 9px', fontSize: '.7rem' }} onClick={() => setColorTuning(FULL_COLOR_TUNING)}>100%</button>
+            </div>
+          </div>
+          <HarmonySlider label="Intensidade" value={colorTuning.opacity} min={25} max={100} onChange={(opacity) => setColorTuning((current) => ({ ...current, opacity }))} />
+          <HarmonySlider label="Saturação" value={colorTuning.saturation} min={30} max={140} onChange={(saturation) => setColorTuning((current) => ({ ...current, saturation }))} />
+          <HarmonySlider label="Brilho" value={colorTuning.brightness} min={60} max={125} onChange={(brightness) => setColorTuning((current) => ({ ...current, brightness }))} />
+        </section>
+      )}
     </div>
   );
 });
