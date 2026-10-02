@@ -1,7 +1,7 @@
 const CACHE_PREFIX = 'martinpel-vendas';
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = `${CACHE_PREFIX}-${CACHE_VERSION}`;
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/pwa-icon.svg'];
+const APP_SHELL = ['/manifest.webmanifest', '/pwa-icon.svg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -32,12 +32,8 @@ self.addEventListener('fetch', (event) => {
 
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy));
-          return response;
-        })
+      fetch(request, { cache: 'no-store' })
+        .then((response) => response)
         .catch(() => caches.match('/index.html')),
     );
     return;
@@ -50,18 +46,14 @@ self.addEventListener('fetch', (event) => {
   if (!shouldCache) return;
 
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const networkFetch = fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached);
-
-      return cached || networkFetch;
-    }),
+    fetch(request)
+      .then((response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(request)),
   );
 });
