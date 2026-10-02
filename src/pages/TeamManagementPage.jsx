@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AdminAuth from '../components/AdminAuth';
 import MartinpelBrand from '../components/MartinpelBrand';
-import { createStaffAccount, sendStaffPasswordReset } from '../lib/staffAccountProvisioning';
+import { createStaffAccount } from '../lib/staffAccountProvisioning';
 import { listStaff, saveStaffProfile, setStaffActive, setStaffRole, STAFF_ROLES } from '../lib/staffRepo';
 
 const EMPTY_FORM = { name: '', email: '', password: '', confirmPassword: '', role: 'seller', active: true };
@@ -13,7 +13,6 @@ function TeamManagement({ user, profile, legacyAccess, logout }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [actionUid, setActionUid] = useState('');
-  const [resetUid, setResetUid] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
@@ -70,9 +69,10 @@ function TeamManagement({ user, profile, legacyAccess, logout }) {
         role: form.role,
         active: form.active,
       });
+
       setForm(EMPTY_FORM);
       await load();
-      setMessage(`Acesso criado para ${result.email}. O funcionário já pode entrar com a senha definida pelo administrador.`);
+      setMessage(`Acesso criado para ${result.email}. O funcionário já pode entrar diretamente com a senha que você definiu.`);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -119,24 +119,6 @@ function TeamManagement({ user, profile, legacyAccess, logout }) {
     }
   }
 
-  async function resetPassword(member) {
-    if (!member.email) {
-      setError('Este funcionário não possui e-mail cadastrado.');
-      return;
-    }
-    setResetUid(member.uid);
-    setError('');
-    setMessage('');
-    try {
-      await sendStaffPasswordReset(member.email);
-      setMessage(`Link de recuperação de senha enviado para ${member.email}.`);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setResetUid('');
-    }
-  }
-
   return (
     <main className="team-shell">
       <header className="team-topbar">
@@ -151,7 +133,7 @@ function TeamManagement({ user, profile, legacyAccess, logout }) {
         <div>
           <p className="eyebrow">Segurança e acessos</p>
           <h1>Equipe Martinpel</h1>
-          <p>Crie funcionários, defina a senha inicial, escolha a função e bloqueie acessos sem precisar entrar no Firebase Console.</p>
+          <p>Crie funcionários, defina a senha inicial, escolha a função e libere o acesso imediatamente.</p>
         </div>
         <div className="team-summary">
           <strong>{members.filter((member) => member.active === true).length}</strong>
@@ -178,28 +160,41 @@ function TeamManagement({ user, profile, legacyAccess, logout }) {
           <div>
             <p className="eyebrow">Novo funcionário</p>
             <h2>Criar acesso</h2>
-            <p>O administrador define a senha aqui. Assim que o acesso for criado, o funcionário já pode entrar direto no sistema.</p>
+            <p>Digite a senha que o funcionário usará. Nenhum e-mail de criação de senha será enviado.</p>
           </div>
+
           <label>Nome do funcionário
             <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} placeholder="Nome completo" autoComplete="name" disabled={saving} required />
           </label>
+
           <label>E-mail de acesso
             <input type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} placeholder="vendedor@martinpel.com.br" autoComplete="email" disabled={saving} required />
           </label>
-          <label>Senha inicial
-            <input type="password" minLength="8" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} placeholder="Mínimo de 8 caracteres" autoComplete="new-password" disabled={saving} required />
+
+          <label>Senha
+            <input type="password" minLength="8" value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} placeholder="Digite a senha do funcionário" autoComplete="new-password" disabled={saving} required />
           </label>
+
           <label>Confirmar senha
             <input type="password" minLength="8" value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} placeholder="Digite a mesma senha novamente" autoComplete="new-password" disabled={saving} required />
           </label>
+
           <label>Função
             <select value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value }))} disabled={saving}>
               {Object.entries(STAFF_ROLES).map(([role, label]) => <option key={role} value={role}>{label}</option>)}
             </select>
           </label>
-          <label className="team-active-check"><input type="checkbox" checked={form.active} onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))} disabled={saving} /> Liberar acesso imediatamente</label>
-          <button className="button button-primary" type="submit" disabled={saving}>{saving ? 'Criando acesso…' : 'Criar acesso'}</button>
-          <small className="team-form-note">A senha é enviada diretamente ao Firebase Authentication e não fica gravada no banco de dados do sistema.</small>
+
+          <label className="team-active-check">
+            <input type="checkbox" checked={form.active} onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))} disabled={saving} />
+            Liberar acesso imediatamente
+          </label>
+
+          <button className="button button-primary" type="submit" disabled={saving}>
+            {saving ? 'Criando acesso…' : 'Criar acesso'}
+          </button>
+
+          <small className="team-form-note">A senha vai direto para o Firebase Authentication e não é salva no Firestore.</small>
         </form>
 
         <section className="panel team-list-panel">
@@ -213,26 +208,30 @@ function TeamManagement({ user, profile, legacyAccess, logout }) {
           <div className="team-list">
             {members.map((member) => {
               const working = actionUid === member.uid;
-              const resetting = resetUid === member.uid;
               const own = member.uid === user.uid;
               return (
                 <article className={`team-member ${member.active === true ? '' : 'is-blocked'}`} key={member.uid}>
                   <div className="team-member-main">
                     <div className="team-avatar">{String(member.name || member.email || '?').slice(0, 1).toUpperCase()}</div>
-                    <div><strong>{member.name || 'Sem nome'}</strong><span>{member.email || 'Sem e-mail'}</span><small>{STAFF_ROLES[member.role] || 'Função não definida'}</small></div>
+                    <div>
+                      <strong>{member.name || 'Sem nome'}</strong>
+                      <span>{member.email || 'Sem e-mail'}</span>
+                      <small>{STAFF_ROLES[member.role] || 'Função não definida'}</small>
+                    </div>
                   </div>
+
                   <div className="team-member-controls">
                     <select value={member.role || 'seller'} onChange={(event) => changeRole(member, event.target.value)} disabled={working || own} aria-label={`Função de ${member.name || member.email}`}>
                       {Object.entries(STAFF_ROLES).map(([role, label]) => <option key={role} value={role}>{label}</option>)}
                     </select>
-                    <button className="button button-secondary" type="button" onClick={() => resetPassword(member)} disabled={resetting || !member.email}>
-                      {resetting ? 'Enviando…' : 'Recuperar senha por e-mail'}
-                    </button>
                     <button className={`button ${member.active === true ? 'button-secondary' : 'button-success'}`} type="button" onClick={() => toggleActive(member)} disabled={working || own}>
                       {working ? 'Salvando…' : member.active === true ? 'Bloquear' : 'Ativar'}
                     </button>
                   </div>
-                  <div className={`team-status ${member.active === true ? 'is-active' : 'is-blocked'}`}>{member.active === true ? 'Ativo' : 'Bloqueado'}{own ? ' · sua conta' : ''}</div>
+
+                  <div className={`team-status ${member.active === true ? 'is-active' : 'is-blocked'}`}>
+                    {member.active === true ? 'Ativo' : 'Bloqueado'}{own ? ' · sua conta' : ''}
+                  </div>
                 </article>
               );
             })}
