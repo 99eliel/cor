@@ -16,6 +16,24 @@ import '../customer.css';
 
 const VIEW_LABELS = { front: 'Foto 1', back: 'Foto 2', combined: 'Foto 3' };
 const COLOR_PRESETS = ['#ffffff', '#111827', '#0b2b52', '#2563eb', '#dc2626', '#16a34a', '#facc15', '#9ca3af'];
+const TEXT_FONT_OPTIONS = [
+  ['Arial', 'Arial · limpa'],
+  ['Arial Black', 'Arial Black · forte'],
+  ['Verdana', 'Verdana · legível'],
+  ['Tahoma', 'Tahoma · compacta'],
+  ['Trebuchet MS', 'Trebuchet · moderna'],
+  ['Georgia', 'Georgia · clássica'],
+  ['Times New Roman', 'Times · tradicional'],
+  ['Courier New', 'Courier · técnica'],
+  ['Impact', 'Impact · destaque'],
+];
+const TEXT_SIZE_OPTIONS = [
+  ['0.14', 'Pequeno'],
+  ['0.18', 'Médio'],
+  ['0.22', 'Grande'],
+  ['0.28', 'Extra grande'],
+  ['0.34', 'Máximo'],
+];
 
 function availableViews(garment) {
   return ['front', 'back', 'combined'].filter((key) => garment?.images?.[key]);
@@ -93,8 +111,14 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
   const [colorChoices, setColorChoices] = useState({});
   const [logos, setLogos] = useState([]);
   const [texts, setTexts] = useState([]);
+  const [textPanelOpen, setTextPanelOpen] = useState(false);
   const [textDraft, setTextDraft] = useState('');
   const [textColor, setTextColor] = useState('#111827');
+  const [textFontFamily, setTextFontFamily] = useState('Arial');
+  const [textFontWeight, setTextFontWeight] = useState('700');
+  const [textFontStyle, setTextFontStyle] = useState('normal');
+  const [textInitialScale, setTextInitialScale] = useState('0.22');
+  const [textUppercase, setTextUppercase] = useState(false);
   const [loading, setLoading] = useState(Boolean(garmentId));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -119,6 +143,7 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
   );
   const sizeLabels = useMemo(() => getSizeScaleLabels(garment?.sizeScale), [garment?.sizeScale]);
   const sizeTotal = useMemo(() => Object.values(sizeGrid).reduce((sum, value) => sum + (Number(value) || 0), 0), [sizeGrid]);
+  const textPreview = textUppercase ? (textDraft.trim() || 'SEU NOME').toUpperCase() : (textDraft.trim() || 'Seu nome');
 
   function resetHistory() {
     undoStackRef.current = [];
@@ -334,10 +359,18 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
   function addText() {
     const clean = textDraft.trim();
     if (!clean) return setError('Digite um nome, número ou texto para adicionar.');
-    stageRef.current?.addText(clean, { color: textColor, targetView: view, fontWeight: '700' });
+    const formattedText = textUppercase ? clean.toUpperCase() : clean;
+    stageRef.current?.addText(formattedText, {
+      color: textColor,
+      targetView: view,
+      fontFamily: textFontFamily,
+      fontWeight: textFontWeight,
+      fontStyle: textFontStyle,
+      position: { scale: Number(textInitialScale) || 0.22, view },
+    });
     setTextDraft('');
     setError('');
-    setMessage('Texto adicionado. Ele também é livre para mover, girar e redimensionar.');
+    setMessage('Texto personalizado adicionado. Arraste, gire e redimensione livremente sobre a peça.');
   }
 
   function openBackgroundRemoval() {
@@ -634,12 +667,58 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
 
           <div className="tool-divider" />
           <div className="customer-tool-section-title"><span>03</span><strong>Nome, número ou texto</strong></div>
-          <div className="text-design-editor">
-            <input value={textDraft} onChange={(event) => setTextDraft(event.target.value)} placeholder="Ex.: JOÃO · 10 · FINANCEIRO" />
-            <input type="color" value={textColor} onChange={(event) => setTextColor(event.target.value)} title="Cor do texto" />
-            <button type="button" className="button button-secondary" onClick={addText}>Adicionar texto</button>
-          </div>
-          <p className="logo-upload-help">Depois de inserir, dê duplo clique para editar o texto diretamente e use os controles para mover, girar e redimensionar.</p>
+          <button type="button" className={`text-tool-toggle ${textPanelOpen ? 'is-open' : ''}`} onClick={() => setTextPanelOpen((open) => !open)} aria-expanded={textPanelOpen}>
+            <span className="text-tool-toggle-icon">Aa</span>
+            <span className="text-tool-toggle-copy"><strong>Colocar nome / número</strong><small>Fonte, estilo, tamanho e cor</small></span>
+            <b>{textPanelOpen ? '−' : '+'}</b>
+          </button>
+
+          {textPanelOpen && (
+            <div className="text-customization-card">
+              <label className="text-main-field">Texto
+                <input value={textDraft} onChange={(event) => setTextDraft(event.target.value)} placeholder="Ex.: JOÃO · 10 · FINANCEIRO" />
+              </label>
+
+              <div className="text-options-grid">
+                <label>Fonte
+                  <select value={textFontFamily} onChange={(event) => setTextFontFamily(event.target.value)}>
+                    {TEXT_FONT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </label>
+                <label>Peso
+                  <select value={textFontWeight} onChange={(event) => setTextFontWeight(event.target.value)}>
+                    <option value="400">Normal</option>
+                    <option value="700">Negrito</option>
+                    <option value="900">Extra forte</option>
+                  </select>
+                </label>
+                <label>Estilo
+                  <select value={textFontStyle} onChange={(event) => setTextFontStyle(event.target.value)}>
+                    <option value="normal">Normal</option>
+                    <option value="italic">Itálico</option>
+                  </select>
+                </label>
+                <label>Tamanho inicial
+                  <select value={textInitialScale} onChange={(event) => setTextInitialScale(event.target.value)}>
+                    {TEXT_SIZE_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                </label>
+              </div>
+
+              <div className="text-appearance-row">
+                <label className="text-color-option">Cor do texto<input type="color" value={textColor} onChange={(event) => setTextColor(event.target.value)} /></label>
+                <label className="text-uppercase-option"><input type="checkbox" checked={textUppercase} onChange={(event) => setTextUppercase(event.target.checked)} /><span>CAIXA ALTA</span></label>
+              </div>
+
+              <div className="text-style-preview">
+                <span>Prévia</span>
+                <strong style={{ color: textColor, fontFamily: textFontFamily, fontWeight: textFontWeight, fontStyle: textFontStyle }}>{textPreview}</strong>
+              </div>
+
+              <button type="button" className="button button-secondary full-width" onClick={addText}>Adicionar na camisa</button>
+              <p className="logo-upload-help">Depois de inserir, dê duplo clique para editar o conteúdo e use os controles da peça para mover, girar e redimensionar.</p>
+            </div>
+          )}
 
           <button type="button" className="button button-secondary full-width" disabled={busy || (logos.length + texts.length === 0)} onClick={removeSelectedItem}>Remover item selecionado</button>
           <div className="logo-count">{logos.length} logo(s) · {texts.length} texto(s)</div>
