@@ -1,5 +1,6 @@
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import ApprovalShareToast from './components/ApprovalShareToast';
+import PwaInstallPrompt from './components/PwaInstallPrompt';
 import StaffAuth from './components/StaffAuth';
 import AdminPage from './pages/AdminPage';
 import ApprovalPage from './pages/ApprovalPage';
@@ -12,7 +13,7 @@ import TeamManagementPage from './pages/TeamManagementPage';
 import './catalog-trash.css';
 import './operations.css';
 
-function SellerRoute() {
+function SellerRoute({ pwaEntry = false }) {
   return (
     <StaffAuth>
       {({ user, isAdmin, logout, profile, role }) => (
@@ -22,6 +23,7 @@ function SellerRoute() {
             <>
               <CustomizerPage staffUser={user} staffProfile={profile} isAdmin={isAdmin} logout={logout} />
               <Link className="seller-orders-shortcut" to="/meus-pedidos">Meus pedidos</Link>
+              {pwaEntry && <PwaInstallPrompt />}
             </>
           )
       )}
@@ -68,6 +70,7 @@ export default function App() {
       <Routes>
         <Route path="/aprovar/:orderId/:token" element={<ApprovalPage />} />
         <Route path="/" element={<SellerRoute />} />
+        <Route path="/vendedor" element={<SellerRoute pwaEntry />} />
         <Route path="/customizar/:garmentId" element={<SellerRoute />} />
         <Route path="/meus-pedidos" element={<SellerOrdersRoute />} />
         <Route path="/revisar/:orderId" element={<RevisionRoute />} />
