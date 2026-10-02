@@ -41,6 +41,7 @@ export default function GarmentEditorCanvas({
   const canvasRef = useRef(null);
   const scrollRef = useRef(null);
   const panRef = useRef(null);
+  const zoomRef = useRef(zoom);
   const [image, setImage] = useState(null);
   const [imageError, setImageError] = useState('');
   const [currentPolygon, setCurrentPolygon] = useState([]);
@@ -53,6 +54,10 @@ export default function GarmentEditorCanvas({
     () => regions.find((region) => region.id === selectedRegionId) ?? null,
     [regions, selectedRegionId],
   );
+
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
 
   useEffect(() => {
     setCurrentPolygon([]);
@@ -112,6 +117,42 @@ export default function GarmentEditorCanvas({
       drawEditableVertices({ canvas, region: selectedRegion, currentPolygon, hoverPoint, selectedVertex });
     }
   }, [image, regions, view, mode, visibleIds, previewColors, selectedRegionId, selectedRegion, currentPolygon, hoverPoint, selectedVertex]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !image) return undefined;
+
+    function onWheel(event) {
+      const scroller = scrollRef.current;
+      if (!scroller || event.deltaY === 0) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const currentZoom = zoomRef.current;
+      const step = event.deltaY < 0 ? 0.1 : -0.1;
+      const nextZoom = Math.min(3, Math.max(0.5, Number((currentZoom + step).toFixed(2))));
+      if (nextZoom === currentZoom) return;
+
+      const scrollerRect = scroller.getBoundingClientRect();
+      const localX = event.clientX - scrollerRect.left;
+      const localY = event.clientY - scrollerRect.top;
+      const contentX = scroller.scrollLeft + localX;
+      const contentY = scroller.scrollTop + localY;
+      const ratio = nextZoom / currentZoom;
+
+      zoomRef.current = nextZoom;
+      setZoom(nextZoom);
+
+      requestAnimationFrame(() => {
+        scroller.scrollLeft = Math.max(0, (contentX * ratio) - localX);
+        scroller.scrollTop = Math.max(0, (contentY * ratio) - localY);
+      });
+    }
+
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', onWheel);
+  }, [image, setZoom]);
 
   function undoLastPoint() {
     if (mode !== 'draw') return;
@@ -310,12 +351,6 @@ export default function GarmentEditorCanvas({
     setDraggingVertex(null);
   }
 
-  function handleWheel(event) {
-    event.preventDefault();
-    const step = event.deltaY < 0 ? 0.1 : -0.1;
-    setZoom((value) => Math.min(3, Math.max(0.5, Number((value + step).toFixed(2)))));
-  }
-
   if (!imageUrl) {
     return <div className="canvas-placeholder"><strong>Envie uma foto da peça</strong><span>Você pode cadastrar até três fotos diferentes para a mesma peça.</span></div>;
   }
@@ -323,9 +358,9 @@ export default function GarmentEditorCanvas({
   if (!image) return <div className="canvas-placeholder"><strong>Carregando imagem…</strong><span>Aguarde um instante.</span></div>;
 
   return (
-    <div ref={scrollRef} className={`editor-scroll ${isPanning ? 'is-panning' : ''}`} onWheel={handleWheel} onContextMenu={(event) => event.preventDefault()}>
+    <div ref={scrollRef} className={`editor-scroll ${isPanning ? 'is-panning' : ''}`} onContextMenu={(event) => event.preventDefault()}>
       {(mode === 'draw' || mode === 'edit') && (
-        <div className="editor-point-actions" onWheel={(event) => event.stopPropagation()}>
+        <div className="editor-point-actions">
           {mode === 'draw' && (
             <>
               <button className="button button-secondary" type="button" disabled={currentPolygon.length === 0} onClick={undoLastPoint}>↶ Desfazer último ponto</button>
@@ -358,8 +393,8 @@ export default function GarmentEditorCanvas({
           onPointerLeave={() => { if (!isPanning) { setDraggingVertex(null); setHoverPoint(null); } }}
         />
       </div>
-      {mode === 'draw' && <div className="canvas-hint">Enter = fechar área · Backspace/Delete = desfazer último ponto · Esc = cancelar desenho · Botão direito + arrastar = mover imagem.</div>}
-      {mode === 'edit' && <div className="canvas-hint">Arraste pontos · clique numa aresta para adicionar ponto · use Espelhar/Duplicar/Suavizar para ajustes rápidos · botão direito + arrastar move a imagem.</div>}
+      {mode === 'draw' && <div className="canvas-hint">Rodinha = zoom só na peça · Enter = fechar área · Backspace/Delete = desfazer último ponto · Esc = cancelar desenho · Botão direito + arrastar = mover imagem.</div>}
+      {mode === 'edit' && <div className="canvas-hint">Rodinha = zoom só na peça · arraste pontos · clique numa aresta para adicionar ponto · botão direito + arrastar move a imagem.</div>}
     </div>
   );
 }
