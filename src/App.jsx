@@ -1,5 +1,6 @@
-import { Link, Navigate, Route, Routes } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import ApprovalShareToast from './components/ApprovalShareToast';
+import MeasurementGuideDock from './components/MeasurementGuideDock';
 import PwaInstallPrompt from './components/PwaInstallPrompt';
 import StaffAuth from './components/StaffAuth';
 import AdminPage from './pages/AdminPage';
@@ -14,6 +15,7 @@ import './catalog-trash.css';
 import './operations.css';
 
 function SellerRoute({ pwaEntry = false }) {
+  const { garmentId } = useParams();
   return (
     <StaffAuth>
       {({ user, isAdmin, logout, profile, role }) => (
@@ -23,6 +25,7 @@ function SellerRoute({ pwaEntry = false }) {
             <>
               <CustomizerPage staffUser={user} staffProfile={profile} isAdmin={isAdmin} logout={logout} />
               <Link className="seller-orders-shortcut" to="/meus-pedidos">Meus pedidos</Link>
+              {garmentId && <MeasurementGuideDock garmentId={garmentId} />}
               {pwaEntry && <PwaInstallPrompt />}
             </>
           )
