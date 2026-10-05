@@ -5,6 +5,9 @@ import {
   processBackgroundRemoval,
   samplePreparedColor,
 } from '../lib/localBackgroundRemoval';
+import '../background-removal-ai.css';
+
+const REMOVE_BG_URL = 'https://www.remove.bg/pt-br';
 
 export default function BackgroundRemovalDialog({
   open,
@@ -23,6 +26,7 @@ export default function BackgroundRemovalDialog({
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
+  const [aiOpen, setAiOpen] = useState(false);
 
   const selectedColor = backgroundColor || prepared?.autoColor || null;
   const selectedColorCss = useMemo(() => colorToCss(selectedColor), [selectedColor]);
@@ -35,6 +39,7 @@ export default function BackgroundRemovalDialog({
     setBackgroundColor(null);
     setPreviewBlob(null);
     setError('');
+    setAiOpen(false);
 
     prepareBackgroundRemoval(source)
       .then((next) => {
@@ -106,6 +111,42 @@ export default function BackgroundRemovalDialog({
     await onApply?.(previewBlob);
   }
 
+  if (aiOpen) {
+    return (
+      <div className="bg-removal-backdrop bg-ai-backdrop" role="presentation">
+        <section className="panel bg-removal-dialog bg-ai-dialog" role="dialog" aria-modal="true" aria-label="Remover logo com IA">
+          <div className="bg-removal-head bg-ai-head">
+            <div>
+              <p className="eyebrow">Ferramenta externa · IA</p>
+              <h2>Remover logo com IA</h2>
+              <p>Use o remove.bg sem sair da tela de personalização. A logo selecionada continua preservada no editor.</p>
+            </div>
+            <div className="bg-ai-head-actions">
+              <button type="button" className="button button-secondary" onClick={() => setAiOpen(false)}>← Voltar ao editor local</button>
+              <button type="button" className="bg-removal-close" onClick={onCancel}>×</button>
+            </div>
+          </div>
+
+          <div className="bg-ai-file-strip">
+            <span>Logo selecionada</span>
+            <strong>{fileName || 'Logo selecionada'}</strong>
+            <small>Depois de remover o fundo no serviço, salve o PNG transparente e adicione-o novamente no editor.</small>
+          </div>
+
+          <div className="bg-ai-frame-wrap">
+            <iframe
+              className="bg-ai-frame"
+              src={REMOVE_BG_URL}
+              title="remove.bg · remover fundo com IA"
+              allow="clipboard-read; clipboard-write"
+              referrerPolicy="strict-origin-when-cross-origin"
+            />
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-removal-backdrop" role="presentation" onMouseDown={(event) => {
       if (event.target === event.currentTarget && !processing) onCancel?.();
@@ -115,9 +156,19 @@ export default function BackgroundRemovalDialog({
           <div>
             <p className="eyebrow">Tratamento local</p>
             <h2>Remover fundo da logo</h2>
-            <p>Funciona no próprio navegador, sem enviar a imagem para serviços externos.</p>
+            <p>Use a ferramenta local ou abra o remove.bg dentro do próprio sistema para um tratamento com IA.</p>
           </div>
           <button type="button" className="bg-removal-close" onClick={onCancel} disabled={processing}>×</button>
+        </div>
+
+        <div className="bg-ai-launch-card">
+          <div>
+            <strong>Quer um recorte automático com IA?</strong>
+            <span>Abra o remove.bg em uma janela grande dentro desta mesma tela.</span>
+          </div>
+          <button type="button" className="button button-primary bg-ai-launch-button" onClick={() => setAiOpen(true)}>
+            ✦ Remover logo com IA
+          </button>
         </div>
 
         <div className="bg-removal-file">
