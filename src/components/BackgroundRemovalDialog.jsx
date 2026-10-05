@@ -7,7 +7,11 @@ import {
 } from '../lib/localBackgroundRemoval';
 import '../background-removal-ai.css';
 
-const REMOVE_BG_URL = 'https://www.remove.bg/pt-br';
+function progressPercent(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.max(0, Math.min(100, Math.round(numeric <= 1 ? numeric * 100 : numeric)));
+}
 
 export default function BackgroundRemovalDialog({
   open,
@@ -27,6 +31,12 @@ export default function BackgroundRemovalDialog({
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
   const [aiOpen, setAiOpen] = useState(false);
+  const [aiProcessing, setAiProcessing] = useState(false);
+  const [aiProgress, setAiProgress] = useState(0);
+  const [aiMessage, setAiMessage] = useState('');
+  const [aiError, setAiError] = useState('');
+  const [aiBlob, setAiBlob] = useState(null);
+  const [aiPreviewUrl, setAiPreviewUrl] = useState('');
 
   const selectedColor = backgroundColor || prepared?.autoColor || null;
   const selectedColorCss = useMemo(() => colorToCss(selectedColor), [selectedColor]);
@@ -40,6 +50,15 @@ export default function BackgroundRemovalDialog({
     setPreviewBlob(null);
     setError('');
     setAiOpen(false);
+    setAiProcessing(false);
+    setAiProgress(0);
+    setAiMessage('');
+    setAiError('');
+    setAiBlob(null);
+    setAiPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return '';
+    });
 
     prepareBackgroundRemoval(source)
       .then((next) => {
@@ -96,6 +115,10 @@ export default function BackgroundRemovalDialog({
     if (previewUrl) URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
 
+  useEffect(() => () => {
+    if (aiPreviewUrl) URL.revokeObjectURL(aiPreviewUrl);
+  }, [aiPreviewUrl]);
+
   if (!open) return null;
 
   function chooseBackground(event) {
@@ -111,36 +134,105 @@ export default function BackgroundRemovalDialog({
     await onApply?.(previewBlob);
   }
 
+  async function runAiRemoval() {
+    if (!source || aiProcessing) return;
+    setAiProcessing(true);
+    setAiProgress(1);
+    setAiMessage('Preparando a logo…');
+    setAiError('');
+    setAiBlob(null);
+    setAiPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return '';
+    });
+
+    try {
+      const response = await fetch(source);
+      if (!response.ok) throw new Error('Não foi possível carregar a logo selecionada.');
+      const inputBlob = await response.blob();
+      setAiProgress(5);
+      setAiMessage('Carregando o modelo de IA…');
+
+      const { removeBackground } = await import('@bg0/browser');
+      const result = await removeBackground(inputBlob, {
+        quality: 'quality',
+        onProgress: ({ progress, message }) => {
+          setAiProgress(Math.max(5, progressPercent(progress)));
+          if (message) setAiMessage(message);
+        },
+      });
+
+      if (!result?.blob) throw new Error('A IA não retornou uma imagem válida.');
+      const resultUrl = URL.createObjectURL(result.blob);
+      setAiBlob(result.blob);
+      setAiPreviewUrl(resultUrl);
+      setAiProgress(100);
+      setAiMessage('Recorte concluído. Confira o resultado antes de aplicar.');
+    } catch (err) {
+      setAiError(err?.message || 'Não foi possível remover o fundo com IA.');
+      setAiMessage('');
+    } finally {
+      setAiProcessing(false);
+    }
+  }
+
+  async function applyAi() {
+    if (!aiBlob || aiProcessing) return;
+    await onApply?.(aiBlob);
+  }
+
   if (aiOpen) {
     return (
       <div className="bg-removal-backdrop bg-ai-backdrop" role="presentation">
         <section className="panel bg-removal-dialog bg-ai-dialog" role="dialog" aria-modal="true" aria-label="Remover logo com IA">
           <div className="bg-removal-head bg-ai-head">
             <div>
-              <p className="eyebrow">Ferramenta externa · IA</p>
+              <p className="eyebrow">IA local · sem créditos</p>
               <h2>Remover logo com IA</h2>
-              <p>Use o remove.bg sem sair da tela de personalização. A logo selecionada continua preservada no editor.</p>
+              <p>A remoção acontece no próprio navegador. A logo não é enviada para o remove.bg e não consome créditos.</p>
             </div>
             <div className="bg-ai-head-actions">
-              <button type="button" className="button button-secondary" onClick={() => setAiOpen(false)}>← Voltar ao editor local</button>
-              <button type="button" className="bg-removal-close" onClick={onCancel}>×</button>
+              <button type="button" className="button button-secondary" onClick={() => setAiOpen(false)} disabled={aiProcessing}>← Voltar ao editor manual</button>
+              <button type="button" className="bg-removal-close" onClick={onCancel} disabled={aiProcessing}>×</button>
             </div>
           </div>
 
           <div className="bg-ai-file-strip">
             <span>Logo selecionada</span>
             <strong>{fileName || 'Logo selecionada'}</strong>
-            <small>Depois de remover o fundo no serviço, salve o PNG transparente e adicione-o novamente no editor.</small>
+            <small>No primeiro uso, o navegador baixa o modelo da IA. Depois ele fica armazenado em cache para os próximos recortes.</small>
           </div>
 
-          <div className="bg-ai-frame-wrap">
-            <iframe
-              className="bg-ai-frame"
-              src={REMOVE_BG_URL}
-              title="remove.bg · remover fundo com IA"
-              allow="clipboard-read; clipboard-write"
-              referrerPolicy="strict-origin-when-cross-origin"
-            />
+          <div className="bg-ai-workspace">
+            <div className="bg-ai-preview-card">
+              <div className="bg-ai-preview-heading"><strong>Original</strong><span>Imagem atualmente posicionada na peça</span></div>
+              <div className="bg-ai-preview checkerboard"><img src={source} alt="Logo original" /></div>
+            </div>
+
+            <div className="bg-ai-preview-card">
+              <div className="bg-ai-preview-heading"><strong>Resultado da IA</strong><span>{aiBlob ? 'PNG transparente pronto para aplicar' : 'Execute a IA para gerar o recorte'}</span></div>
+              <div className="bg-ai-preview checkerboard checkerboard-contrast">
+                {aiPreviewUrl ? <img src={aiPreviewUrl} alt="Resultado sem fundo" /> : <div className="bg-ai-placeholder">✦</div>}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-ai-status-card">
+            <div className="bg-ai-status-head">
+              <strong>{aiProcessing ? 'Processando com IA…' : aiBlob ? 'Recorte concluído' : 'Pronto para remover o fundo'}</strong>
+              <span>{aiProgress}%</span>
+            </div>
+            <div className="bg-ai-progress"><span style={{ width: `${aiProgress}%` }} /></div>
+            <p>{aiMessage || 'Todo o processamento é feito localmente no dispositivo.'}</p>
+            {aiError && <div className="inline-error">{aiError}</div>}
+          </div>
+
+          <div className="bg-ai-actions">
+            <button type="button" className="button button-secondary" onClick={() => setAiOpen(false)} disabled={aiProcessing}>Cancelar IA</button>
+            <button type="button" className="button button-primary" onClick={runAiRemoval} disabled={aiProcessing}>
+              {aiProcessing ? 'Processando…' : aiBlob ? 'Refazer com IA' : '✦ Remover fundo com IA'}
+            </button>
+            <button type="button" className="button button-success" onClick={applyAi} disabled={!aiBlob || aiProcessing}>Aplicar resultado</button>
           </div>
         </section>
       </div>
@@ -154,17 +246,17 @@ export default function BackgroundRemovalDialog({
       <section className="panel bg-removal-dialog" role="dialog" aria-modal="true" aria-label="Remover fundo da logo">
         <div className="bg-removal-head">
           <div>
-            <p className="eyebrow">Tratamento local</p>
+            <p className="eyebrow">Tratamento da logo</p>
             <h2>Remover fundo da logo</h2>
-            <p>Use a ferramenta local ou abra o remove.bg dentro do próprio sistema para um tratamento com IA.</p>
+            <p>Use o ajuste manual para fundos simples ou a IA local para recortes automáticos mais complexos.</p>
           </div>
           <button type="button" className="bg-removal-close" onClick={onCancel} disabled={processing}>×</button>
         </div>
 
         <div className="bg-ai-launch-card">
           <div>
-            <strong>Quer um recorte automático com IA?</strong>
-            <span>Abra o remove.bg em uma janela grande dentro desta mesma tela.</span>
+            <strong>Remoção automática sem créditos</strong>
+            <span>A IA roda no próprio navegador, sem abrir outro site e sem consumir plano do remove.bg.</span>
           </div>
           <button type="button" className="button button-primary bg-ai-launch-button" onClick={() => setAiOpen(true)}>
             ✦ Remover logo com IA
@@ -194,7 +286,7 @@ export default function BackgroundRemovalDialog({
 
               <div>
                 <div className="bg-removal-preview-title">
-                  <strong>Resultado</strong>
+                  <strong>Resultado manual</strong>
                   <span>{processing ? 'Atualizando…' : 'Prévia transparente'}</span>
                 </div>
                 <div className="bg-removal-image checkerboard checkerboard-contrast">
@@ -237,13 +329,13 @@ export default function BackgroundRemovalDialog({
             </div>
 
             <div className="bg-removal-tip">
-              Áreas grandes da mesma cor são preservadas para evitar apagar partes importantes da marca. Se algum detalhe desaparecer, desative “Limpar resíduos internos”.
+              Para logos com fundo irregular, sombras, fotos ou vários tons, use “Remover logo com IA”. Para fundo liso, o modo manual costuma ser mais rápido.
             </div>
 
             <div className="bg-removal-actions">
               <button type="button" className="button button-secondary" onClick={onCancel} disabled={processing}>Cancelar</button>
               <button type="button" className="button button-primary" onClick={apply} disabled={!previewBlob || processing}>
-                {processing ? 'Atualizando…' : 'Aplicar sem fundo'}
+                {processing ? 'Atualizando…' : 'Aplicar remoção manual'}
               </button>
             </div>
           </>
