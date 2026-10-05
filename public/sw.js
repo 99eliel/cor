@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'martinpel-vendas';
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `${CACHE_PREFIX}-${CACHE_VERSION}`;
 const APP_SHELL = ['/manifest.webmanifest', '/pwa-icon.svg'];
 
@@ -46,7 +46,7 @@ self.addEventListener('fetch', (event) => {
   if (!shouldCache) return;
 
   event.respondWith(
-    fetch(request)
+    fetch(request, { cache: 'no-store' })
       .then((response) => {
         if (response.ok) {
           const copy = response.clone();
