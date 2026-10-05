@@ -3,12 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import AdminAuth from '../components/AdminAuth';
 import AdminLogoTester from '../components/AdminLogoTester';
 import GarmentEditorCanvas from '../components/GarmentEditorCanvas';
+import MeasurementGuideEditor from '../components/MeasurementGuideEditor';
 import NewRegionDialog from '../components/NewRegionDialog';
 import OrderQuoteBuilder from '../components/OrderQuoteBuilder';
 import MartinpelBrand from '../components/MartinpelBrand';
 import RegionSidebar from '../components/RegionSidebar';
 import { createGarmentId, getGarment, listGarments, saveGarment, setGarmentArchived } from '../lib/garmentRepo';
 import { slugifyRegionId } from '../lib/geometry';
+import { DEFAULT_MEASUREMENT_GUIDE, normalizeMeasurementGuide } from '../lib/measurementGuide';
 import { deleteOrder, listOrders, setOrderCompleted } from '../lib/orderRepo';
 import { DEFAULT_SIZE_SCALE_TYPE, getSizeScaleLabel, normalizeSizeScale, parseCustomSizeLabels, SIZE_SCALE_PRESETS } from '../lib/sizeScales';
 import { uploadGarmentImage } from '../lib/storageImages';
@@ -244,7 +246,7 @@ function CatalogManager({ garments, onAdd, onEdit, onPreview, onArchive, onResto
               <article className={`panel catalog-manager-card ${garment.archived ? 'is-archived' : ''}`} key={garment.id}>
                 <div className="catalog-manager-thumb">{thumbnail ? <img src={thumbnail} alt={garment.name} /> : <span>Sem imagem</span>}</div>
                 <div className="catalog-manager-card-body">
-                  <div><span className="catalog-manager-card-label">Peça</span><h3>{garment.name}</h3><code>{garment.id}</code><small className="catalog-size-scale">Grade: {getSizeScaleLabel(garment.sizeScale)}</small>{garment.archived && <span className="order-status is-completed">Arquivada · fora do catálogo</span>}</div>
+                  <div><span className="catalog-manager-card-label">Peça</span><h3>{garment.name}</h3><code>{garment.id}</code><small className="catalog-size-scale">Grade: {getSizeScaleLabel(garment.sizeScale)}</small>{garment.measurementGuide && <small className="catalog-size-scale">Tabela de medidas: cadastrada</small>}{garment.archived && <span className="order-status is-completed">Arquivada · fora do catálogo</span>}</div>
                   <div className="catalog-manager-card-actions">
                     {garment.archived ? (
                       <button className="button button-success" type="button" disabled={working} onClick={() => onRestore(garment)}>{working ? 'Restaurando…' : 'Restaurar peça'}</button>
@@ -275,6 +277,7 @@ function AdminWorkspace({ logout }) {
   const [name, setName] = useState('');
   const [sizeScaleType, setSizeScaleType] = useState(DEFAULT_SIZE_SCALE_TYPE);
   const [customSizeLabels, setCustomSizeLabels] = useState('');
+  const [measurementGuide, setMeasurementGuide] = useState(() => normalizeMeasurementGuide(DEFAULT_MEASUREMENT_GUIDE, SIZE_SCALE_PRESETS[DEFAULT_SIZE_SCALE_TYPE].labels));
   const [images, setImages] = useState(EMPTY_IMAGES);
   const [regions, setRegions] = useState([]);
   const [view, setView] = useState('front');
@@ -291,6 +294,9 @@ function AdminWorkspace({ logout }) {
   const selectedRegion = useMemo(() => regions.find((region) => region.id === selectedRegionId) ?? null, [regions, selectedRegionId]);
   const isPreviewMode = mode === 'preview' || mode === 'logoTest';
   const activeGarmentCount = useMemo(() => garments.filter((garment) => !garment.archived).length, [garments]);
+  const measurementSizeLabels = sizeScaleType === 'custom'
+    ? parseCustomSizeLabels(customSizeLabels)
+    : (SIZE_SCALE_PRESETS[sizeScaleType]?.labels ?? []);
 
   useEffect(() => { refreshGarments(); refreshOrders(); }, []);
 
@@ -334,7 +340,21 @@ function AdminWorkspace({ logout }) {
   }
 
   function resetEditor() {
-    setGarmentId(''); setName(''); setSizeScaleType(DEFAULT_SIZE_SCALE_TYPE); setCustomSizeLabels(''); setImages(EMPTY_IMAGES); setRegions([]); setVisibleIds(new Set()); setSelectedRegionId(null); setView('front'); setMode('idle'); setPreviewColors({}); setZoom(1); setMessage('Nova peça pronta para cadastro.'); setError('');
+    setGarmentId('');
+    setName('');
+    setSizeScaleType(DEFAULT_SIZE_SCALE_TYPE);
+    setCustomSizeLabels('');
+    setMeasurementGuide(normalizeMeasurementGuide(DEFAULT_MEASUREMENT_GUIDE, SIZE_SCALE_PRESETS[DEFAULT_SIZE_SCALE_TYPE].labels));
+    setImages(EMPTY_IMAGES);
+    setRegions([]);
+    setVisibleIds(new Set());
+    setSelectedRegionId(null);
+    setView('front');
+    setMode('idle');
+    setPreviewColors({});
+    setZoom(1);
+    setMessage('Nova peça pronta para cadastro.');
+    setError('');
   }
 
   async function loadGarment(id) {
@@ -345,7 +365,19 @@ function AdminWorkspace({ logout }) {
       if (!data) throw new Error('Peça não encontrada.');
       const loadedImages = { front: data.images?.front ?? '', back: data.images?.back ?? '', combined: data.images?.combined ?? '' };
       const loadedSizeScale = normalizeSizeScale(data.sizeScale);
-      setGarmentId(id); setName(data.name ?? ''); setSizeScaleType(loadedSizeScale.type); setCustomSizeLabels(loadedSizeScale.type === 'custom' ? loadedSizeScale.labels.join(', ') : ''); setImages(loadedImages); setRegions(Array.isArray(data.regions) ? data.regions : []); setVisibleIds(new Set((data.regions ?? []).map((region) => region.id))); setPreviewColors(Object.fromEntries((data.regions ?? []).map((region) => [region.id, region.defaultColor]))); setSelectedRegionId(null); setMode('idle'); setView(loadedImages.front ? 'front' : loadedImages.back ? 'back' : 'combined'); setMessage(`Peça “${data.name}” carregada.`);
+      setGarmentId(id);
+      setName(data.name ?? '');
+      setSizeScaleType(loadedSizeScale.type);
+      setCustomSizeLabels(loadedSizeScale.type === 'custom' ? loadedSizeScale.labels.join(', ') : '');
+      setMeasurementGuide(normalizeMeasurementGuide(data.measurementGuide, loadedSizeScale.labels));
+      setImages(loadedImages);
+      setRegions(Array.isArray(data.regions) ? data.regions : []);
+      setVisibleIds(new Set((data.regions ?? []).map((region) => region.id)));
+      setPreviewColors(Object.fromEntries((data.regions ?? []).map((region) => [region.id, region.defaultColor])));
+      setSelectedRegionId(null);
+      setMode('idle');
+      setView(loadedImages.front ? 'front' : loadedImages.back ? 'back' : 'combined');
+      setMessage(`Peça “${data.name}” carregada.`);
     } catch (err) { setError(err.message); }
     finally { setBusy(false); }
   }
@@ -366,6 +398,23 @@ function AdminWorkspace({ logout }) {
       setMessage(`${VIEW_LABELS[view]} enviada com sucesso.`);
     } catch (err) { setError(err.message); setMessage(''); }
     finally { setBusy(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
+  }
+
+  async function handleMeasurementImageFile(file) {
+    if (!file) return '';
+    setBusy(true); setError(''); setMessage('Enviando imagem da tabela de medidas…');
+    try {
+      const id = ensureGarmentId();
+      const url = await uploadGarmentImage(file, id, 'tabela-medidas');
+      setMessage('Imagem da tabela de medidas enviada com sucesso.');
+      return url;
+    } catch (err) {
+      setError(err.message);
+      setMessage('');
+      return '';
+    } finally {
+      setBusy(false);
+    }
   }
 
   function createRegion({ label, defaultColor }) {
@@ -401,12 +450,14 @@ function AdminWorkspace({ logout }) {
     const customLabels = parseCustomSizeLabels(customSizeLabels);
     if (sizeScaleType === 'custom' && customLabels.length === 0) return setError('Informe pelo menos um tamanho para a grade personalizada. Ex.: 36, 38, 40, 42.');
     const sizeScale = normalizeSizeScale({ type: sizeScaleType, labels: customLabels });
+    const normalizedGuide = normalizeMeasurementGuide(measurementGuide, sizeScale.labels);
     setBusy(true);
     try {
       const id = ensureGarmentId();
-      await saveGarment(id, { name: name.trim(), images, regions, sizeScale });
+      await saveGarment(id, { name: name.trim(), images, regions, sizeScale, measurementGuide: normalizedGuide });
+      setMeasurementGuide(normalizedGuide);
       await refreshGarments();
-      setMessage(`Peça salva com ${Object.values(images).filter(Boolean).length} foto(s) e grade “${getSizeScaleLabel(sizeScale)}”.`);
+      setMessage(`Peça salva com ${Object.values(images).filter(Boolean).length} foto(s), grade “${getSizeScaleLabel(sizeScale)}” e tabela de medidas atualizada.`);
     } catch (err) { setError(err.message); }
     finally { setBusy(false); }
   }
@@ -420,7 +471,7 @@ function AdminWorkspace({ logout }) {
       ? { eyebrow: 'Catálogo', title: 'Gerenciar peças', description: 'Cadastre, revise, arquive e restaure as peças disponíveis para os vendedores.' }
       : section === 'orders'
         ? { eyebrow: 'Comercial', title: 'Pedidos & Orçamentos', description: 'Acompanhe solicitações, gere orçamentos e conclua pedidos.' }
-        : { eyebrow: garmentId ? 'Editor de peça' : 'Cadastro de peça', title: garmentId ? (name || 'Editar peça') : 'Nova peça', description: 'Configure fotos, regiões, cores, numeração e testes antes de publicar.' };
+        : { eyebrow: garmentId ? 'Editor de peça' : 'Cadastro de peça', title: garmentId ? (name || 'Editar peça') : 'Nova peça', description: 'Configure fotos, regiões, cores, numeração, tabela de medidas e testes antes de publicar.' };
 
   return (
     <main className="admin-shell admin-shell-v2">
@@ -450,7 +501,7 @@ function AdminWorkspace({ logout }) {
           ) : (
             <>
               <section className="panel editor-context-bar">
-                <div><div className="editor-context-kicker"><span>{garmentId ? 'Peça cadastrada' : 'Novo cadastro'}</span><b>{VIEW_LABELS[view]}</b></div><p className="eyebrow">{garmentId ? 'Editar peça' : 'Nova peça'}</p><h1>{garmentId ? (name || 'Peça sem nome') : 'Adicionar peça ao catálogo'}</h1><p>{garmentId ? 'Edite a configuração da peça e salve para publicar as alterações.' : 'Cadastre a peça, escolha a numeração, envie até três fotos livres e marque as áreas personalizáveis em cada foto.'}</p></div>
+                <div><div className="editor-context-kicker"><span>{garmentId ? 'Peça cadastrada' : 'Novo cadastro'}</span><b>{VIEW_LABELS[view]}</b></div><p className="eyebrow">{garmentId ? 'Editar peça' : 'Nova peça'}</p><h1>{garmentId ? (name || 'Peça sem nome') : 'Adicionar peça ao catálogo'}</h1><p>{garmentId ? 'Edite a configuração da peça e salve para publicar as alterações.' : 'Cadastre a peça, escolha a numeração, tabela de medidas, envie até três fotos livres e marque as áreas personalizáveis em cada foto.'}</p></div>
                 <div className="editor-context-actions">{garmentId && <button className="button button-secondary" type="button" onClick={openCustomer}>Pré-visualizar</button>}<button className="button button-primary" type="button" onClick={handleSave} disabled={busy}>{busy ? 'Salvando…' : 'Salvar peça'}</button></div>
               </section>
 
@@ -459,8 +510,10 @@ function AdminWorkspace({ logout }) {
               <section className="panel garment-size-scale-panel">
                 <div className="garment-size-scale-copy"><p className="eyebrow">Grade de produção</p><h3>Tipo de numeração da peça</h3><p>Essa configuração define quais tamanhos o vendedor verá ao registrar o pedido.</p></div>
                 <label>Tipo de grade<select value={sizeScaleType} onChange={(event) => setSizeScaleType(event.target.value)} disabled={busy}>{Object.entries(SIZE_SCALE_PRESETS).map(([value, preset]) => <option value={value} key={value}>{preset.label}</option>)}</select></label>
-                {sizeScaleType === 'custom' && <label className="garment-custom-sizes">Tamanhos personalizados<input value={customSizeLabels} onChange={(event) => setCustomSizeLabels(event.target.value)} placeholder="Ex.: 36, 38, 40, 42, 44, 46" disabled={busy} /><small>Separe por vírgula. A ordem digitada será a ordem exibida ao vendedor.</small></label>}
+                {sizeScaleType === 'custom' && <label className="garment-custom-sizes">Tamanhos personalizados<input value={customSizeLabels} onChange={(event) => setCustomSizeLabels(event.target.value)} placeholder="Ex.: PP, P, M, G, GG, G1, G2, G3" disabled={busy} /><small>Separe por vírgula. A ordem digitada será a ordem exibida ao vendedor.</small></label>}
               </section>
+
+              <MeasurementGuideEditor value={measurementGuide} onChange={setMeasurementGuide} sizeLabels={measurementSizeLabels} onUploadImage={handleMeasurementImageFile} busy={busy} />
 
               {(message || error) && <div className={error ? 'notice notice-error' : 'notice notice-success'}>{error || message}</div>}
 
