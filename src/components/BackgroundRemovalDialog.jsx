@@ -5,7 +5,10 @@ import {
   processBackgroundRemoval,
   samplePreparedColor,
 } from '../lib/localBackgroundRemoval';
+import { AI_REFINEMENT_PRESETS, refineAiCutout } from '../lib/refineAiCutout';
 import '../background-removal-ai.css';
+
+const DEFAULT_AI_PRESET = AI_REFINEMENT_PRESETS.maximum;
 
 function progressPercent(value) {
   const numeric = Number(value);
@@ -32,11 +35,19 @@ export default function BackgroundRemovalDialog({
   const [error, setError] = useState('');
   const [aiOpen, setAiOpen] = useState(false);
   const [aiProcessing, setAiProcessing] = useState(false);
+  const [aiRefining, setAiRefining] = useState(false);
   const [aiProgress, setAiProgress] = useState(0);
   const [aiMessage, setAiMessage] = useState('');
   const [aiError, setAiError] = useState('');
   const [aiBlob, setAiBlob] = useState(null);
+  const [aiRawBlob, setAiRawBlob] = useState(null);
+  const [aiInputBlob, setAiInputBlob] = useState(null);
   const [aiPreviewUrl, setAiPreviewUrl] = useState('');
+  const [aiPreset, setAiPreset] = useState('maximum');
+  const [aiDetail, setAiDetail] = useState(DEFAULT_AI_PRESET.detail);
+  const [aiCleanup, setAiCleanup] = useState(DEFAULT_AI_PRESET.cleanup);
+  const [aiSmoothing, setAiSmoothing] = useState(DEFAULT_AI_PRESET.smoothing);
+  const [aiDecontaminate, setAiDecontaminate] = useState(DEFAULT_AI_PRESET.decontaminate);
 
   const selectedColor = backgroundColor || prepared?.autoColor || null;
   const selectedColorCss = useMemo(() => colorToCss(selectedColor), [selectedColor]);
@@ -51,10 +62,18 @@ export default function BackgroundRemovalDialog({
     setError('');
     setAiOpen(false);
     setAiProcessing(false);
+    setAiRefining(false);
     setAiProgress(0);
     setAiMessage('');
     setAiError('');
     setAiBlob(null);
+    setAiRawBlob(null);
+    setAiInputBlob(null);
+    setAiPreset('maximum');
+    setAiDetail(DEFAULT_AI_PRESET.detail);
+    setAiCleanup(DEFAULT_AI_PRESET.cleanup);
+    setAiSmoothing(DEFAULT_AI_PRESET.smoothing);
+    setAiDecontaminate(DEFAULT_AI_PRESET.decontaminate);
     setAiPreviewUrl((current) => {
       if (current) URL.revokeObjectURL(current);
       return '';
@@ -111,6 +130,41 @@ export default function BackgroundRemovalDialog({
     };
   }, [open, prepared, selectedColor?.r, selectedColor?.g, selectedColor?.b, tolerance, feather, removeInternalIslands]);
 
+  useEffect(() => {
+    if (!aiRawBlob || !aiInputBlob) return undefined;
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setAiRefining(true);
+      setAiError('');
+      try {
+        const refinedBlob = await refineAiCutout(aiRawBlob, aiInputBlob, {
+          detail: aiDetail,
+          cleanup: aiCleanup,
+          smoothing: aiSmoothing,
+          decontaminate: aiDecontaminate,
+        });
+        if (!active) return;
+        const refinedUrl = URL.createObjectURL(refinedBlob);
+        setAiBlob(refinedBlob);
+        setAiPreviewUrl((current) => {
+          if (current) URL.revokeObjectURL(current);
+          return refinedUrl;
+        });
+        setAiMessage('Refinamento concluído. Confira letras pequenas, linhas finas e contornos antes de aplicar.');
+      } catch (err) {
+        if (!active) return;
+        setAiError(err?.message || 'Não foi possível refinar o recorte da IA.');
+      } finally {
+        if (active) setAiRefining(false);
+      }
+    }, 140);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [aiRawBlob, aiInputBlob, aiDetail, aiCleanup, aiSmoothing, aiDecontaminate]);
+
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
   }, [previewUrl]);
@@ -134,13 +188,30 @@ export default function BackgroundRemovalDialog({
     await onApply?.(previewBlob);
   }
 
+  function applyAiPreset(key) {
+    const preset = AI_REFINEMENT_PRESETS[key];
+    if (!preset) return;
+    setAiPreset(key);
+    setAiDetail(preset.detail);
+    setAiCleanup(preset.cleanup);
+    setAiSmoothing(preset.smoothing);
+    setAiDecontaminate(preset.decontaminate);
+  }
+
+  function markAiCustom(setter, value) {
+    setAiPreset('custom');
+    setter(Number(value));
+  }
+
   async function runAiRemoval() {
-    if (!source || aiProcessing) return;
+    if (!source || aiProcessing || aiRefining) return;
     setAiProcessing(true);
     setAiProgress(1);
     setAiMessage('Preparando a logo…');
     setAiError('');
     setAiBlob(null);
+    setAiRawBlob(null);
+    setAiInputBlob(null);
     setAiPreviewUrl((current) => {
       if (current) URL.revokeObjectURL(current);
       return '';
@@ -151,7 +222,7 @@ export default function BackgroundRemovalDialog({
       if (!response.ok) throw new Error('Não foi possível carregar a logo selecionada.');
       const inputBlob = await response.blob();
       setAiProgress(5);
-      setAiMessage('Carregando o modelo de IA…');
+      setAiMessage('Carregando o modelo de IA em máxima qualidade…');
 
       const { removeBackground } = await import('@bg0/browser');
       const result = await removeBackground(inputBlob, {
@@ -163,11 +234,10 @@ export default function BackgroundRemovalDialog({
       });
 
       if (!result?.blob) throw new Error('A IA não retornou uma imagem válida.');
-      const resultUrl = URL.createObjectURL(result.blob);
-      setAiBlob(result.blob);
-      setAiPreviewUrl(resultUrl);
+      setAiInputBlob(inputBlob);
+      setAiRawBlob(result.blob);
       setAiProgress(100);
-      setAiMessage('Recorte concluído. Confira o resultado antes de aplicar.');
+      setAiMessage('IA concluída. Aplicando o refinamento de bordas e detalhes…');
     } catch (err) {
       setAiError(err?.message || 'Não foi possível remover o fundo com IA.');
       setAiMessage('');
@@ -177,30 +247,31 @@ export default function BackgroundRemovalDialog({
   }
 
   async function applyAi() {
-    if (!aiBlob || aiProcessing) return;
+    if (!aiBlob || aiProcessing || aiRefining) return;
     await onApply?.(aiBlob);
   }
 
   if (aiOpen) {
+    const aiBusy = aiProcessing || aiRefining;
     return (
       <div className="bg-removal-backdrop bg-ai-backdrop" role="presentation">
         <section className="panel bg-removal-dialog bg-ai-dialog" role="dialog" aria-modal="true" aria-label="Remover logo com IA">
           <div className="bg-removal-head bg-ai-head">
             <div>
-              <p className="eyebrow">IA local · sem créditos</p>
+              <p className="eyebrow">IA local · máxima qualidade · sem créditos</p>
               <h2>Remover logo com IA</h2>
-              <p>A remoção acontece no próprio navegador. A logo não é enviada para o remove.bg e não consome créditos.</p>
+              <p>A IA faz o recorte e o Martinpel refina detalhes finos, contornos e halos diretamente no navegador.</p>
             </div>
             <div className="bg-ai-head-actions">
-              <button type="button" className="button button-secondary" onClick={() => setAiOpen(false)} disabled={aiProcessing}>← Voltar ao editor manual</button>
-              <button type="button" className="bg-removal-close" onClick={onCancel} disabled={aiProcessing}>×</button>
+              <button type="button" className="button button-secondary" onClick={() => setAiOpen(false)} disabled={aiBusy}>← Voltar ao editor manual</button>
+              <button type="button" className="bg-removal-close" onClick={onCancel} disabled={aiBusy}>×</button>
             </div>
           </div>
 
           <div className="bg-ai-file-strip">
             <span>Logo selecionada</span>
             <strong>{fileName || 'Logo selecionada'}</strong>
-            <small>No primeiro uso, o navegador baixa o modelo da IA. Depois ele fica armazenado em cache para os próximos recortes.</small>
+            <small>O modelo é baixado apenas no primeiro uso. O refinamento acontece localmente e não consome créditos.</small>
           </div>
 
           <div className="bg-ai-workspace">
@@ -210,16 +281,54 @@ export default function BackgroundRemovalDialog({
             </div>
 
             <div className="bg-ai-preview-card">
-              <div className="bg-ai-preview-heading"><strong>Resultado da IA</strong><span>{aiBlob ? 'PNG transparente pronto para aplicar' : 'Execute a IA para gerar o recorte'}</span></div>
+              <div className="bg-ai-preview-heading"><strong>Resultado refinado</strong><span>{aiBlob ? 'PNG transparente pronto para aplicar' : 'Execute a IA para gerar o recorte'}</span></div>
               <div className="bg-ai-preview checkerboard checkerboard-contrast">
-                {aiPreviewUrl ? <img src={aiPreviewUrl} alt="Resultado sem fundo" /> : <div className="bg-ai-placeholder">✦</div>}
+                {aiPreviewUrl ? <img src={aiPreviewUrl} alt="Resultado sem fundo refinado" /> : <div className="bg-ai-placeholder">✦</div>}
               </div>
+            </div>
+          </div>
+
+          <div className="bg-ai-refine-card">
+            <div className="bg-ai-refine-head">
+              <div><strong>Refinar resultado</strong><span>Ajustes atuam sobre o PNG pronto sem rodar a IA novamente.</span></div>
+              {aiPreset === 'custom' && <small>Ajuste personalizado</small>}
+            </div>
+
+            <div className="bg-ai-presets" aria-label="Presets de refinamento">
+              {Object.entries(AI_REFINEMENT_PRESETS).map(([key, preset]) => (
+                <button key={key} type="button" className={aiPreset === key ? 'active' : ''} onClick={() => applyAiPreset(key)} disabled={aiBusy}>
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="bg-ai-refine-grid">
+              <label>
+                <span>Detalhes finos <strong>{aiDetail}%</strong></span>
+                <input type="range" min="45" max="100" step="1" value={aiDetail} onChange={(event) => markAiCustom(setAiDetail, event.target.value)} disabled={aiBusy} />
+                <small>Aumente para preservar letras pequenas, fios e ornamentos.</small>
+              </label>
+              <label>
+                <span>Limpeza de borda <strong>{aiCleanup}</strong></span>
+                <input type="range" min="0" max="30" step="1" value={aiCleanup} onChange={(event) => markAiCustom(setAiCleanup, event.target.value)} disabled={aiBusy} />
+                <small>Remove transparências residuais. Use pouco em logos delicadas.</small>
+              </label>
+              <label>
+                <span>Suavização <strong>{aiSmoothing}%</strong></span>
+                <input type="range" min="0" max="40" step="1" value={aiSmoothing} onChange={(event) => markAiCustom(setAiSmoothing, event.target.value)} disabled={aiBusy} />
+                <small>Suaviza serrilhado sem desfocar excessivamente o desenho.</small>
+              </label>
+              <label>
+                <span>Remover halo <strong>{aiDecontaminate}%</strong></span>
+                <input type="range" min="0" max="100" step="1" value={aiDecontaminate} onChange={(event) => markAiCustom(setAiDecontaminate, event.target.value)} disabled={aiBusy} />
+                <small>Corrige bordas esbranquiçadas usando o fundo estimado da imagem original.</small>
+              </label>
             </div>
           </div>
 
           <div className="bg-ai-status-card">
             <div className="bg-ai-status-head">
-              <strong>{aiProcessing ? 'Processando com IA…' : aiBlob ? 'Recorte concluído' : 'Pronto para remover o fundo'}</strong>
+              <strong>{aiProcessing ? 'Processando com IA…' : aiRefining ? 'Refinando detalhes e bordas…' : aiBlob ? 'Recorte refinado concluído' : 'Pronto para remover o fundo'}</strong>
               <span>{aiProgress}%</span>
             </div>
             <div className="bg-ai-progress"><span style={{ width: `${aiProgress}%` }} /></div>
@@ -228,11 +337,11 @@ export default function BackgroundRemovalDialog({
           </div>
 
           <div className="bg-ai-actions">
-            <button type="button" className="button button-secondary" onClick={() => setAiOpen(false)} disabled={aiProcessing}>Cancelar IA</button>
-            <button type="button" className="button button-primary" onClick={runAiRemoval} disabled={aiProcessing}>
-              {aiProcessing ? 'Processando…' : aiBlob ? 'Refazer com IA' : '✦ Remover fundo com IA'}
+            <button type="button" className="button button-secondary" onClick={() => setAiOpen(false)} disabled={aiBusy}>Cancelar IA</button>
+            <button type="button" className="button button-primary" onClick={runAiRemoval} disabled={aiBusy}>
+              {aiProcessing ? 'Processando…' : aiRefining ? 'Refinando…' : aiRawBlob ? 'Refazer com IA' : '✦ Remover fundo com IA'}
             </button>
-            <button type="button" className="button button-success" onClick={applyAi} disabled={!aiBlob || aiProcessing}>Aplicar resultado</button>
+            <button type="button" className="button button-success" onClick={applyAi} disabled={!aiBlob || aiBusy}>Aplicar resultado</button>
           </div>
         </section>
       </div>
@@ -255,8 +364,8 @@ export default function BackgroundRemovalDialog({
 
         <div className="bg-ai-launch-card">
           <div>
-            <strong>Remoção automática sem créditos</strong>
-            <span>A IA roda no próprio navegador, sem abrir outro site e sem consumir plano do remove.bg.</span>
+            <strong>Remoção automática em máxima qualidade</strong>
+            <span>A IA roda no próprio navegador e agora inclui refinamento de detalhes, bordas e halos.</span>
           </div>
           <button type="button" className="button button-primary bg-ai-launch-button" onClick={() => setAiOpen(true)}>
             ✦ Remover logo com IA
