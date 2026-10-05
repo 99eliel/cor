@@ -11,6 +11,7 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@bg0/browser": "^0.1.2",
     "fabric": "^6.4.3",
     "firebase": "^10.14.1",
     "pdfjs-dist": "^4.10.38",
