@@ -458,7 +458,7 @@ export default function BackgroundRemovalDialog({
 
               <div>
                 <div className="bg-removal-preview-title">
-                  <strong>Resultado manual</strong>
+                  <strong>Resultado da logo</strong>
                   <span>{processing ? 'Atualizando…' : 'Prévia transparente'}</span>
                 </div>
                 <div className="bg-removal-image checkerboard checkerboard-contrast">
@@ -472,7 +472,7 @@ export default function BackgroundRemovalDialog({
                 <span>Cor do fundo</span>
                 <span className="bg-removal-color-chip" style={{ background: selectedColorCss }} />
                 <code>{selectedColorCss}</code>
-                <button type="button" className="mini-link" onClick={() => setBackgroundColor(prepared.autoColor)}>Detectar novamente</button>
+                <button type="button" className="mini-link" onClick={() => setBackgroundColor(strategyAnalysis?.backgroundColor || prepared.autoColor)}>Detectar novamente</button>
               </div>
 
               <label>
@@ -507,7 +507,7 @@ export default function BackgroundRemovalDialog({
             <div className="bg-removal-actions">
               <button type="button" className="button button-secondary" onClick={onCancel} disabled={processing}>Cancelar</button>
               <button type="button" className="button button-primary" onClick={apply} disabled={!previewBlob || processing}>
-                {processing ? 'Atualizando…' : 'Aplicar remoção manual'}
+                {processing ? 'Atualizando…' : 'Aplicar recorte da logo'}
               </button>
             </div>
           </>
