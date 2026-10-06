@@ -6,6 +6,7 @@ import {
   samplePreparedColor,
 } from '../lib/localBackgroundRemoval';
 import { AI_REFINEMENT_PRESETS, refineAiCutout } from '../lib/refineAiCutout';
+import { analyzePreparedBackground } from '../lib/backgroundRemovalStrategy';
 import '../background-removal-ai.css';
 
 const DEFAULT_AI_PRESET = AI_REFINEMENT_PRESETS.maximum;
@@ -33,6 +34,8 @@ export default function BackgroundRemovalDialog({
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
+  const [removalMode, setRemovalMode] = useState('auto');
+  const [strategyAnalysis, setStrategyAnalysis] = useState(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiProcessing, setAiProcessing] = useState(false);
   const [aiRefining, setAiRefining] = useState(false);
@@ -51,6 +54,10 @@ export default function BackgroundRemovalDialog({
 
   const selectedColor = backgroundColor || prepared?.autoColor || null;
   const selectedColorCss = useMemo(() => colorToCss(selectedColor), [selectedColor]);
+  const effectiveMode = removalMode === 'auto'
+    ? (strategyAnalysis?.recommended || 'solid')
+    : removalMode;
+  const strategyLabel = effectiveMode === 'solid' ? 'Fundo chapado / logo' : 'IA para arte complexa';
 
   useEffect(() => {
     if (!open || !source) return undefined;
@@ -60,6 +67,8 @@ export default function BackgroundRemovalDialog({
     setBackgroundColor(null);
     setPreviewBlob(null);
     setError('');
+    setRemovalMode('auto');
+    setStrategyAnalysis(null);
     setAiOpen(false);
     setAiProcessing(false);
     setAiRefining(false);
@@ -82,8 +91,12 @@ export default function BackgroundRemovalDialog({
     prepareBackgroundRemoval(source)
       .then((next) => {
         if (!active) return;
+        const analysis = analyzePreparedBackground(next);
         setPrepared(next);
-        setBackgroundColor(next.autoColor);
+        setStrategyAnalysis(analysis);
+        setBackgroundColor(analysis.backgroundColor || next.autoColor);
+        setTolerance(analysis.suggestedTolerance || 42);
+        setFeather(analysis.suggestedFeather || 12);
       })
       .catch((err) => {
         if (active) setError(err.message);
@@ -181,6 +194,16 @@ export default function BackgroundRemovalDialog({
     const x = (event.clientX - rect.left) / rect.width;
     const y = (event.clientY - rect.top) / rect.height;
     setBackgroundColor(samplePreparedColor(prepared, x, y));
+  }
+
+  function selectRemovalMode(mode) {
+    setRemovalMode(mode);
+    const nextMode = mode === 'auto' ? strategyAnalysis?.recommended : mode;
+    if (nextMode === 'solid' && strategyAnalysis?.backgroundColor) {
+      setBackgroundColor(strategyAnalysis.backgroundColor);
+      setTolerance(strategyAnalysis.suggestedTolerance || 42);
+      setFeather(strategyAnalysis.suggestedFeather || 12);
+    }
   }
 
   async function apply() {
@@ -355,22 +378,58 @@ export default function BackgroundRemovalDialog({
       <section className="panel bg-removal-dialog" role="dialog" aria-modal="true" aria-label="Remover fundo da logo">
         <div className="bg-removal-head">
           <div>
-            <p className="eyebrow">Tratamento da logo</p>
+            <p className="eyebrow">Remoção híbrida · mais confiável</p>
             <h2>Remover fundo da logo</h2>
-            <p>Use o ajuste manual para fundos simples ou a IA local para recortes automáticos mais complexos.</p>
+            <p>O modo automático analisa a imagem e escolhe entre recorte de fundo chapado e IA. Você também pode escolher manualmente.</p>
           </div>
           <button type="button" className="bg-removal-close" onClick={onCancel} disabled={processing}>×</button>
         </div>
 
-        <div className="bg-ai-launch-card">
-          <div>
-            <strong>Remoção automática em máxima qualidade</strong>
-            <span>A IA roda no próprio navegador e agora inclui refinamento de detalhes, bordas e halos.</span>
+        <div className="bg-hybrid-strategy-card">
+          <div className="bg-hybrid-strategy-head">
+            <div>
+              <strong>Estratégia de remoção</strong>
+              <span>
+                {removalMode === 'auto'
+                  ? `Automático escolheu: ${strategyLabel}`
+                  : `Modo selecionado: ${strategyLabel}`}
+              </span>
+            </div>
+            {strategyAnalysis && (
+              <small className={effectiveMode === 'solid' ? 'solid' : 'ai'}>
+                {effectiveMode === 'solid' ? 'Logo detectada' : 'Arte complexa'} · {strategyAnalysis.confidence}% confiança
+              </small>
+            )}
           </div>
-          <button type="button" className="button button-primary bg-ai-launch-button" onClick={() => setAiOpen(true)}>
-            ✦ Remover logo com IA
-          </button>
+
+          <div className="bg-hybrid-mode-tabs" role="group" aria-label="Estratégia de remoção de fundo">
+            <button type="button" className={removalMode === 'auto' ? 'active' : ''} onClick={() => selectRemovalMode('auto')}>
+              Automático
+            </button>
+            <button type="button" className={removalMode === 'solid' ? 'active' : ''} onClick={() => selectRemovalMode('solid')}>
+              Logo / fundo chapado
+            </button>
+            <button type="button" className={removalMode === 'ai' ? 'active' : ''} onClick={() => selectRemovalMode('ai')}>
+              IA / arte complexa
+            </button>
+          </div>
+
+          <p className="bg-hybrid-reason">
+            {strategyAnalysis?.reason || 'Analisando a melhor estratégia para esta imagem…'}
+          </p>
         </div>
+
+        {effectiveMode === 'ai' && (
+          <div className="bg-ai-launch-card bg-hybrid-ai-launch">
+            <div>
+              <strong>Esta imagem combina melhor com IA</strong>
+              <span>Use a IA local para fundos irregulares, sombras, degradês, fotos ou várias cores.</span>
+            </div>
+            <button type="button" className="button button-primary bg-ai-launch-button" onClick={() => setAiOpen(true)}>
+              ✦ Abrir remoção com IA
+            </button>
+          </div>
+        )}
 
         <div className="bg-removal-file">
           <span>Arquivo</span>
@@ -380,8 +439,12 @@ export default function BackgroundRemovalDialog({
         {error && <div className="inline-error">{error}</div>}
         {loading && <div className="bg-removal-loading">Preparando imagem…</div>}
 
-        {!loading && prepared && (
+        {!loading && prepared && effectiveMode === 'solid' && (
           <>
+            <div className="bg-hybrid-solid-note">
+              <strong>Recorte determinístico para logo</strong>
+              <span>Este modo não depende da IA. Ele remove a cor de fundo detectada e preserva a arte, sendo mais estável para fundos lisos.</span>
+            </div>
             <div className="bg-removal-preview-grid">
               <div>
                 <div className="bg-removal-preview-title">
@@ -438,7 +501,7 @@ export default function BackgroundRemovalDialog({
             </div>
 
             <div className="bg-removal-tip">
-              Para logos com fundo irregular, sombras, fotos ou vários tons, use “Remover logo com IA”. Para fundo liso, o modo manual costuma ser mais rápido.
+              O modo “Logo / fundo chapado” é recomendado para fundos lisos, placas, logos e artes gráficas. Se a prévia apagar parte da marca, diminua a tolerância ou clique diretamente no fundo para selecionar outra cor.
             </div>
 
             <div className="bg-removal-actions">
