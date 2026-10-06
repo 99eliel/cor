@@ -410,7 +410,7 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
       });
       if (!replaced) throw new Error('A logo selecionada não está mais disponível.');
       setBackgroundToolLogo(null);
-      setMessage('Fundo removido localmente. Original preservado e resultado deduplicado na biblioteca.');
+      setMessage('Fundo removido. Original preservado e resultado deduplicado na biblioteca.');
     } catch (err) {
       setError(err.message);
       setMessage('');
@@ -749,7 +749,7 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
         </aside>
       </section>
 
-      <BackgroundRemovalDialog open={Boolean(backgroundToolLogo)} source={backgroundToolLogo?.processingSource || backgroundToolLogo?.originalUrl || backgroundToolLogo?.sourceUrl} fileName={backgroundToolLogo?.sourceName} onCancel={() => { if (!backgroundApplying) setBackgroundToolLogo(null); }} onApply={applyBackgroundRemoval} />
+      <BackgroundRemovalDialog open={Boolean(backgroundToolLogo)} source={backgroundToolLogo?.processingSource || backgroundToolLogo?.originalUrl || backgroundToolLogo?.sourceUrl} cacheKey={backgroundToolLogo?.originalUrl || backgroundToolLogo?.sourceUrl || backgroundToolLogo?.storageUrl} fileName={backgroundToolLogo?.sourceName} onCancel={() => { if (!backgroundApplying) setBackgroundToolLogo(null); }} onApply={applyBackgroundRemoval} />
 
       {checkoutOpen && (
         <div className="checkout-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeCheckout(); }}>
