@@ -7,6 +7,7 @@ import {
 } from '../lib/localBackgroundRemoval';
 import { AI_REFINEMENT_PRESETS, refineAiCutout } from '../lib/refineAiCutout';
 import { analyzePreparedBackground } from '../lib/backgroundRemovalStrategy';
+import { removeBackgroundWithRemoveBg } from '../lib/removeBgApi';
 import MaskRefinementEditor from './MaskRefinementEditor';
 import '../background-removal-ai.css';
 
@@ -39,6 +40,11 @@ export default function BackgroundRemovalDialog({
   const [strategyAnalysis, setStrategyAnalysis] = useState(null);
   const [maskEditorOpen, setMaskEditorOpen] = useState(false);
   const [maskEditorBlob, setMaskEditorBlob] = useState(null);
+  const [removeBgProcessing, setRemoveBgProcessing] = useState(false);
+  const [removeBgBlob, setRemoveBgBlob] = useState(null);
+  const [removeBgPreviewUrl, setRemoveBgPreviewUrl] = useState('');
+  const [removeBgError, setRemoveBgError] = useState('');
+  const [removeBgCredits, setRemoveBgCredits] = useState('');
   const [aiOpen, setAiOpen] = useState(false);
   const [aiProcessing, setAiProcessing] = useState(false);
   const [aiRefining, setAiRefining] = useState(false);
@@ -74,6 +80,14 @@ export default function BackgroundRemovalDialog({
     setStrategyAnalysis(null);
     setMaskEditorOpen(false);
     setMaskEditorBlob(null);
+    setRemoveBgProcessing(false);
+    setRemoveBgBlob(null);
+    setRemoveBgError('');
+    setRemoveBgCredits('');
+    setRemoveBgPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return '';
+    });
     setAiOpen(false);
     setAiProcessing(false);
     setAiRefining(false);
@@ -191,6 +205,10 @@ export default function BackgroundRemovalDialog({
     if (aiPreviewUrl) URL.revokeObjectURL(aiPreviewUrl);
   }, [aiPreviewUrl]);
 
+  useEffect(() => () => {
+    if (removeBgPreviewUrl) URL.revokeObjectURL(removeBgPreviewUrl);
+  }, [removeBgPreviewUrl]);
+
   if (!open) return null;
 
   function chooseBackground(event) {
@@ -225,6 +243,32 @@ export default function BackgroundRemovalDialog({
   async function applyMaskRefinement(blob) {
     if (!blob) return;
     await onApply?.(blob);
+  }
+
+  async function runRemoveBg() {
+    if (!source || removeBgProcessing) return;
+    setRemoveBgProcessing(true);
+    setRemoveBgError('');
+    setRemoveBgCredits('');
+    try {
+      const result = await removeBackgroundWithRemoveBg(source);
+      const nextUrl = URL.createObjectURL(result.blob);
+      setRemoveBgBlob(result.blob);
+      setRemoveBgPreviewUrl((current) => {
+        if (current) URL.revokeObjectURL(current);
+        return nextUrl;
+      });
+      setRemoveBgCredits(result.creditsCharged || '');
+    } catch (err) {
+      setRemoveBgError(err?.message || 'Não foi possível remover o fundo com remove.bg.');
+    } finally {
+      setRemoveBgProcessing(false);
+    }
+  }
+
+  async function applyRemoveBg() {
+    if (!removeBgBlob || removeBgProcessing) return;
+    await onApply?.(removeBgBlob);
   }
 
   function applyAiPreset(key) {
@@ -414,6 +458,39 @@ export default function BackgroundRemovalDialog({
             <p>O modo automático analisa a imagem e escolhe entre recorte de fundo chapado e IA. Você também pode escolher manualmente.</p>
           </div>
           <button type="button" className="bg-removal-close" onClick={onCancel} disabled={processing}>×</button>
+        </div>
+
+        <div className="removebg-official-card">
+          <div className="removebg-official-copy">
+            <div className="removebg-official-title">
+              <span className="removebg-badge">remove.bg oficial</span>
+              <strong>Melhor qualidade para testar agora</strong>
+            </div>
+            <p>Usa a API oficial em <b>preview de até 0,25 MP</b>, PNG transparente e modo gráfico. A chave fica protegida no servidor.</p>
+            {removeBgCredits && <small>Última chamada: <strong>{removeBgCredits} crédito(s)</strong> informado(s) pela API.</small>}
+            {removeBgError && <div className="inline-error">{removeBgError}</div>}
+          </div>
+
+          <div className="removebg-official-actions">
+            {removeBgPreviewUrl && (
+              <div className="removebg-result checkerboard checkerboard-contrast">
+                <img src={removeBgPreviewUrl} alt="Resultado do remove.bg" />
+              </div>
+            )}
+            <button type="button" className="button button-primary" onClick={runRemoveBg} disabled={removeBgProcessing}>
+              {removeBgProcessing ? 'Enviando ao remove.bg…' : removeBgBlob ? 'Refazer com remove.bg' : '✦ Remover com remove.bg'}
+            </button>
+            {removeBgBlob && (
+              <div className="removebg-result-buttons">
+                <button type="button" className="button button-secondary" onClick={() => openMaskEditor(removeBgBlob)} disabled={removeBgProcessing}>
+                  ✎ Corrigir à mão
+                </button>
+                <button type="button" className="button button-success" onClick={applyRemoveBg} disabled={removeBgProcessing}>
+                  Aplicar resultado
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="bg-hybrid-strategy-card">
