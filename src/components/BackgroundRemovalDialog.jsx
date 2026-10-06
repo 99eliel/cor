@@ -7,6 +7,7 @@ import {
 } from '../lib/localBackgroundRemoval';
 import { AI_REFINEMENT_PRESETS, refineAiCutout } from '../lib/refineAiCutout';
 import { analyzePreparedBackground } from '../lib/backgroundRemovalStrategy';
+import MaskRefinementEditor from './MaskRefinementEditor';
 import '../background-removal-ai.css';
 
 const DEFAULT_AI_PRESET = AI_REFINEMENT_PRESETS.maximum;
@@ -36,6 +37,8 @@ export default function BackgroundRemovalDialog({
   const [error, setError] = useState('');
   const [removalMode, setRemovalMode] = useState('auto');
   const [strategyAnalysis, setStrategyAnalysis] = useState(null);
+  const [maskEditorOpen, setMaskEditorOpen] = useState(false);
+  const [maskEditorBlob, setMaskEditorBlob] = useState(null);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiProcessing, setAiProcessing] = useState(false);
   const [aiRefining, setAiRefining] = useState(false);
@@ -69,6 +72,8 @@ export default function BackgroundRemovalDialog({
     setError('');
     setRemovalMode('auto');
     setStrategyAnalysis(null);
+    setMaskEditorOpen(false);
+    setMaskEditorBlob(null);
     setAiOpen(false);
     setAiProcessing(false);
     setAiRefining(false);
@@ -211,6 +216,17 @@ export default function BackgroundRemovalDialog({
     await onApply?.(previewBlob);
   }
 
+  function openMaskEditor(blob) {
+    if (!blob) return;
+    setMaskEditorBlob(blob);
+    setMaskEditorOpen(true);
+  }
+
+  async function applyMaskRefinement(blob) {
+    if (!blob) return;
+    await onApply?.(blob);
+  }
+
   function applyAiPreset(key) {
     const preset = AI_REFINEMENT_PRESETS[key];
     if (!preset) return;
@@ -272,6 +288,18 @@ export default function BackgroundRemovalDialog({
   async function applyAi() {
     if (!aiBlob || aiProcessing || aiRefining) return;
     await onApply?.(aiBlob);
+  }
+
+  if (maskEditorOpen && maskEditorBlob) {
+    return (
+      <MaskRefinementEditor
+        open
+        source={source}
+        initialBlob={maskEditorBlob}
+        onCancel={() => setMaskEditorOpen(false)}
+        onApply={applyMaskRefinement}
+      />
+    );
   }
 
   if (aiOpen) {
@@ -363,6 +391,9 @@ export default function BackgroundRemovalDialog({
             <button type="button" className="button button-secondary" onClick={() => setAiOpen(false)} disabled={aiBusy}>Cancelar IA</button>
             <button type="button" className="button button-primary" onClick={runAiRemoval} disabled={aiBusy}>
               {aiProcessing ? 'Processando…' : aiRefining ? 'Refinando…' : aiRawBlob ? 'Refazer com IA' : '✦ Remover fundo com IA'}
+            </button>
+            <button type="button" className="button button-secondary" onClick={() => openMaskEditor(aiBlob)} disabled={!aiBlob || aiBusy}>
+              ✎ Corrigir à mão
             </button>
             <button type="button" className="button button-success" onClick={applyAi} disabled={!aiBlob || aiBusy}>Aplicar resultado</button>
           </div>
@@ -506,6 +537,9 @@ export default function BackgroundRemovalDialog({
 
             <div className="bg-removal-actions">
               <button type="button" className="button button-secondary" onClick={onCancel} disabled={processing}>Cancelar</button>
+              <button type="button" className="button button-secondary" onClick={() => openMaskEditor(previewBlob)} disabled={!previewBlob || processing}>
+                ✎ Corrigir à mão
+              </button>
               <button type="button" className="button button-primary" onClick={apply} disabled={!previewBlob || processing}>
                 {processing ? 'Atualizando…' : 'Aplicar recorte da logo'}
               </button>
