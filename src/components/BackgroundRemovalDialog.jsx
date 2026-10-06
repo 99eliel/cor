@@ -22,6 +22,7 @@ function progressPercent(value) {
 export default function BackgroundRemovalDialog({
   open,
   source,
+  cacheKey,
   fileName,
   onCancel,
   onApply,
@@ -45,6 +46,7 @@ export default function BackgroundRemovalDialog({
   const [removeBgPreviewUrl, setRemoveBgPreviewUrl] = useState('');
   const [removeBgError, setRemoveBgError] = useState('');
   const [removeBgCredits, setRemoveBgCredits] = useState('');
+  const [removeBgCached, setRemoveBgCached] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiProcessing, setAiProcessing] = useState(false);
   const [aiRefining, setAiRefining] = useState(false);
@@ -84,6 +86,7 @@ export default function BackgroundRemovalDialog({
     setRemoveBgBlob(null);
     setRemoveBgError('');
     setRemoveBgCredits('');
+    setRemoveBgCached(false);
     setRemoveBgPreviewUrl((current) => {
       if (current) URL.revokeObjectURL(current);
       return '';
@@ -250,8 +253,9 @@ export default function BackgroundRemovalDialog({
     setRemoveBgProcessing(true);
     setRemoveBgError('');
     setRemoveBgCredits('');
+    setRemoveBgCached(false);
     try {
-      const result = await removeBackgroundWithRemoveBg(source);
+      const result = await removeBackgroundWithRemoveBg(source, { cacheKey });
       const nextUrl = URL.createObjectURL(result.blob);
       setRemoveBgBlob(result.blob);
       setRemoveBgPreviewUrl((current) => {
@@ -259,6 +263,7 @@ export default function BackgroundRemovalDialog({
         return nextUrl;
       });
       setRemoveBgCredits(result.creditsCharged || '');
+      setRemoveBgCached(Boolean(result.cached));
     } catch (err) {
       setRemoveBgError(err?.message || 'Não foi possível remover o fundo com remove.bg.');
     } finally {
@@ -467,7 +472,15 @@ export default function BackgroundRemovalDialog({
               <strong>Melhor qualidade para testar agora</strong>
             </div>
             <p>Usa a API oficial em <b>preview de até 0,25 MP</b>, PNG transparente e modo gráfico. A chave fica protegida no servidor.</p>
-            {removeBgCredits && <small>Última chamada: <strong>{removeBgCredits} crédito(s)</strong> informado(s) pela API.</small>}
+            {removeBgBlob && (
+              <small>
+                {removeBgCached
+                  ? <><strong>Reutilizado do cache</strong> · nenhuma nova chamada à API.</>
+                  : removeBgCredits
+                    ? <>Última chamada: <strong>{removeBgCredits} crédito(s)</strong> informado(s) pela API.</>
+                    : <>Resultado recebido da API oficial.</>}
+              </small>
+            )}
             {removeBgError && <div className="inline-error">{removeBgError}</div>}
           </div>
 
