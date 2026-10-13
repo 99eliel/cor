@@ -425,6 +425,30 @@ const CustomerStage = forwardRef(function CustomerStage({
       if (active.textId) return serializeText(active);
       return null;
     },
+    selectLogoById(logoId) {
+      const canvas = fabricRef.current;
+      if (!canvas || !logoId) return false;
+      const target = canvas.getObjects().find((object) => object.logoId === logoId);
+      if (!target || target.designView !== currentViewRef.current) return false;
+      canvas.setActiveObject(target);
+      target.setCoords();
+      canvas.requestRenderAll();
+      return true;
+    },
+    removeLogoById(logoId) {
+      const canvas = fabricRef.current;
+      if (!canvas || !logoId) return false;
+      const target = canvas.getObjects().find((object) => object.logoId === logoId);
+      if (!target) return false;
+      if (target.processingSourceOwned && target.processingSource?.startsWith('blob:')) {
+        URL.revokeObjectURL(target.processingSource);
+      }
+      canvas.remove(target);
+      canvas.requestRenderAll();
+      notifyDesign();
+      commitHistory();
+      return true;
+    },
     getColorTuning() {
       return { ...colorTuning };
     },
