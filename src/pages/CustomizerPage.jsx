@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import BackgroundRemovalDialog from '../components/BackgroundRemovalDialog';
 import CustomerStage from '../components/CustomerStage';
+import LogoManager from '../components/LogoManager';
 import MartinpelBrand from '../components/MartinpelBrand';
 import PdfLogoLibrary from '../components/PdfLogoLibrary';
 import { ensureClientUser } from '../lib/clientAuth';
@@ -111,6 +112,7 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
   const [colorChoices, setColorChoices] = useState({});
   const [logos, setLogos] = useState([]);
   const [texts, setTexts] = useState([]);
+  const [logoManagerOpen, setLogoManagerOpen] = useState(false);
   const [textPanelOpen, setTextPanelOpen] = useState(false);
   const [textDraft, setTextDraft] = useState('');
   const [textColor, setTextColor] = useState('#111827');
@@ -424,6 +426,33 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
     setMessage(removed ? 'Item selecionado removido.' : 'Clique primeiro na logo ou texto que deseja remover.');
   }
 
+  function selectManagedLogo(logo) {
+    if (!logo?.id) return;
+    const targetView = logo.position?.view || view;
+    if (targetView !== view) {
+      setView(targetView);
+      setSelectedRegionId(null);
+    }
+    window.setTimeout(() => {
+      const selected = stageRef.current?.selectLogoById?.(logo.id);
+      setMessage(selected
+        ? `Logo “${logo.sourceName || 'sem nome'}” selecionada em ${VIEW_LABELS[targetView] || targetView}.`
+        : 'Não foi possível selecionar essa logo.');
+    }, targetView === view ? 0 : 80);
+  }
+
+  function removeManagedLogo(logo) {
+    if (!logo?.id) return;
+    const removed = stageRef.current?.removeLogoById?.(logo.id);
+    if (removed) {
+      setMessage(`Logo “${logo.sourceName || 'sem nome'}” removida da peça.`);
+      setError('');
+    } else {
+      setError('Não foi possível remover essa logo.');
+      setMessage('');
+    }
+  }
+
   async function downloadCurrentImage() {
     setBusy(true);
     setError('');
@@ -665,6 +694,31 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
           <button type="button" className="button button-primary full-width" disabled={busy} onClick={() => fileInputRef.current?.click()}>+ Adicionar logo</button>
           <p className="logo-upload-help">PNG, JPG, WEBP ou PDF. Arquivos iguais são reaproveitados pela biblioteca.</p>
           {pdfLibrary && <PdfLogoLibrary fileName={pdfLibrary.fileName} pages={pdfLibrary.pages} pageCount={pdfLibrary.pageCount} currentView={view} busyPage={pdfBusyPage} onAddPage={addPdfPage} onAddAll={addAllPdfPages} onClose={closePdfLibrary} />}
+
+          <button
+            type="button"
+            className={`logo-manager-toggle ${logoManagerOpen ? 'is-open' : ''}`}
+            onClick={() => setLogoManagerOpen((open) => !open)}
+            aria-expanded={logoManagerOpen}
+          >
+            <span className="logo-manager-toggle-icon">▦</span>
+            <span className="logo-manager-toggle-copy">
+              <strong>Gerenciar logos</strong>
+              <small>{logos.length ? `${logos.length} logo(s) usada(s) nesta peça` : 'Nenhuma logo adicionada'}</small>
+            </span>
+            <b>{logoManagerOpen ? '−' : '+'}</b>
+          </button>
+
+          {logoManagerOpen && (
+            <LogoManager
+              logos={logos}
+              currentView={view}
+              viewLabels={VIEW_LABELS}
+              onSelect={selectManagedLogo}
+              onRemove={removeManagedLogo}
+            />
+          )}
+
           <button type="button" className="button button-background-local full-width" disabled={busy || logos.length === 0} onClick={openBackgroundRemoval}>✦ Remover fundo da logo</button>
 
           <div className="tool-divider" />
