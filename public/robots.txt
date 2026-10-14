@@ -3,4 +3,4 @@ Allow: /
 Disallow: /api/
 Disallow: /__/functions/
 
-Sitemap: https://personalizamartinpel.web.app/sitemap.xml
+Sitemap: https://personalizamartinpel.web.app/google-sitemap.xml
