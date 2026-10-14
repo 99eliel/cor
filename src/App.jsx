@@ -1,4 +1,5 @@
-import { Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import ApprovalShareToast from './components/ApprovalShareToast';
 import MeasurementGuideDock from './components/MeasurementGuideDock';
 import PwaInstallPrompt from './components/PwaInstallPrompt';
@@ -9,10 +10,36 @@ import ArchivedGarmentsPage from './pages/ArchivedGarmentsPage';
 import CustomizerPage from './pages/CustomizerPage';
 import OrderRevisionPage from './pages/OrderRevisionPage';
 import ProductionPipelinePage from './pages/ProductionPipelinePage';
+import PublicLandingPage from './pages/PublicLandingPage';
 import SellerOrdersPage from './pages/SellerOrdersPage';
 import TeamManagementPage from './pages/TeamManagementPage';
 import './catalog-trash.css';
 import './operations.css';
+
+function SeoController() {
+  const location = useLocation();
+
+  useEffect(() => {
+    const isPublicLanding = location.pathname === '/';
+    const robots = document.querySelector('meta[name="robots"]');
+    const googlebot = document.querySelector('meta[name="googlebot"]');
+    const description = document.querySelector('meta[name="description"]');
+
+    if (isPublicLanding) {
+      document.title = 'Martinpel Gestão da Personalização | Uniformes e Logos';
+      robots?.setAttribute('content', 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1');
+      googlebot?.setAttribute('content', 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1');
+      description?.setAttribute('content', 'Martinpel Gestão da Personalização: plataforma para personalização de uniformes, aplicação e gestão de logos, cores, layouts, pedidos e remoção de fundo com inteligência artificial.');
+    } else {
+      document.title = 'Martinpel Vendas | Sistema Interno';
+      robots?.setAttribute('content', 'noindex,nofollow,noarchive');
+      googlebot?.setAttribute('content', 'noindex,nofollow,noarchive');
+      description?.setAttribute('content', 'Área interna da plataforma Martinpel.');
+    }
+  }, [location.pathname]);
+
+  return null;
+}
 
 function SellerRoute({ pwaEntry = false }) {
   const { garmentId } = useParams();
@@ -70,9 +97,10 @@ function AdminRoute() {
 export default function App() {
   return (
     <>
+      <SeoController />
       <Routes>
         <Route path="/aprovar/:orderId/:token" element={<ApprovalPage />} />
-        <Route path="/" element={<SellerRoute />} />
+        <Route path="/" element={<PublicLandingPage />} />
         <Route path="/vendedor" element={<SellerRoute pwaEntry />} />
         <Route path="/customizar/:garmentId" element={<SellerRoute />} />
         <Route path="/meus-pedidos" element={<SellerOrdersRoute />} />
