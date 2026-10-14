@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import MartinpelBrand from '../components/MartinpelBrand';
 import '../public-landing.css';
 
@@ -172,7 +171,10 @@ export default function PublicLandingPage() {
 
       <footer className="public-footer">
         <MartinpelBrand compact subtitle="Gestão da Personalização" />
-        <p>Sistema de gestão da personalização de uniformes Martinpel.</p>
+        <div className="public-footer-links">
+          <p>Sistema de gestão da personalização de uniformes Martinpel.</p>
+          <a href="https://martinpel.com.br/" target="_blank" rel="noreferrer">Site institucional da Martinpel</a>
+        </div>
       </footer>
     </main>
   );
