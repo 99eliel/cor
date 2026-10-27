@@ -592,6 +592,7 @@ const CustomerStage = forwardRef(function CustomerStage({
       const active = canvas?.getActiveObject();
       if (!canvas || !(active?.logoId || active?.textId)) return false;
       if (active.processingSourceOwned && active.processingSource?.startsWith('blob:')) URL.revokeObjectURL(active.processingSource);
+      if (active.appearanceSourceOwned && active.appearanceSource?.startsWith('blob:')) URL.revokeObjectURL(active.appearanceSource);
       canvas.remove(active);
       canvas.requestRenderAll();
       notifyDesign();
@@ -601,7 +602,11 @@ const CustomerStage = forwardRef(function CustomerStage({
     clearLogos() {
       const canvas = fabricRef.current;
       if (!canvas) return;
-      canvas.getObjects().filter((object) => object.logoId).forEach((object) => canvas.remove(object));
+      canvas.getObjects().filter((object) => object.logoId).forEach((object) => {
+        if (object.processingSourceOwned && object.processingSource?.startsWith('blob:')) URL.revokeObjectURL(object.processingSource);
+        if (object.appearanceSourceOwned && object.appearanceSource?.startsWith('blob:')) URL.revokeObjectURL(object.appearanceSource);
+        canvas.remove(object);
+      });
       canvas.discardActiveObject();
       canvas.requestRenderAll();
       notifyDesign();
@@ -654,12 +659,14 @@ const CustomerStage = forwardRef(function CustomerStage({
 
       for (const object of designObjects().filter((item) => item.designView === targetView)) {
         if (object.logoId) {
-          const source = object.processedUrl || object.processingSource || object.storageUrl || object.sourceUrl;
-          const element = source ? await loadImage(source) : object.getElement();
+          const element = object.getElement();
           const drawWidth = object.normScale * width;
-          const ratio = element.naturalHeight / element.naturalWidth;
+          const elementWidth = element?.naturalWidth || element?.width || 1;
+          const elementHeight = element?.naturalHeight || element?.height || 1;
+          const ratio = elementHeight / elementWidth;
           const drawHeight = drawWidth * ratio;
           ctx.save();
+          ctx.globalAlpha = Number.isFinite(object.logoOpacity) ? object.logoOpacity / 100 : (object.opacity ?? 1);
           ctx.translate(object.normX * width, object.normY * height);
           ctx.rotate(((object.angle ?? 0) * Math.PI) / 180);
           ctx.drawImage(element, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
