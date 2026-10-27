@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import BackgroundRemovalDialog from '../components/BackgroundRemovalDialog';
 import CustomerStage from '../components/CustomerStage';
 import LogoManager from '../components/LogoManager';
+import LogoColorEditor from '../components/LogoColorEditor';
 import MartinpelBrand from '../components/MartinpelBrand';
 import PdfLogoLibrary from '../components/PdfLogoLibrary';
 import { ensureClientUser } from '../lib/clientAuth';
@@ -113,6 +114,12 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
   const [logos, setLogos] = useState([]);
   const [texts, setTexts] = useState([]);
   const [logoManagerOpen, setLogoManagerOpen] = useState(false);
+  const [logoColorEditorOpen, setLogoColorEditorOpen] = useState(false);
+  const [logoColorTarget, setLogoColorTarget] = useState(null);
+  const [logoEditColor, setLogoEditColor] = useState('#111827');
+  const [logoEditMode, setLogoEditMode] = useState('flat');
+  const [logoEditOpacity, setLogoEditOpacity] = useState(100);
+  const [logoColorApplying, setLogoColorApplying] = useState(false);
   const [textPanelOpen, setTextPanelOpen] = useState(false);
   const [textDraft, setTextDraft] = useState('');
   const [textColor, setTextColor] = useState('#111827');
@@ -375,6 +382,71 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
     setTextDraft('');
     setError('');
     setMessage('Texto personalizado adicionado. Arraste, gire e redimensione livremente sobre a peça.');
+  }
+
+  function openLogoColorEditor() {
+    const selected = stageRef.current?.getSelectedLogo();
+    if (!selected) {
+      setError('Selecione uma logo na peça para editar a cor.');
+      setMessage('');
+      return;
+    }
+    setLogoColorTarget(selected);
+    setLogoEditColor(selected.logoColor || '#111827');
+    setLogoEditMode(selected.logoColorMode && selected.logoColorMode !== 'original' ? selected.logoColorMode : 'flat');
+    setLogoEditOpacity(Number.isFinite(Number(selected.logoOpacity)) ? Number(selected.logoOpacity) : 100);
+    setLogoColorEditorOpen(true);
+    setError('');
+    setMessage('');
+  }
+
+  async function applyLogoColor() {
+    if (!logoColorTarget?.id || logoColorApplying) return;
+    setLogoColorApplying(true);
+    setError('');
+    try {
+      const selected = stageRef.current?.selectLogoById?.(logoColorTarget.id);
+      if (!selected) throw new Error('Selecione novamente a logo que deseja editar.');
+      const updated = await stageRef.current?.updateSelectedLogoAppearance?.({
+        logoColorMode: logoEditMode,
+        logoColor: logoEditColor,
+        logoOpacity: logoEditOpacity,
+      });
+      if (!updated) throw new Error('Não foi possível aplicar a nova cor na logo.');
+      setLogoColorTarget(stageRef.current?.getSelectedLogo?.() || logoColorTarget);
+      setMessage('Cor da logo atualizada. O arquivo original continua preservado.');
+    } catch (err) {
+      setError(err.message);
+      setMessage('');
+    } finally {
+      setLogoColorApplying(false);
+    }
+  }
+
+  async function restoreLogoColor() {
+    if (!logoColorTarget?.id || logoColorApplying) return;
+    setLogoColorApplying(true);
+    setError('');
+    try {
+      const selected = stageRef.current?.selectLogoById?.(logoColorTarget.id);
+      if (!selected) throw new Error('Selecione novamente a logo que deseja restaurar.');
+      const updated = await stageRef.current?.updateSelectedLogoAppearance?.({
+        logoColorMode: 'original',
+        logoColor: '#111827',
+        logoOpacity: 100,
+      });
+      if (!updated) throw new Error('Não foi possível restaurar a logo.');
+      setLogoEditColor('#111827');
+      setLogoEditMode('flat');
+      setLogoEditOpacity(100);
+      setLogoColorTarget(stageRef.current?.getSelectedLogo?.() || logoColorTarget);
+      setMessage('A aparência original da logo foi restaurada.');
+    } catch (err) {
+      setError(err.message);
+      setMessage('');
+    } finally {
+      setLogoColorApplying(false);
+    }
   }
 
   function openBackgroundRemoval() {
@@ -720,6 +792,27 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
           )}
 
           <button type="button" className="button button-background-local full-width" disabled={busy || logos.length === 0} onClick={openBackgroundRemoval}>✦ Remover fundo da logo</button>
+          <button type="button" className="button button-logo-color full-width" disabled={busy || logos.length === 0} onClick={openLogoColorEditor}>🎨 Editar cor da logo</button>
+
+          <LogoColorEditor
+            open={logoColorEditorOpen}
+            fileName={logoColorTarget?.sourceName}
+            color={logoEditColor}
+            mode={logoEditMode}
+            opacity={logoEditOpacity}
+            busy={logoColorApplying}
+            onColorChange={setLogoEditColor}
+            onModeChange={setLogoEditMode}
+            onOpacityChange={setLogoEditOpacity}
+            onApply={applyLogoColor}
+            onRestore={restoreLogoColor}
+            onClose={() => {
+              if (!logoColorApplying) {
+                setLogoColorEditorOpen(false);
+                setLogoColorTarget(null);
+              }
+            }}
+          />
 
           <div className="tool-divider" />
           <div className="customer-tool-section-title"><span>03</span><strong>Nome, número ou texto</strong></div>
