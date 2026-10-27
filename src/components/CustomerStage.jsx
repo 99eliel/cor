@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 import { Canvas, FabricImage, IText } from 'fabric';
 import { getRegionAtPoint } from '../lib/geometry';
 import { renderGarment } from '../lib/renderGarment';
+import { recolorLogoSource } from '../lib/logoAppearance';
 
 const DEFAULT_COLOR_TUNING = Object.freeze({ opacity: 82, saturation: 88, brightness: 96 });
 const FULL_COLOR_TUNING = Object.freeze({ opacity: 100, saturation: 100, brightness: 100 });
@@ -132,6 +133,9 @@ const CustomerStage = forwardRef(function CustomerStage({
       originalUrl: object.originalUrl || object.sourceUrl || object.storageUrl,
       processedUrl: object.processedUrl || '',
       backgroundRemoved: Boolean(object.backgroundRemoved),
+      logoColorMode: object.logoColorMode || 'original',
+      logoColor: object.logoColor || '#111827',
+      logoOpacity: Number.isFinite(object.logoOpacity) ? object.logoOpacity : 100,
       position: {
         x: object.normX,
         y: object.normY,
@@ -243,7 +247,23 @@ const CustomerStage = forwardRef(function CustomerStage({
     const canvas = fabricRef.current;
     if (!canvas) return null;
     const source = metadata.processingSource || storageUrl;
-    const imageElement = await loadDisplayImage(source);
+    let displaySource = source;
+    let appearanceSource = '';
+    let appearanceSourceOwned = false;
+    const logoColorMode = metadata.logoColorMode || 'original';
+    const logoColor = metadata.logoColor || '#111827';
+    const logoOpacity = Number.isFinite(Number(metadata.logoOpacity))
+      ? Math.max(0, Math.min(100, Number(metadata.logoOpacity)))
+      : 100;
+
+    if (logoColorMode !== 'original') {
+      const recolored = await recolorLogoSource(source, { color: logoColor, mode: logoColorMode });
+      displaySource = recolored.url;
+      appearanceSource = recolored.url;
+      appearanceSourceOwned = true;
+    }
+
+    const imageElement = await loadDisplayImage(displaySource);
     const object = new FabricImage(imageElement, {
       originX: 'center',
       originY: 'center',
@@ -254,6 +274,7 @@ const CustomerStage = forwardRef(function CustomerStage({
       cornerStyle: 'circle',
       cornerColor: '#0b5d92',
       borderColor: '#0b5d92',
+      opacity: logoOpacity / 100,
     });
     object.logoId = metadata.id || randomId('logo');
     object.storageUrl = storageUrl;
@@ -265,8 +286,13 @@ const CustomerStage = forwardRef(function CustomerStage({
     object.originalUrl = metadata.originalUrl || metadata.sourceUrl || storageUrl;
     object.processedUrl = metadata.processedUrl || '';
     object.backgroundRemoved = Boolean(metadata.backgroundRemoved);
+    object.logoColorMode = logoColorMode;
+    object.logoColor = logoColor;
+    object.logoOpacity = logoOpacity;
     object.processingSource = source;
     object.processingSourceOwned = Boolean(metadata.processingSourceOwned);
+    object.appearanceSource = appearanceSource;
+    object.appearanceSourceOwned = appearanceSourceOwned;
     object.designView = metadata.targetView || metadata.position?.view || currentViewRef.current;
     object.normX = Number.isFinite(metadata.initialX) ? metadata.initialX : Number(metadata.position?.x) || 0.5;
     object.normY = Number.isFinite(metadata.initialY) ? metadata.initialY : Number(metadata.position?.y) || 0.5;
@@ -338,6 +364,7 @@ const CustomerStage = forwardRef(function CustomerStage({
     if (!canvas) return;
     designObjects().forEach((object) => {
       if (object.processingSourceOwned && object.processingSource?.startsWith('blob:')) URL.revokeObjectURL(object.processingSource);
+      if (object.appearanceSourceOwned && object.appearanceSource?.startsWith('blob:')) URL.revokeObjectURL(object.appearanceSource);
       canvas.remove(object);
     });
     canvas.discardActiveObject();
@@ -443,6 +470,9 @@ const CustomerStage = forwardRef(function CustomerStage({
       if (target.processingSourceOwned && target.processingSource?.startsWith('blob:')) {
         URL.revokeObjectURL(target.processingSource);
       }
+      if (target.appearanceSourceOwned && target.appearanceSource?.startsWith('blob:')) {
+        URL.revokeObjectURL(target.appearanceSource);
+      }
       canvas.remove(target);
       canvas.requestRenderAll();
       notifyDesign();
@@ -451,6 +481,50 @@ const CustomerStage = forwardRef(function CustomerStage({
     },
     getColorTuning() {
       return { ...colorTuning };
+    },
+    async updateSelectedLogoAppearance(metadata = {}) {
+      const canvas = fabricRef.current;
+      const active = canvas?.getActiveObject();
+      if (!canvas || !active?.logoId) return false;
+
+      const mode = metadata.logoColorMode ?? active.logoColorMode ?? 'original';
+      const color = metadata.logoColor ?? active.logoColor ?? '#111827';
+      const opacity = Number.isFinite(Number(metadata.logoOpacity))
+        ? Math.max(0, Math.min(100, Number(metadata.logoOpacity)))
+        : (Number.isFinite(active.logoOpacity) ? active.logoOpacity : 100);
+
+      const baseSource = active.processedUrl || active.processingSource || active.storageUrl || active.sourceUrl;
+      if (!baseSource) return false;
+
+      const scaledWidth = active.getScaledWidth();
+      let nextSource = baseSource;
+      let ownedSource = '';
+
+      if (mode !== 'original') {
+        const recolored = await recolorLogoSource(baseSource, { color, mode });
+        nextSource = recolored.url;
+        ownedSource = recolored.url;
+      }
+
+      const imageElement = await loadDisplayImage(nextSource);
+      if (active.appearanceSourceOwned && active.appearanceSource?.startsWith('blob:')) {
+        URL.revokeObjectURL(active.appearanceSource);
+      }
+
+      active.setElement(imageElement);
+      active.logoColorMode = mode;
+      active.logoColor = color;
+      active.logoOpacity = opacity;
+      active.appearanceSource = ownedSource;
+      active.appearanceSourceOwned = Boolean(ownedSource);
+      active.set('opacity', opacity / 100);
+      active.scaleToWidth(scaledWidth);
+      active.setCoords();
+      canvas.setActiveObject(active);
+      canvas.requestRenderAll();
+      notifyDesign();
+      commitHistory();
+      return true;
     },
     updateSelectedText(metadata = {}) {
       const canvas = fabricRef.current;
@@ -472,7 +546,16 @@ const CustomerStage = forwardRef(function CustomerStage({
       const active = canvas?.getActiveObject();
       if (!canvas || !active?.logoId) return false;
       const imageElement = await loadDisplayImage(metadata.processingSource || storageUrl);
+      if (active.appearanceSourceOwned && active.appearanceSource?.startsWith('blob:')) {
+        URL.revokeObjectURL(active.appearanceSource);
+      }
+      active.appearanceSource = '';
+      active.appearanceSourceOwned = false;
+      active.logoColorMode = 'original';
+      active.logoColor = '#111827';
+      active.logoOpacity = 100;
       active.setElement(imageElement);
+      active.set('opacity', 1);
       active.storageUrl = storageUrl;
       active.processedUrl = metadata.processedUrl || storageUrl;
       active.backgroundRemoved = metadata.backgroundRemoved ?? true;
@@ -497,6 +580,7 @@ const CustomerStage = forwardRef(function CustomerStage({
       const active = canvas?.getActiveObject();
       if (!canvas || !active?.logoId) return false;
       if (active.processingSourceOwned && active.processingSource?.startsWith('blob:')) URL.revokeObjectURL(active.processingSource);
+      if (active.appearanceSourceOwned && active.appearanceSource?.startsWith('blob:')) URL.revokeObjectURL(active.appearanceSource);
       canvas.remove(active);
       canvas.requestRenderAll();
       notifyDesign();
