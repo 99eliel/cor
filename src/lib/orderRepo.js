@@ -162,10 +162,41 @@ export async function createOrder(data) {
   return orderRef.id;
 }
 
-export async function getOrderForRevision(orderId) {
+export async function getOrderById(orderId) {
   if (!orderId) return null;
   const snapshot = await getDoc(doc(db, 'orders', orderId));
   return snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+}
+
+export async function getOrderForRevision(orderId) {
+  return getOrderById(orderId);
+}
+
+export async function saveTechnicalSheet(orderId, technicalSheet = {}) {
+  if (!orderId) throw new Error('Pedido inválido.');
+
+  const clean = (value, max = 180) => String(value ?? '').trim().slice(0, max);
+  const fields = technicalSheet?.fields || {};
+
+  await updateDoc(doc(db, 'orders', orderId), {
+    technicalSheet: {
+      fields: {
+        description: clean(fields.description),
+        reference: clean(fields.reference),
+        fabric: clean(fields.fabric),
+        customer: clean(fields.customer),
+        color: clean(fields.color),
+        print: clean(fields.print),
+        weight: clean(fields.weight),
+        printColor: clean(fields.printColor),
+        notes: clean(fields.notes, 500),
+      },
+      savedAt: new Date().toISOString(),
+    },
+    updatedAt: serverTimestamp(),
+  });
+
+  invalidateOrderCache();
 }
 
 export async function saveOrderRevision(orderId, data) {
