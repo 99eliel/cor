@@ -36,14 +36,15 @@ function safeImageSource(logo) {
 function normalizedGuide(garment, order) {
   const sizeLabels = getSizeScaleLabels(garment?.sizeScale || order?.sizeScale);
   const guide = normalizeMeasurementGuide(garment?.measurementGuide, sizeLabels);
+  const hasStructuredRows = guide.rows.length > 0;
   const columns = guide.columns.length ? guide.columns : REFERENCE_COLUMNS;
-  const rows = guide.rows.length
+  const rows = hasStructuredRows
     ? guide.rows
     : REFERENCE_ROWS.map((row) => ({
       ...row,
       values: Object.fromEntries(columns.map((column) => [column, row.values?.[column] || ''])),
     }));
-  return { ...guide, columns, rows };
+  return { ...guide, columns, rows, hasStructuredRows };
 }
 
 export default function TechnicalSheetPage({ isAdmin = false, logout }) {
@@ -242,7 +243,7 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
         <div className="technical-sheet-titlebar">TABELA DE MEDIDAS</div>
 
         <section className="technical-sheet-measurements">
-          {guide.imageUrl && !guide.rows.length ? (
+          {guide.imageUrl && !guide.hasStructuredRows ? (
             <img className="technical-sheet-measurement-image" src={guide.imageUrl} alt={guide.title || 'Tabela de medidas'} />
           ) : (
             <div className="technical-sheet-table-scroll">
