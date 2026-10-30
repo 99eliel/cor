@@ -12,6 +12,7 @@ import OrderRevisionPage from './pages/OrderRevisionPage';
 import ProductionPipelinePage from './pages/ProductionPipelinePage';
 import PublicLandingPage from './pages/PublicLandingPage';
 import SellerOrdersPage from './pages/SellerOrdersPage';
+import TechnicalSheetPage from './pages/TechnicalSheetPage';
 import TeamManagementPage from './pages/TeamManagementPage';
 import './catalog-trash.css';
 import './operations.css';
@@ -83,6 +84,16 @@ function RevisionRoute() {
   );
 }
 
+function TechnicalSheetRoute() {
+  return (
+    <StaffAuth allowedRoles={['seller', 'admin']}>
+      {({ isAdmin, logout }) => (
+        <TechnicalSheetPage isAdmin={isAdmin} logout={logout} />
+      )}
+    </StaffAuth>
+  );
+}
+
 function AdminRoute() {
   return (
     <>
@@ -105,6 +116,7 @@ export default function App() {
         <Route path="/customizar/:garmentId" element={<SellerRoute />} />
         <Route path="/meus-pedidos" element={<SellerOrdersRoute />} />
         <Route path="/revisar/:orderId" element={<RevisionRoute />} />
+        <Route path="/ficha-tecnica/:orderId" element={<TechnicalSheetRoute />} />
         <Route path="/admin" element={<AdminRoute />} />
         <Route path="/admin/producao" element={<ProductionPipelinePage />} />
         <Route path="/admin/equipe" element={<TeamManagementPage />} />
