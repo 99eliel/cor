@@ -726,6 +726,20 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
 
       {(message || error) && <div className={error ? 'notice notice-error' : 'notice notice-success'}>{error || message}{orderId && <strong className="order-code"> Código: {orderId}</strong>}</div>}
 
+      {orderId && !error && (
+        <section className="panel post-order-actions">
+          <div>
+            <p className="eyebrow">Pedido registrado</p>
+            <strong>Preencha agora a ficha técnica deste pedido</strong>
+            <span>O desenho da peça e a tabela de medidas já entram automaticamente; o cabeçalho fica livre para você preencher.</span>
+          </div>
+          <div>
+            <Link className="button button-primary" to={`/ficha-tecnica/${orderId}`}>Abrir ficha técnica</Link>
+            <Link className="button button-secondary" to="/meus-pedidos">Ir para meus pedidos</Link>
+          </div>
+        </section>
+      )}
+
       <section className="customer-layout customer-workspace">
         <section className="panel customer-stage-panel">
           <CustomerStage
