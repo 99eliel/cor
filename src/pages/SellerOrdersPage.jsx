@@ -125,7 +125,7 @@ export default function SellerOrdersPage({ user, isAdmin = false, logout }) {
                 </div>
               </div>
 
-              <div className="order-info-grid">
+              <div className="seller-order-compact-grid">
                 <div><span>Cliente</span><strong>{order.customerName || 'Não informado'}</strong></div>
                 <div>
                   <span>WhatsApp</span>
@@ -168,35 +168,42 @@ export default function SellerOrdersPage({ user, isAdmin = false, logout }) {
               )}
 
               {finalImages.length > 0 && (
-                <div className="order-images">
-                  {finalImages.map(([imageView, url], index) => (
-                    <a className="order-image" href={url} target="_blank" rel="noreferrer" key={imageView}>
-                      <img src={url} alt={`${order.garmentName || 'Peça'} - ${VIEW_LABELS[imageView] || `Foto ${index + 1}`}`} />
-                      <span>{VIEW_LABELS[imageView] || `Foto ${index + 1}`} · abrir imagem</span>
-                    </a>
-                  ))}
-                </div>
+                <details className="seller-order-collapse">
+                  <summary>
+                    <span>Artes finais</span>
+                    <strong>{finalImages.length} arquivo(s)</strong>
+                  </summary>
+                  <div className="seller-order-image-grid">
+                    {finalImages.map(([imageView, url], index) => (
+                      <a className="seller-order-image-card" href={url} target="_blank" rel="noreferrer" key={imageView}>
+                        <img src={url} alt={`${order.garmentName || 'Peça'} - ${VIEW_LABELS[imageView] || `Foto ${index + 1}`}`} />
+                        <span>{VIEW_LABELS[imageView] || `Foto ${index + 1}`}</span>
+                        <small>Abrir imagem ↗</small>
+                      </a>
+                    ))}
+                  </div>
+                </details>
               )}
 
               {vectorFiles.length > 0 && (
-                <div className="order-vector-files">
-                  <div className="order-vector-title">
-                    <span>Arquivos originais para produção</span>
-                    <strong>{vectorFiles.length} PDF(s) vetorial(is)</strong>
-                  </div>
-                  <div className="order-vector-list">
+                <details className="seller-order-collapse">
+                  <summary>
+                    <span>Arquivos vetoriais</span>
+                    <strong>{vectorFiles.length} PDF(s)</strong>
+                  </summary>
+                  <div className="seller-order-vector-list">
                     {vectorFiles.map((logo, index) => (
                       <a href={logo.sourceUrl} target="_blank" rel="noreferrer" key={logo.id || `${order.id}-vector-${index}`}>
                         <span className="order-vector-icon">PDF</span>
                         <span>
                           <strong>{logo.sourceName || `Logo vetorial ${index + 1}`}</strong>
-                          <small>{logo.sourcePageCount > 1 ? `Prévia usando página ${logo.sourcePage || 1} de ${logo.sourcePageCount}` : 'Arquivo vetorial original'}</small>
+                          <small>{logo.sourcePageCount > 1 ? `Página ${logo.sourcePage || 1} de ${logo.sourcePageCount}` : 'Arquivo vetorial original'}</small>
                         </span>
-                        <b>Abrir original ↗</b>
+                        <b>Abrir ↗</b>
                       </a>
                     ))}
                   </div>
-                </div>
+                </details>
               )}
 
               {order.approvalStatus === 'changes_requested' && (
