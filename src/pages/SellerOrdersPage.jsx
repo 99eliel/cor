@@ -62,7 +62,7 @@ export default function SellerOrdersPage({ user, isAdmin = false, logout }) {
         <div>
           <p className="eyebrow">Central do vendedor</p>
           <h1>Meus pedidos</h1>
-          <p>Os 30 pedidos mais recentes ficam disponíveis aqui. A tela usa cache e só consulta novamente quando você atualiza.</p>
+          <p>Os 30 pedidos mais recentes ficam disponíveis aqui. Use “Abrir / editar ficha técnica” para consultar, completar ou imprimir a ficha de qualquer pedido.</p>
         </div>
         <button className="button button-primary" type="button" onClick={() => load(true)} disabled={loading}>
           {loading ? 'Atualizando…' : 'Atualizar'}
@@ -104,7 +104,7 @@ export default function SellerOrdersPage({ user, isAdmin = false, logout }) {
               <span className={`pipeline-status is-${order.status || 'pending'}`}>{STATUS_LABELS[order.status] || 'Atendimento'}</span>
               <small>{APPROVAL_LABELS[order.approvalStatus] || 'Aguardando aprovação'}</small>
               <Link className="button button-secondary seller-tech-sheet-button" to={`/ficha-tecnica/${order.orderId || order.id}`}>
-                Ficha técnica
+                Abrir / editar ficha técnica
               </Link>
             </div>
           </article>
