@@ -103,6 +103,9 @@ export default function SellerOrdersPage({ user, isAdmin = false, logout }) {
             <div className="seller-order-state">
               <span className={`pipeline-status is-${order.status || 'pending'}`}>{STATUS_LABELS[order.status] || 'Atendimento'}</span>
               <small>{APPROVAL_LABELS[order.approvalStatus] || 'Aguardando aprovação'}</small>
+              <Link className="button button-secondary seller-tech-sheet-button" to={`/ficha-tecnica/${order.orderId || order.id}`}>
+                Ficha técnica
+              </Link>
             </div>
           </article>
         ))}
