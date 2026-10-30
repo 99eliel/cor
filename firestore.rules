@@ -136,6 +136,14 @@ service cloud.firestore {
         ]);
     }
 
+    function isSellerTechnicalSheetUpdate() {
+      return (isAdmin() || (isSeller() && resource.data.sellerUid == request.auth.uid))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'technicalSheet',
+          'updatedAt'
+        ]);
+    }
+
     function isSellerSummaryRevisionUpdate(uid) {
       return (isAdmin() || (isSeller() && request.auth.uid == uid))
         && resource.data.approvalStatus == 'changes_requested'
@@ -172,7 +180,7 @@ service cloud.firestore {
       allow get: if isAdmin() || isProduction() || (isSeller() && resource.data.sellerUid == request.auth.uid);
       allow list: if isAdmin() || isProduction();
       allow delete: if isAdmin();
-      allow update: if isAdmin() || isProductionOrderUpdate() || isPublicApprovalUpdate() || isSellerRevisionUpdate();
+      allow update: if isAdmin() || isProductionOrderUpdate() || isPublicApprovalUpdate() || isSellerRevisionUpdate() || isSellerTechnicalSheetUpdate();
     }
 
     match /sellerOrders/{uid}/orders/{orderId} {
