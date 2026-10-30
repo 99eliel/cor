@@ -341,6 +341,27 @@ export async function listSellerOrders(uid, { force = false, maxItems = DEFAULT_
   return items;
 }
 
+export async function listSellerDetailedOrders(uid, { force = false, maxItems = DEFAULT_SELLER_ORDER_LIMIT } = {}) {
+  const summaries = await listSellerOrders(uid, { force, maxItems });
+  if (!summaries.length) return [];
+
+  const detailed = await Promise.all(
+    summaries.map(async (summary) => {
+      const orderId = summary.orderId || summary.id;
+      try {
+        const snapshot = await getDoc(doc(db, 'orders', orderId));
+        return snapshot.exists()
+          ? { id: snapshot.id, ...snapshot.data() }
+          : { ...summary, id: orderId };
+      } catch {
+        return { ...summary, id: orderId };
+      }
+    }),
+  );
+
+  return detailed;
+}
+
 async function resolveSellerUid(orderId, sellerUid = '') {
   if (sellerUid) return sellerUid;
   const snapshot = await getDoc(doc(db, 'orders', orderId));
