@@ -139,9 +139,14 @@ export default function OrderOperationsPanel({ order, disabled = false, onSaved 
             {STATUS_OPTIONS.map(([value, label]) => <option value={value} key={value}>{label}</option>)}
           </select>
         </label>
-        <button className="button button-secondary" type="button" onClick={printSheet} disabled={disabled || saving === 'sheet'}>
-          {saving === 'sheet' ? 'Gerando…' : 'Layout de personalização'}
-        </button>
+        <div className="order-status-actions">
+          <Link className="button button-primary" to={`/ficha-tecnica/${order.id}`}>
+            Abrir ficha técnica
+          </Link>
+          <button className="button button-secondary" type="button" onClick={printSheet} disabled={disabled || saving === 'sheet'}>
+            {saving === 'sheet' ? 'Gerando…' : 'Layout de personalização'}
+          </button>
+        </div>
       </div>
 
       <div className="production-checklist-head">
