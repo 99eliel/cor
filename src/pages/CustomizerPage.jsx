@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import BackgroundRemovalDialog from '../components/BackgroundRemovalDialog';
 import CustomerStage from '../components/CustomerStage';
 import LogoManager from '../components/LogoManager';
@@ -100,6 +100,7 @@ function Catalog({ staffUser, isAdmin, logout }) {
 
 export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
   const { garmentId } = useParams();
+  const navigate = useNavigate();
   const stageRef = useRef(null);
   const fileInputRef = useRef(null);
   const undoStackRef = useRef([]);
@@ -670,7 +671,8 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
 
       setCheckoutOpen(false);
       setOrderId(id);
-      setMessage('Pedido registrado com cores, logos, textos e posições livres vinculados ao layout.');
+      setMessage('Pedido registrado. Abrindo a ficha técnica para preenchimento…');
+      navigate(`/ficha-tecnica/${id}`, { replace: true });
     } catch (err) {
       setCheckoutError(err.message || 'Não foi possível registrar o pedido.');
       setMessage('');
