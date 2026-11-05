@@ -365,3 +365,70 @@
     grid-column:auto;
   }
 }
+
+/* Admin order operations · separate status and action blocks */
+.order-status-control{
+  display:grid;
+  gap:7px;
+  padding:10px 11px;
+  border:1px solid #d8e3eb;
+  border-radius:10px;
+  background:#f8fbfd;
+}
+.order-status-control label{
+  display:grid;
+  gap:6px;
+  color:#60758a;
+  font-size:.66rem;
+  font-weight:850;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+.order-status-control select{
+  width:100%;
+  min-height:38px;
+  padding:8px 10px;
+  border:1px solid #cbd8e3;
+  border-radius:9px;
+  background:#fff;
+  color:#17324b;
+  font-weight:800;
+  text-transform:none;
+  letter-spacing:0;
+}
+.order-actions-panel{
+  display:grid;
+  gap:7px;
+  padding:10px 11px 11px;
+  border:1px solid #d8e3eb;
+  border-radius:10px;
+  background:#fff;
+}
+.order-actions-title{
+  color:#60758a;
+  font-size:.64rem;
+  font-weight:850;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+}
+.order-action-stack{
+  display:grid;
+  gap:8px;
+}
+.order-action-stack .button{
+  width:100%;
+  min-width:0;
+  margin:0;
+  justify-content:center;
+  text-align:center;
+  text-decoration:none;
+}
+.order-action-stack .button-primary{
+  box-shadow:none;
+}
+@media(max-width:640px){
+  .order-status-control,
+  .order-actions-panel{
+    padding:9px;
+  }
+}
