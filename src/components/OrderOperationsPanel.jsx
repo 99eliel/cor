@@ -139,7 +139,11 @@ export default function OrderOperationsPanel({ order, disabled = false, onSaved 
             {STATUS_OPTIONS.map(([value, label]) => <option value={value} key={value}>{label}</option>)}
           </select>
         </label>
-        <div className="order-status-actions">
+      </div>
+
+      <div className="order-actions-panel">
+        <span className="order-actions-title">Ações do pedido</span>
+        <div className="order-action-stack">
           <Link className="button button-primary" to={`/ficha-tecnica/${order.id}`}>
             Abrir ficha técnica
           </Link>
