@@ -296,6 +296,8 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
       await stageRef.current?.addLogo(storageUrl, {
         sourceUrl: pdfLibrary.originalUrl,
         originalUrl: pdfLibrary.originalUrl,
+        highResUrl: storageUrl,
+        printUrl: storageUrl,
         sourceName: pdfLibrary.fileName,
         sourceType: 'pdf',
         sourcePage: pageNumber,
@@ -349,6 +351,8 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
         await stageRef.current?.addLogo(url, {
           sourceUrl: url,
           originalUrl: url,
+          highResUrl: url,
+          printUrl: url,
           processingSource,
           processingSourceOwned: true,
           sourceName: file.name,
@@ -481,6 +485,9 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
         sourceUrl: backgroundToolLogo.sourceUrl || originalUrl,
         sourceName: backgroundToolLogo.sourceName || processedFile.name,
         processedUrl,
+        processedHighResUrl: processedUrl,
+        highResUrl: processedUrl,
+        printUrl: processedUrl,
         backgroundRemoved: true,
       });
       if (!replaced) throw new Error('A logo selecionada não está mais disponível.');
