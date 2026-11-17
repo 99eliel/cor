@@ -51,7 +51,7 @@ export default function PdfLogoLibrary({
       </div>
 
       <div className="pdf-logo-library-footer">
-        <span>Você pode usar a mesma página quantas vezes quiser e em qualquer foto.</span>
+        <span>O PDF original fica preservado para produção. A prévia inserida na peça pode ser movida, redimensionada, recolorida e ter o fundo tratado.</span>
         {pages.length > 1 && (
           <button type="button" className="mini-link" onClick={onAddAll} disabled={busyPage !== null}>
             Adicionar todas nesta foto
