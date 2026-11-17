@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import TechnicalLogoPreview from '../components/TechnicalLogoPreview';
 import { MARTINPEL_LOGO_DATA_URL } from '../lib/martinpelLogo';
 import { getGarment } from '../lib/garmentRepo';
 import { getOrderById, saveTechnicalSheet } from '../lib/orderRepo';
@@ -232,7 +233,7 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
             <div className="technical-sheet-logo-strip">
               {logoPreviews.map((logo, index) => (
                 <figure key={logo.id || `${logo.sourceName}-${index}`}>
-                  <img src={logo.preview} alt={logo.sourceName || `Logo ${index + 1}`} />
+                  <TechnicalLogoPreview src={logo.preview} alt={logo.sourceName || `Logo ${index + 1}`} />
                   <figcaption>{logo.sourceName || `Logo ${index + 1}`}</figcaption>
                 </figure>
               ))}
