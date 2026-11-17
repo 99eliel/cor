@@ -432,3 +432,28 @@
     padding:9px;
   }
 }
+
+/* Seller order ownership actions */
+.seller-order-detail-actions{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+}
+.seller-delete-order{
+  border:1px solid #efc2c2;
+  background:#fff5f5;
+  color:#a32020;
+  font-weight:850;
+}
+.seller-delete-order:hover:not(:disabled){
+  border-color:#dc6c6c;
+  background:#fdeaea;
+  color:#821919;
+}
+.seller-delete-order:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+@media(max-width:640px){
+  .seller-order-detail-actions{
+    grid-template-columns:1fr;
+  }
+}
