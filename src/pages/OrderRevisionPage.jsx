@@ -208,6 +208,8 @@ export default function OrderRevisionPage({ user, isAdmin = false, logout }) {
       await stageRef.current?.addLogo(storageUrl, {
         sourceUrl: pdfLibrary.originalUrl,
         originalUrl: pdfLibrary.originalUrl,
+        highResUrl: storageUrl,
+        printUrl: storageUrl,
         sourceName: pdfLibrary.fileName,
         sourceType: 'pdf',
         sourcePage: pageNumber,
@@ -248,6 +250,8 @@ export default function OrderRevisionPage({ user, isAdmin = false, logout }) {
         await stageRef.current?.addLogo(url, {
           sourceUrl: url,
           originalUrl: url,
+          highResUrl: url,
+          printUrl: url,
           sourceName: file.name,
           sourceType: 'image',
           sourcePage: 1,
@@ -266,10 +270,6 @@ export default function OrderRevisionPage({ user, isAdmin = false, logout }) {
 
   async function saveRevision() {
     if (!order || !garment) return;
-    if (order.approvalStatus !== 'changes_requested') {
-      setError('Este pedido não está aguardando uma correção solicitada pelo cliente.');
-      return;
-    }
     setBusy(true);
     setError('');
     setMessage('Gerando nova versão da arte…');
@@ -337,7 +337,7 @@ export default function OrderRevisionPage({ user, isAdmin = false, logout }) {
   return (
     <main className="app-shell customer-shell revision-shell">
       <div className="martinpel-appbar customer-brandbar seller-brandbar">
-        <MartinpelBrand compact subtitle={`Revisão ${order.displayCode || order.id}`} />
+        <MartinpelBrand compact subtitle={`Editar pedido ${order.displayCode || order.id}`} />
         <div className="seller-global-actions">
           <Link className="button button-light" to={isAdmin ? '/admin' : '/meus-pedidos'}>← Voltar aos pedidos</Link>
           <button className="button admin-logout-button" type="button" onClick={logout}>Sair</button>
@@ -346,11 +346,13 @@ export default function OrderRevisionPage({ user, isAdmin = false, logout }) {
 
       <section className="revision-request panel">
         <div>
-          <p className="eyebrow">Solicitação do cliente · V{order.designVersion || 1}</p>
-          <h1>{order.approvalNote || 'Cliente solicitou uma alteração na arte.'}</h1>
-          <p>Faça os ajustes abaixo e gere a próxima versão mantendo o mesmo pedido {order.displayCode || order.id}.</p>
+          <p className="eyebrow">Editar pedido · versão atual V{order.designVersion || 1}</p>
+          <h1>{order.approvalStatus === 'changes_requested' && order.approvalNote
+            ? order.approvalNote
+            : 'Ajuste a personalização deste pedido.'}</h1>
+          <p>As alterações serão salvas como uma nova versão do mesmo pedido {order.displayCode || order.id} e um novo link de aprovação será gerado.</p>
         </div>
-        <span>Próxima: V{(order.designVersion || 1) + 1}</span>
+        <span>Nova versão: V{(order.designVersion || 1) + 1}</span>
       </section>
 
       {(message || error) && <div className={error ? 'notice notice-error' : 'notice notice-success'}>{error || message}</div>}
@@ -366,7 +368,7 @@ export default function OrderRevisionPage({ user, isAdmin = false, logout }) {
       ) : (
         <>
           <header className="customer-header martinpel-page-header customer-piece-header">
-            <div className="page-heading-block"><p className="eyebrow">Corrigir arte</p><h1>{garment.name}</h1><p className="page-subtitle">Ajuste somente o necessário e envie uma nova versão para aprovação.</p></div>
+            <div className="page-heading-block"><p className="eyebrow">Editar personalização</p><h1>{garment.name}</h1><p className="page-subtitle">Altere cores, logos, textos, posições e tamanhos. Ao salvar, o pedido recebe uma nova versão.</p></div>
             <div className="customer-view-tabs">{views.map((targetView) => <button key={targetView} type="button" className={view === targetView ? 'active' : ''} onClick={() => { setView(targetView); setSelectedRegionId(null); }}>{VIEW_LABELS[targetView]}</button>)}</div>
           </header>
 
