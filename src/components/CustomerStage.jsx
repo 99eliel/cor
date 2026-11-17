@@ -153,6 +153,7 @@ const CustomerStage = forwardRef(function CustomerStage({
       text: object.text || '',
       color: object.fill || '#111827',
       backgroundColor: object.labelBackgroundColor || '',
+      backgroundEnabled: object.labelBackgroundEnabled !== false,
       fontFamily: object.fontFamily || 'Arial',
       fontWeight: object.fontWeight || '700',
       fontStyle: object.fontStyle || 'normal',
@@ -337,6 +338,7 @@ const CustomerStage = forwardRef(function CustomerStage({
     });
     object.textId = metadata.id || randomId('text');
     object.labelBackgroundColor = metadata.backgroundColor || '';
+    object.labelBackgroundEnabled = metadata.backgroundEnabled !== false;
     object.designView = metadata.targetView || metadata.position?.view || currentViewRef.current;
     object.normX = Number.isFinite(metadata.initialX) ? metadata.initialX : Number(metadata.position?.x) || 0.5;
     object.normY = Number.isFinite(metadata.initialY) ? metadata.initialY : Number(metadata.position?.y) || 0.5;
@@ -533,6 +535,7 @@ const CustomerStage = forwardRef(function CustomerStage({
       if (metadata.text !== undefined) active.set('text', String(metadata.text));
       if (metadata.color !== undefined) active.set('fill', metadata.color);
       if (metadata.backgroundColor !== undefined) active.labelBackgroundColor = metadata.backgroundColor;
+      if (metadata.backgroundEnabled !== undefined) active.labelBackgroundEnabled = Boolean(metadata.backgroundEnabled);
       if (metadata.fontWeight !== undefined) active.set('fontWeight', metadata.fontWeight);
       if (metadata.fontFamily !== undefined) active.set('fontFamily', metadata.fontFamily);
       if (metadata.fontStyle !== undefined) active.set('fontStyle', metadata.fontStyle);
@@ -690,11 +693,13 @@ const CustomerStage = forwardRef(function CustomerStage({
           const backgroundColor = textBackgroundColor(serialized);
           const lightBackground = isLightColor(backgroundColor);
           ctx.scale(scale, scale);
-          ctx.fillStyle = backgroundColor;
-          ctx.strokeStyle = lightBackground ? 'rgba(15,23,42,0.78)' : 'rgba(255,255,255,0.85)';
-          ctx.lineWidth = Math.max(1.5, baseFontSize * 0.035);
-          ctx.fillRect(-labelWidth / 2, -labelHeight / 2, labelWidth, labelHeight);
-          ctx.strokeRect(-labelWidth / 2, -labelHeight / 2, labelWidth, labelHeight);
+          if (serialized.backgroundEnabled !== false) {
+            ctx.fillStyle = backgroundColor;
+            ctx.strokeStyle = lightBackground ? 'rgba(15,23,42,0.78)' : 'rgba(255,255,255,0.85)';
+            ctx.lineWidth = Math.max(1.5, baseFontSize * 0.035);
+            ctx.fillRect(-labelWidth / 2, -labelHeight / 2, labelWidth, labelHeight);
+            ctx.strokeRect(-labelWidth / 2, -labelHeight / 2, labelWidth, labelHeight);
+          }
           ctx.fillStyle = serialized.color;
           ctx.fillText(serialized.text, 0, 0);
           ctx.restore();
