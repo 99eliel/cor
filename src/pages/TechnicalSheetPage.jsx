@@ -31,7 +31,12 @@ const REFERENCE_ROWS = [
 const VIEW_LABELS = { front: 'Frente', back: 'Costas', combined: 'Vista adicional', final: 'Arte final' };
 
 function safeImageSource(logo) {
-  return logo?.processedUrl || logo?.storageUrl || (logo?.sourceType === 'image' ? logo?.sourceUrl : '');
+  return logo?.printUrl
+    || logo?.processedHighResUrl
+    || logo?.highResUrl
+    || logo?.processedUrl
+    || logo?.storageUrl
+    || (logo?.sourceType === 'image' ? logo?.sourceUrl : '');
 }
 
 function normalizedGuide(garment, order) {
