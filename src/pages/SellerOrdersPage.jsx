@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import MartinpelBrand from '../components/MartinpelBrand';
-import { listSellerDetailedOrders } from '../lib/orderRepo';
+import { deleteOrder, listSellerDetailedOrders } from '../lib/orderRepo';
 
 const STATUS_LABELS = {
   pending: 'Atendimento',
@@ -49,6 +49,7 @@ export default function SellerOrdersPage({ user, isAdmin = false, logout }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deletingId, setDeletingId] = useState('');
 
   async function load(force = false) {
     setLoading(true);
@@ -65,6 +66,25 @@ export default function SellerOrdersPage({ user, isAdmin = false, logout }) {
   useEffect(() => {
     load(false);
   }, [user.uid]);
+
+  async function removeOrder(order) {
+    if (!order?.id || deletingId) return;
+    const confirmed = window.confirm(
+      `Excluir o pedido ${order.displayCode || order.id}?\n\nEssa ação remove o pedido da sua lista e invalida o link de aprovação. Não é possível desfazer.`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(order.id);
+    setError('');
+    try {
+      await deleteOrder(order.id, user.uid);
+      setOrders((current) => current.filter((item) => item.id !== order.id));
+    } catch (err) {
+      setError(`Não foi possível excluir o pedido: ${err.message}`);
+    } finally {
+      setDeletingId('');
+    }
+  }
 
   return (
     <main className="seller-orders-shell">
@@ -217,6 +237,9 @@ export default function SellerOrdersPage({ user, isAdmin = false, logout }) {
               )}
 
               <div className="seller-order-detail-actions">
+                <Link className="button button-secondary" to={`/revisar/${order.orderId || order.id}`}>
+                  Editar pedido
+                </Link>
                 <Link className="button button-primary" to={`/ficha-tecnica/${order.orderId || order.id}`}>
                   Abrir / editar ficha técnica
                 </Link>
@@ -230,6 +253,14 @@ export default function SellerOrdersPage({ user, isAdmin = false, logout }) {
                     Abrir aprovação do cliente
                   </a>
                 )}
+                <button
+                  className="button seller-delete-order"
+                  type="button"
+                  onClick={() => removeOrder(order)}
+                  disabled={deletingId === order.id}
+                >
+                  {deletingId === order.id ? 'Excluindo…' : 'Excluir pedido'}
+                </button>
               </div>
             </article>
           );
