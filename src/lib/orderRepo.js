@@ -205,10 +205,6 @@ export async function saveOrderRevision(orderId, data) {
   if (!orderSnapshot.exists()) throw new Error('Pedido não encontrado.');
 
   const current = orderSnapshot.data();
-  if (current.approvalStatus !== 'changes_requested') {
-    throw new Error('Este pedido não está aguardando uma alteração solicitada pelo cliente.');
-  }
-
   const now = new Date();
   const nextVersion = Math.max(1, Number(current.designVersion) || 1) + 1;
   const token = approvalToken();
@@ -239,6 +235,11 @@ export async function saveOrderRevision(orderId, data) {
   ];
 
   const batch = writeBatch(db);
+  const previousApprovalToken = current.approvalToken || '';
+  if (previousApprovalToken && previousApprovalToken !== token) {
+    batch.delete(doc(db, 'approvalPreviews', previousApprovalToken));
+  }
+
   batch.update(orderRef, {
     colorChoices: data.colorChoices ?? current.colorChoices ?? {},
     logos: data.logos ?? current.logos ?? [],
@@ -426,10 +427,24 @@ export async function saveOrderQuote(orderId, quote) {
 }
 
 export async function deleteOrder(orderId, sellerUid = '') {
-  const resolvedSellerUid = await resolveSellerUid(orderId, sellerUid);
+  if (!orderId) throw new Error('Pedido inválido.');
+
+  const orderSnapshot = await getDoc(doc(db, 'orders', orderId));
+  if (!orderSnapshot.exists()) throw new Error('Pedido não encontrado.');
+
+  const orderData = orderSnapshot.data();
+  const resolvedSellerUid = sellerUid || orderData.sellerUid || '';
+  const approvalTokenValue = orderData.approvalToken || '';
+
   const batch = writeBatch(db);
   batch.delete(doc(db, 'orders', orderId));
-  if (resolvedSellerUid) batch.delete(doc(db, 'sellerOrders', resolvedSellerUid, 'orders', orderId));
+  if (resolvedSellerUid) {
+    batch.delete(doc(db, 'sellerOrders', resolvedSellerUid, 'orders', orderId));
+  }
+  if (approvalTokenValue) {
+    batch.delete(doc(db, 'approvalPreviews', approvalTokenValue));
+  }
+
   await batch.commit();
   invalidateOrderCache();
   invalidateSellerOrderCache(resolvedSellerUid);
