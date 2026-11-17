@@ -457,12 +457,10 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
       setMessage('');
       return;
     }
-    if (selected.sourceType === 'pdf') {
-      setError('PDF vetorial não precisa deste tratamento. Use a ferramenta em logos PNG, JPG ou WEBP.');
-      setMessage('');
-      return;
-    }
     setError('');
+    setMessage(selected.sourceType === 'pdf'
+      ? 'Editando a prévia rasterizada do PDF. O arquivo vetorial original continuará preservado para produção.'
+      : '');
     setBackgroundToolLogo(selected);
   }
 
@@ -780,7 +778,7 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
           <div className="customer-tool-section-title"><span>02</span><strong>Logo livre</strong></div>
           <input ref={fileInputRef} className="sr-only" type="file" accept="image/png,image/jpeg,image/webp,application/pdf,.pdf" onChange={(event) => handleLogo(event.target.files?.[0])} />
           <button type="button" className="button button-primary full-width" disabled={busy} onClick={() => fileInputRef.current?.click()}>+ Adicionar logo</button>
-          <p className="logo-upload-help">PNG, JPG, WEBP ou PDF. Arquivos iguais são reaproveitados pela biblioteca.</p>
+          <p className="logo-upload-help">PNG, JPG, WEBP ou PDF. PDFs mantêm o original vetorial para produção e geram uma prévia editável para redimensionar, recolorir e tratar o fundo.</p>
           {pdfLibrary && <PdfLogoLibrary fileName={pdfLibrary.fileName} pages={pdfLibrary.pages} pageCount={pdfLibrary.pageCount} currentView={view} busyPage={pdfBusyPage} onAddPage={addPdfPage} onAddAll={addAllPdfPages} onClose={closePdfLibrary} />}
 
           <button
