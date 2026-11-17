@@ -125,6 +125,7 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
   const [textDraft, setTextDraft] = useState('');
   const [textColor, setTextColor] = useState('#111827');
   const [textBackgroundColor, setTextBackgroundColor] = useState('#ffffff');
+  const [textBackgroundEnabled, setTextBackgroundEnabled] = useState(true);
   const [textFontFamily, setTextFontFamily] = useState('Arial');
   const [textFontWeight, setTextFontWeight] = useState('700');
   const [textFontStyle, setTextFontStyle] = useState('normal');
@@ -374,6 +375,7 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
     stageRef.current?.addText(formattedText, {
       color: textColor,
       backgroundColor: textBackgroundColor,
+      backgroundEnabled: textBackgroundEnabled,
       targetView: view,
       fontFamily: textFontFamily,
       fontWeight: textFontWeight,
@@ -868,9 +870,29 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
                 </label>
               </div>
 
+              <div className="text-background-mode">
+                <span>Fundo do nome</span>
+                <div>
+                  <button
+                    type="button"
+                    className={textBackgroundEnabled ? 'active' : ''}
+                    onClick={() => setTextBackgroundEnabled(true)}
+                  >
+                    Com fundo
+                  </button>
+                  <button
+                    type="button"
+                    className={!textBackgroundEnabled ? 'active' : ''}
+                    onClick={() => setTextBackgroundEnabled(false)}
+                  >
+                    Somente letras
+                  </button>
+                </div>
+              </div>
+
               <div className="text-appearance-row">
                 <label className="text-color-option">Cor da letra<input type="color" value={textColor} onChange={(event) => setTextColor(event.target.value)} /></label>
-                <label className="text-color-option">Fundo da etiqueta<input type="color" value={textBackgroundColor} onChange={(event) => setTextBackgroundColor(event.target.value)} /></label>
+                <label className={`text-color-option ${!textBackgroundEnabled ? 'is-disabled' : ''}`}>Fundo da etiqueta<input type="color" value={textBackgroundColor} onChange={(event) => setTextBackgroundColor(event.target.value)} disabled={!textBackgroundEnabled} /></label>
                 <label className="text-uppercase-option" style={{ gridColumn: '1 / -1' }}><input type="checkbox" checked={textUppercase} onChange={(event) => setTextUppercase(event.target.checked)} /><span>CAIXA ALTA</span></label>
               </div>
 
@@ -878,12 +900,12 @@ export default function CustomizerPage({ staffUser, isAdmin = false, logout }) {
                 <span>Prévia</span>
                 <strong style={{
                   color: textColor,
-                  backgroundColor: textBackgroundColor,
+                  backgroundColor: textBackgroundEnabled ? textBackgroundColor : 'transparent',
                   fontFamily: textFontFamily,
                   fontWeight: textFontWeight,
                   fontStyle: textFontStyle,
-                  padding: '8px 12px',
-                  border: '1px solid rgba(15,23,42,.18)',
+                  padding: textBackgroundEnabled ? '8px 12px' : '2px 0',
+                  border: textBackgroundEnabled ? '1px solid rgba(15,23,42,.18)' : '1px solid transparent',
                   borderRadius: '2px',
                   alignSelf: 'flex-start',
                 }}>{textPreview}</strong>
