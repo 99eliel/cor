@@ -2,7 +2,7 @@ import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { deleteObject, getDownloadURL, listAll, ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from './firebase';
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_PDF_BYTES = 15 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 const logoAssetCache = new Map();
@@ -39,22 +39,8 @@ async function sha256Blob(blob) {
 }
 
 async function optimizeFinalRender(blob) {
-  if (!blob || typeof createImageBitmap !== 'function') return { blob, contentType: 'image/png', ext: 'png' };
-  try {
-    const bitmap = await createImageBitmap(blob);
-    const canvas = document.createElement('canvas');
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    const context = canvas.getContext('2d');
-    context.drawImage(bitmap, 0, 0);
-    bitmap.close?.();
-    const webp = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.9));
-    if (webp && webp.size > 0 && webp.size < blob.size) {
-      return { blob: webp, contentType: 'image/webp', ext: 'webp' };
-    }
-  } catch {
-    // Mantém o PNG original quando o navegador não suportar a otimização.
-  }
+  // Para produção e ficha técnica, a prioridade é fidelidade visual.
+  // Mantemos o PNG original sem conversão com perdas para WebP/JPEG.
   return { blob, contentType: 'image/png', ext: 'png' };
 }
 
@@ -124,7 +110,7 @@ export async function uploadClientLogoOriginalPdf(file, uid) {
 }
 
 export async function uploadFinalRender(blob, uid, label = 'final') {
-  if (!blob || blob.size > 10 * 1024 * 1024) throw new Error('Render final inválido.');
+  if (!blob || blob.size > 30 * 1024 * 1024) throw new Error('Render final inválido.');
   const optimized = await optimizeFinalRender(blob);
   const objectRef = ref(storage, `final-renders/${uid}/${Date.now()}-${safeName(label)}.${optimized.ext}`);
   await uploadBytes(objectRef, optimized.blob, {
