@@ -36,7 +36,7 @@ if (!IText.prototype[PATCH_FLAG]) {
   };
 
   IText.prototype._render = function renderNameLabel(ctx) {
-    if (this.textId) {
+    if (this.textId && this.labelBackgroundEnabled !== false) {
       const width = Number(this.width) || 0;
       const height = Number(this.height) || 0;
       const fontSize = Number(this.fontSize) || 56;
