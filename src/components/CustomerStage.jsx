@@ -26,12 +26,21 @@ function loadDisplayImage(url) {
   }));
 }
 
-function dimensionsFor(image) {
-  const ratio = Math.min(1, 1200 / image.naturalWidth);
+function dimensionsFor(image, maxSide = 1200) {
+  const naturalWidth = image.naturalWidth || image.width || 1;
+  const naturalHeight = image.naturalHeight || image.height || 1;
+  const longestSide = Math.max(naturalWidth, naturalHeight);
+  const ratio = Math.min(1, maxSide / longestSide);
   return {
-    width: Math.round(image.naturalWidth * ratio),
-    height: Math.round(image.naturalHeight * ratio),
+    width: Math.max(1, Math.round(naturalWidth * ratio)),
+    height: Math.max(1, Math.round(naturalHeight * ratio)),
   };
+}
+
+function exportDimensionsFor(image) {
+  // Mantém o editor leve, mas gera a arte final em resolução de produção.
+  // 3600 px no maior lado preserva muito mais detalhe sem explodir memória no navegador.
+  return dimensionsFor(image, 3600);
 }
 
 function randomId(prefix) {
@@ -131,7 +140,10 @@ const CustomerStage = forwardRef(function CustomerStage({
       sourcePage: object.sourcePage || 1,
       sourcePageCount: object.sourcePageCount || 1,
       originalUrl: object.originalUrl || object.sourceUrl || object.storageUrl,
+      highResUrl: object.highResUrl || object.storageUrl || object.sourceUrl || '',
+      printUrl: object.printUrl || object.processedHighResUrl || object.processedUrl || object.storageUrl || '',
       processedUrl: object.processedUrl || '',
+      processedHighResUrl: object.processedHighResUrl || object.processedUrl || '',
       backgroundRemoved: Boolean(object.backgroundRemoved),
       logoColorMode: object.logoColorMode || 'original',
       logoColor: object.logoColor || '#111827',
@@ -285,7 +297,10 @@ const CustomerStage = forwardRef(function CustomerStage({
     object.sourcePage = metadata.sourcePage || 1;
     object.sourcePageCount = metadata.sourcePageCount || 1;
     object.originalUrl = metadata.originalUrl || metadata.sourceUrl || storageUrl;
+    object.highResUrl = metadata.highResUrl || storageUrl;
+    object.printUrl = metadata.printUrl || metadata.processedHighResUrl || metadata.processedUrl || storageUrl;
     object.processedUrl = metadata.processedUrl || '';
+    object.processedHighResUrl = metadata.processedHighResUrl || metadata.processedUrl || '';
     object.backgroundRemoved = Boolean(metadata.backgroundRemoved);
     object.logoColorMode = logoColorMode;
     object.logoColor = logoColor;
@@ -560,7 +575,10 @@ const CustomerStage = forwardRef(function CustomerStage({
       active.setElement(imageElement);
       active.set('opacity', 1);
       active.storageUrl = storageUrl;
+      active.highResUrl = metadata.highResUrl || active.highResUrl || storageUrl;
       active.processedUrl = metadata.processedUrl || storageUrl;
+      active.processedHighResUrl = metadata.processedHighResUrl || metadata.processedUrl || storageUrl;
+      active.printUrl = metadata.printUrl || active.processedHighResUrl || active.processedUrl || storageUrl;
       active.backgroundRemoved = metadata.backgroundRemoved ?? true;
       if (metadata.originalUrl) active.originalUrl = metadata.originalUrl;
       if (metadata.sourceUrl) active.sourceUrl = metadata.sourceUrl;
@@ -653,7 +671,7 @@ const CustomerStage = forwardRef(function CustomerStage({
       const url = garment.images?.[targetView];
       if (!url) return null;
       const image = await loadImage(url);
-      const { width, height } = dimensionsFor(image);
+      const { width, height } = exportDimensionsFor(image);
       const result = document.createElement('canvas');
       result.width = width;
       result.height = height;
@@ -662,18 +680,45 @@ const CustomerStage = forwardRef(function CustomerStage({
 
       for (const object of designObjects().filter((item) => item.designView === targetView)) {
         if (object.logoId) {
-          const element = object.getElement();
-          const drawWidth = object.normScale * width;
-          const elementWidth = element?.naturalWidth || element?.width || 1;
-          const elementHeight = element?.naturalHeight || element?.height || 1;
-          const ratio = elementHeight / elementWidth;
-          const drawHeight = drawWidth * ratio;
-          ctx.save();
-          ctx.globalAlpha = Number.isFinite(object.logoOpacity) ? object.logoOpacity / 100 : (object.opacity ?? 1);
-          ctx.translate(object.normX * width, object.normY * height);
-          ctx.rotate(((object.angle ?? 0) * Math.PI) / 180);
-          ctx.drawImage(element, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
-          ctx.restore();
+          const bestSource = object.processedHighResUrl
+            || object.printUrl
+            || object.processedUrl
+            || object.highResUrl
+            || object.storageUrl
+            || object.sourceUrl;
+
+          let element = object.getElement();
+          let temporaryUrl = '';
+          try {
+            if (bestSource) {
+              if (object.logoColorMode && object.logoColorMode !== 'original') {
+                const recolored = await recolorLogoSource(bestSource, {
+                  color: object.logoColor || '#111827',
+                  mode: object.logoColorMode,
+                });
+                temporaryUrl = recolored.url;
+                element = await loadImage(recolored.url);
+              } else {
+                element = await loadImage(bestSource);
+              }
+            }
+
+            const drawWidth = object.normScale * width;
+            const elementWidth = element?.naturalWidth || element?.width || 1;
+            const elementHeight = element?.naturalHeight || element?.height || 1;
+            const ratio = elementHeight / elementWidth;
+            const drawHeight = drawWidth * ratio;
+            ctx.save();
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.globalAlpha = Number.isFinite(object.logoOpacity) ? object.logoOpacity / 100 : (object.opacity ?? 1);
+            ctx.translate(object.normX * width, object.normY * height);
+            ctx.rotate(((object.angle ?? 0) * Math.PI) / 180);
+            ctx.drawImage(element, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+            ctx.restore();
+          } finally {
+            if (temporaryUrl) URL.revokeObjectURL(temporaryUrl);
+          }
         } else if (object.textId) {
           const serialized = serializeText(object);
           const desiredWidth = Math.max(20, serialized.position.scale * width);
