@@ -13,7 +13,7 @@ async function renderPage(pdfDocument, file, pageNumber) {
   const page = await pdfDocument.getPage(pageNumber);
   const naturalViewport = page.getViewport({ scale: 1 });
   const longestSide = Math.max(naturalViewport.width, naturalViewport.height);
-  const scale = Math.min(4, Math.max(2, 2200 / Math.max(longestSide, 1)));
+  const scale = Math.min(6, Math.max(2.5, 4096 / Math.max(longestSide, 1)));
   const viewport = page.getViewport({ scale });
 
   const canvas = document.createElement('canvas');
@@ -31,7 +31,7 @@ async function renderPage(pdfDocument, file, pageNumber) {
     canvas.toBlob((value) => {
       if (value) resolve(value);
       else reject(new Error('Não foi possível gerar a prévia do PDF.'));
-    }, 'image/png', 0.96);
+    }, 'image/png');
   });
 
   return new File(
