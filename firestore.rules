@@ -111,7 +111,6 @@ service cloud.firestore {
 
     function isSellerRevisionUpdate() {
       return (isAdmin() || (isSeller() && resource.data.sellerUid == request.auth.uid))
-        && resource.data.approvalStatus == 'changes_requested'
         && request.resource.data.approvalStatus == 'pending'
         && request.resource.data.status == 'approval'
         && request.resource.data.designVersion == resource.data.designVersion + 1
@@ -146,7 +145,6 @@ service cloud.firestore {
 
     function isSellerSummaryRevisionUpdate(uid) {
       return (isAdmin() || (isSeller() && request.auth.uid == uid))
-        && resource.data.approvalStatus == 'changes_requested'
         && request.resource.data.approvalStatus == 'pending'
         && request.resource.data.status == 'approval'
         && request.resource.data.designVersion == resource.data.designVersion + 1
@@ -179,7 +177,7 @@ service cloud.firestore {
         && request.resource.data.finalImages is map;
       allow get: if isAdmin() || isProduction() || (isSeller() && resource.data.sellerUid == request.auth.uid);
       allow list: if isAdmin() || isProduction();
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || (isSeller() && resource.data.sellerUid == request.auth.uid);
       allow update: if isAdmin() || isProductionOrderUpdate() || isPublicApprovalUpdate() || isSellerRevisionUpdate() || isSellerTechnicalSheetUpdate();
     }
 
@@ -194,7 +192,7 @@ service cloud.firestore {
         || isProductionSellerSummaryUpdate()
         || isPublicSellerSummaryApprovalUpdate()
         || isSellerSummaryRevisionUpdate(uid);
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || (isSeller() && request.auth.uid == uid);
     }
 
     match /system/orderCounter {
@@ -221,7 +219,7 @@ service cloud.firestore {
           'note',
           'respondedAt'
         ]);
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || (isSeller() && resource.data.sellerUid == request.auth.uid);
     }
 
     match /customers/{customerId} {
