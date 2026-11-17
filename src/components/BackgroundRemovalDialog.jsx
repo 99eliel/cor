@@ -234,7 +234,24 @@ export default function BackgroundRemovalDialog({
 
   async function apply() {
     if (!previewBlob || processing) return;
-    await onApply?.(previewBlob);
+    setProcessing(true);
+    setError('');
+    try {
+      // A prévia continua leve, mas o arquivo aplicado é reprocessado
+      // a partir da fonte em resolução alta para preservar bordas e letras.
+      const highResPrepared = await prepareBackgroundRemoval(source, 4096);
+      const highResBlob = await processBackgroundRemoval(highResPrepared, {
+        backgroundColor: selectedColor,
+        tolerance,
+        feather,
+        removeInternalIslands,
+      });
+      await onApply?.(highResBlob);
+    } catch (err) {
+      setError(err?.message || 'Não foi possível gerar o recorte em alta qualidade.');
+    } finally {
+      setProcessing(false);
+    }
   }
 
   function openMaskEditor(blob) {
