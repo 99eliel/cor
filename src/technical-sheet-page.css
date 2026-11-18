@@ -203,3 +203,271 @@ body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .technical-sheet-split-grid.is-split-2{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:minmax(0,1fr)}
   .technical-sheet-split-grid.is-split-4{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr))}
 }
+
+/* Multi-page production print: prioritize visibility and detail */
+.technical-sheet-print-page{display:flex;flex-direction:column;gap:8px}
+.technical-sheet-print-page+.technical-sheet-print-page{margin-top:14px;padding-top:14px;border-top:2px dashed #c8d3dc}
+.technical-sheet-logo-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.technical-sheet-logo-detail-grid figure{display:grid;gap:10px;margin:0;padding:14px;border:1px solid #d4dfe8;border-radius:12px;background:#fafcfd}
+.technical-sheet-logo-detail-image{display:grid;place-items:center;min-height:220px;padding:12px;background:#fff;border:1px solid #e0e7ed;border-radius:10px}
+.technical-sheet-logo-detail-image img{display:block;width:auto;height:auto;max-width:96%;max-height:210px;object-fit:contain}
+.technical-sheet-logo-detail-grid figcaption{display:grid;gap:3px}
+.technical-sheet-logo-detail-grid figcaption strong{color:#17324b;font-size:.82rem;overflow-wrap:anywhere}
+.technical-sheet-logo-detail-grid figcaption span{color:#6a7d8f;font-size:.68rem}
+
+@media print{
+  @page{size:A4 portrait;margin:8mm}
+
+  html,body,#root{
+    width:auto!important;
+    height:auto!important;
+    margin:0!important;
+    padding:0!important;
+    background:#fff!important;
+  }
+
+  .technical-sheet-screen{
+    width:auto!important;
+    margin:0!important;
+    padding:0!important;
+    background:#fff!important;
+  }
+
+  .technical-sheet-paper{
+    width:auto!important;
+    height:auto!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    box-shadow:none!important;
+    overflow:visible!important;
+    display:block!important;
+  }
+
+  .technical-sheet-print-page{
+    box-sizing:border-box;
+    width:100%;
+    min-height:275mm;
+    margin:0!important;
+    padding:0!important;
+    border:0!important;
+    display:flex;
+    flex-direction:column;
+    gap:2mm;
+    break-after:page;
+    page-break-after:always;
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+
+  .technical-sheet-print-page:last-child{
+    break-after:auto;
+    page-break-after:auto;
+  }
+
+  .technical-sheet-print-page+.technical-sheet-print-page{
+    margin-top:0!important;
+    padding-top:0!important;
+    border-top:0!important;
+  }
+
+  .technical-sheet-titlebar{
+    flex:0 0 auto!important;
+    min-height:9mm!important;
+    height:auto!important;
+    margin:0 0 2mm!important;
+    padding:1.5mm 3mm!important;
+    font-size:13pt!important;
+    line-height:1.15!important;
+  }
+
+  .technical-sheet-header-grid{
+    flex:0 0 auto!important;
+    min-height:0!important;
+    grid-template-columns:33mm minmax(0,1fr)!important;
+    gap:3mm!important;
+    margin:0 0 2mm!important;
+    overflow:visible!important;
+  }
+
+  .technical-sheet-logo{padding:1.5mm!important}
+  .technical-sheet-logo img{width:30mm!important;max-height:30mm!important}
+
+  .technical-sheet-meta-table{font-size:8pt!important}
+  .technical-sheet-meta-table th,
+  .technical-sheet-meta-table td{
+    height:8mm!important;
+    min-height:8mm!important;
+  }
+  .technical-sheet-meta-table th{
+    width:24mm!important;
+    padding:1.2mm 1.5mm!important;
+    font-size:7.2pt!important;
+  }
+  .technical-sheet-meta-table input{
+    min-height:7.8mm!important;
+    height:7.8mm!important;
+    padding:1mm 1.5mm!important;
+    font-size:8pt!important;
+  }
+
+  .technical-sheet-drawing-main{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    height:auto!important;
+    margin:0!important;
+    padding:4mm!important;
+    gap:3mm!important;
+    overflow:visible!important;
+  }
+
+  .technical-sheet-garments{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    height:auto!important;
+    gap:4mm!important;
+  }
+
+  .technical-sheet-garments img{
+    max-width:100%!important;
+    max-height:185mm!important;
+  }
+
+  .technical-sheet-garments.count-1 img{
+    max-width:100%!important;
+    max-height:190mm!important;
+  }
+
+  .technical-sheet-garments.count-2 img{
+    max-width:100%!important;
+    max-height:180mm!important;
+  }
+
+  .technical-sheet-garments.count-3 img{
+    max-width:100%!important;
+    max-height:170mm!important;
+  }
+
+  .technical-sheet-garments figcaption,
+  .technical-sheet-split-grid figcaption{
+    margin-top:1.2mm!important;
+    font-size:7pt!important;
+  }
+
+  .technical-sheet-split-grid{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    gap:4mm!important;
+    overflow:visible!important;
+  }
+
+  .technical-sheet-split-grid img{
+    max-width:100%!important;
+    max-height:100%!important;
+  }
+
+  .technical-sheet-split-grid.is-split-2{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    grid-template-rows:1fr!important;
+  }
+
+  .technical-sheet-split-grid.is-split-4{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    grid-template-rows:repeat(2,minmax(0,1fr))!important;
+  }
+
+  .technical-sheet-logo-detail-grid{
+    flex:1 1 auto;
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    align-content:start;
+    gap:5mm;
+  }
+
+  .technical-sheet-logo-detail-grid figure{
+    min-height:75mm;
+    padding:3mm;
+    border:.3mm solid #cfd9e2;
+    border-radius:2mm;
+    background:#fff;
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+
+  .technical-sheet-logo-detail-image{
+    min-height:60mm;
+    padding:3mm;
+    border:.25mm solid #e0e6eb;
+    border-radius:1.5mm;
+  }
+
+  .technical-sheet-logo-detail-image img{
+    max-width:98%!important;
+    max-height:58mm!important;
+  }
+
+  .technical-sheet-logo-detail-grid figcaption{
+    gap:1mm;
+  }
+
+  .technical-sheet-logo-detail-grid figcaption strong{
+    font-size:8pt!important;
+  }
+
+  .technical-sheet-logo-detail-grid figcaption span{
+    font-size:6.5pt!important;
+  }
+
+  .technical-sheet-measurements{
+    flex:1 1 auto!important;
+    max-height:none!important;
+    overflow:visible!important;
+    border-top:1px solid #3d4650!important;
+  }
+
+  .technical-sheet-table-scroll{
+    overflow:visible!important;
+  }
+
+  .technical-sheet-measurements table{
+    width:100%!important;
+    min-width:0!important;
+    font-size:8pt!important;
+    table-layout:fixed!important;
+  }
+
+  .technical-sheet-measurements th,
+  .technical-sheet-measurements td{
+    height:10mm!important;
+    padding:1.4mm!important;
+    font-size:8pt!important;
+  }
+
+  .technical-sheet-measurements thead th{
+    height:8mm!important;
+    font-size:7pt!important;
+  }
+
+  .technical-sheet-measurements thead th:first-child,
+  .technical-sheet-measurements tbody th{
+    width:22mm!important;
+  }
+
+  .technical-sheet-measurement-image{
+    display:block!important;
+    width:auto!important;
+    max-width:100%!important;
+    max-height:235mm!important;
+    object-fit:contain!important;
+    margin:auto!important;
+  }
+
+  .technical-sheet-footer{
+    flex:0 0 auto!important;
+    min-height:5mm!important;
+    margin-top:auto!important;
+    padding:2mm 1mm 0!important;
+    font-size:6.5pt!important;
+  }
+}
