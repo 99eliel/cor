@@ -177,7 +177,9 @@ export async function saveTechnicalSheet(orderId, technicalSheet = {}) {
 
   const clean = (value, max = 180) => String(value ?? '').trim().slice(0, max);
   const fields = technicalSheet?.fields || {};
-  const drawingLayout = technicalSheet?.drawingLayout === 'split-2x2' ? 'split-2x2' : 'original';
+  const drawingLayout = ['split-2', 'split-4', 'split-2x2'].includes(technicalSheet?.drawingLayout)
+    ? (technicalSheet.drawingLayout === 'split-2x2' ? 'split-4' : technicalSheet.drawingLayout)
+    : 'original';
 
   await updateDoc(doc(db, 'orders', orderId), {
     technicalSheet: {
