@@ -180,6 +180,27 @@ export async function saveTechnicalSheet(orderId, technicalSheet = {}) {
   const drawingLayout = ['split-2', 'split-4', 'split-2x2'].includes(technicalSheet?.drawingLayout)
     ? (technicalSheet.drawingLayout === 'split-2x2' ? 'split-4' : technicalSheet.drawingLayout)
     : 'original';
+  const layoutSource = technicalSheet?.layoutConfig && typeof technicalSheet.layoutConfig === 'object'
+    ? technicalSheet.layoutConfig
+    : {};
+  const allowedIds = new Set(['header', 'drawing', 'logos', 'measurements']);
+  const seen = new Set();
+  const blocks = (Array.isArray(layoutSource.blocks) ? layoutSource.blocks : [])
+    .filter((block) => {
+      if (!allowedIds.has(block?.id) || seen.has(block.id)) return false;
+      seen.add(block.id);
+      return true;
+    })
+    .map((block) => ({
+      id: block.id,
+      visible: block.visible !== false,
+      size: ['small', 'medium', 'large', 'full'].includes(block.size) ? block.size : 'medium',
+      breakBefore: Boolean(block.breakBefore),
+    }));
+  const layoutConfig = {
+    preset: ['compact', 'standard', 'detailed', 'custom'].includes(layoutSource.preset) ? layoutSource.preset : 'custom',
+    blocks,
+  };
 
   await updateDoc(doc(db, 'orders', orderId), {
     technicalSheet: {
@@ -195,6 +216,7 @@ export async function saveTechnicalSheet(orderId, technicalSheet = {}) {
         notes: clean(fields.notes, 500),
       },
       drawingLayout,
+      layoutConfig,
       savedAt: new Date().toISOString(),
     },
     updatedAt: serverTimestamp(),
