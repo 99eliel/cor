@@ -177,6 +177,7 @@ export async function saveTechnicalSheet(orderId, technicalSheet = {}) {
 
   const clean = (value, max = 180) => String(value ?? '').trim().slice(0, max);
   const fields = technicalSheet?.fields || {};
+  const drawingLayout = technicalSheet?.drawingLayout === 'split-2x2' ? 'split-2x2' : 'original';
 
   await updateDoc(doc(db, 'orders', orderId), {
     technicalSheet: {
@@ -191,6 +192,7 @@ export async function saveTechnicalSheet(orderId, technicalSheet = {}) {
         printColor: clean(fields.printColor),
         notes: clean(fields.notes, 500),
       },
+      drawingLayout,
       savedAt: new Date().toISOString(),
     },
     updatedAt: serverTimestamp(),
