@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 
-const LABELS = ['Frente', 'Costas', 'Lateral esquerda', 'Lateral direita'];
+const LABELS = {
+  'split-2': ['Frente', 'Costas'],
+  'split-4': ['Frente', 'Costas', 'Lateral esquerda', 'Lateral direita'],
+};
 
-function splitIntoQuadrants(source) {
+function splitDrawing(source, mode = 'split-4') {
   return new Promise((resolve) => {
     if (!source) return resolve([]);
 
@@ -17,14 +20,19 @@ function splitIntoQuadrants(source) {
 
         const halfW = Math.floor(width / 2);
         const halfH = Math.floor(height / 2);
-        const quadrants = [
-          [0, 0, halfW, halfH],
-          [halfW, 0, width - halfW, halfH],
-          [0, halfH, halfW, height - halfH],
-          [halfW, halfH, width - halfW, height - halfH],
-        ];
+        const cuts = mode === 'split-2'
+          ? [
+            [0, 0, halfW, height],
+            [halfW, 0, width - halfW, height],
+          ]
+          : [
+            [0, 0, halfW, halfH],
+            [halfW, 0, width - halfW, halfH],
+            [0, halfH, halfW, height - halfH],
+            [halfW, halfH, width - halfW, height - halfH],
+          ];
 
-        const results = quadrants.map(([sx, sy, sw, sh]) => {
+        const results = cuts.map(([sx, sy, sw, sh]) => {
           const canvas = document.createElement('canvas');
           canvas.width = sw;
           canvas.height = sh;
@@ -47,26 +55,26 @@ function splitIntoQuadrants(source) {
   });
 }
 
-export default function TechnicalSplitDrawing({ src }) {
+export default function TechnicalSplitDrawing({ src, mode = 'split-4' }) {
   const [parts, setParts] = useState([]);
 
   useEffect(() => {
     let active = true;
     setParts([]);
-    splitIntoQuadrants(src).then((result) => {
+    splitDrawing(src, mode).then((result) => {
       if (active) setParts(result);
     });
     return () => { active = false; };
-  }, [src]);
+  }, [src, mode]);
 
   if (!parts.length) return null;
 
   return (
     <div className="technical-sheet-split-grid">
       {parts.map((part, index) => (
-        <figure key={LABELS[index]}>
-          <img src={part} alt={LABELS[index]} />
-          <figcaption>{LABELS[index]}</figcaption>
+        <figure key={(LABELS[mode] || LABELS['split-4'])[index]}>
+          <img src={part} alt={(LABELS[mode] || LABELS['split-4'])[index]} />
+          <figcaption>{(LABELS[mode] || LABELS['split-4'])[index]}</figcaption>
         </figure>
       ))}
     </div>
