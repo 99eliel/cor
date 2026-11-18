@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import TechnicalLogoPreview from '../components/TechnicalLogoPreview';
 import TechnicalDrawingPreview from '../components/TechnicalDrawingPreview';
+import TechnicalSplitDrawing from '../components/TechnicalSplitDrawing';
 import { MARTINPEL_LOGO_DATA_URL } from '../lib/martinpelLogo';
 import { getGarment } from '../lib/garmentRepo';
 import { getOrderById, saveTechnicalSheet } from '../lib/orderRepo';
@@ -59,6 +60,7 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
   const [order, setOrder] = useState(null);
   const [garment, setGarment] = useState(null);
   const [fields, setFields] = useState(EMPTY_FIELDS);
+  const [drawingLayout, setDrawingLayout] = useState('original');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -80,6 +82,7 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
           ...EMPTY_FIELDS,
           ...(orderData.technicalSheet?.fields || {}),
         });
+        setDrawingLayout(orderData.technicalSheet?.drawingLayout === 'split-2x2' ? 'split-2x2' : 'original');
       })
       .catch((err) => active && setError(err.message || 'Não foi possível abrir a ficha técnica.'))
       .finally(() => active && setLoading(false));
@@ -110,10 +113,10 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
     setSaving(true);
     setError('');
     try {
-      await saveTechnicalSheet(orderId, { fields });
+      await saveTechnicalSheet(orderId, { fields, drawingLayout });
       setOrder((current) => current ? {
         ...current,
-        technicalSheet: { fields: { ...fields }, savedAt: new Date().toISOString() },
+        technicalSheet: { fields: { ...fields }, drawingLayout, savedAt: new Date().toISOString() },
       } : current);
       if (!silent) setMessage('Ficha técnica salva no pedido.');
       return true;
@@ -154,6 +157,25 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
           <small>Preencha o cabeçalho, confira a arte e salve antes de imprimir.</small>
         </div>
         <div className="technical-sheet-toolbar-actions">
+          <div className="technical-sheet-layout-toggle">
+            <span>Formato do desenho</span>
+            <button
+              type="button"
+              className={drawingLayout === 'original' ? 'active' : ''}
+              onClick={() => setDrawingLayout('original')}
+            >
+              Original
+            </button>
+            <button
+              type="button"
+              className={drawingLayout === 'split-2x2' ? 'active' : ''}
+              onClick={() => setDrawingLayout('split-2x2')}
+              disabled={drawings.length !== 1}
+              title={drawings.length === 1 ? 'Divide a prancha atual em frente, costas e laterais.' : 'Disponível quando existe uma única imagem de desenho técnico.'}
+            >
+              Dividir prancha 2x2
+            </button>
+          </div>
           <Link className="button button-secondary" to={isAdmin ? '/admin' : '/meus-pedidos'}>← Voltar</Link>
           <button className="button button-secondary" type="button" onClick={() => save()} disabled={saving}>
             {saving ? 'Salvando…' : 'Salvar ficha'}
@@ -223,14 +245,18 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
 
         <section className="technical-sheet-drawing">
           {drawings.length ? (
-            <div className={`technical-sheet-garments count-${Math.min(drawings.length, 3)}`}>
-              {drawings.map(([view, url]) => (
-                <figure key={view}>
-                  <TechnicalDrawingPreview src={url} alt={VIEW_LABELS[view] || view} />
-                  <figcaption>{VIEW_LABELS[view] || view}</figcaption>
-                </figure>
-              ))}
-            </div>
+            drawingLayout === 'split-2x2' && drawings.length === 1 ? (
+              <TechnicalSplitDrawing src={drawings[0][1]} />
+            ) : (
+              <div className={`technical-sheet-garments count-${Math.min(drawings.length, 3)}`}>
+                {drawings.map(([view, url]) => (
+                  <figure key={view}>
+                    <TechnicalDrawingPreview src={url} alt={VIEW_LABELS[view] || view} />
+                    <figcaption>{VIEW_LABELS[view] || view}</figcaption>
+                  </figure>
+                ))}
+              </div>
+            )
           ) : (
             <div className="technical-sheet-empty-art">Arte final do pedido não encontrada.</div>
           )}
