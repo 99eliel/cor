@@ -208,117 +208,141 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
       )}
 
       <article className="technical-sheet-paper">
-        <div className="technical-sheet-titlebar">FICHA TÉCNICA</div>
+        <section className="technical-sheet-print-page technical-sheet-print-page-main">
+          <div className="technical-sheet-titlebar">FICHA TÉCNICA</div>
 
-        <section className="technical-sheet-header-grid">
-          <div className="technical-sheet-logo">
-            <img src={MARTINPEL_LOGO_DATA_URL} alt="Martinpel Uniformes e EPI's" />
-          </div>
+          <section className="technical-sheet-header-grid">
+            <div className="technical-sheet-logo">
+              <img src={MARTINPEL_LOGO_DATA_URL} alt="Martinpel Uniformes e EPI's" />
+            </div>
 
-          <table className="technical-sheet-meta-table">
-            <tbody>
-              <tr>
-                <th>DESCRIÇÃO</th>
-                <td colSpan="3">
-                  <input
-                    value={fields.description}
-                    onChange={(event) => updateField('description', event.target.value)}
-                    placeholder={order.garmentName || 'Preencher'}
-                  />
-                </td>
-              </tr>
-              <tr>
-                <th>REFERÊNCIA</th>
-                <td><input value={fields.reference} onChange={(event) => updateField('reference', event.target.value)} /></td>
-                <th>TECIDO</th>
-                <td><input value={fields.fabric} onChange={(event) => updateField('fabric', event.target.value)} /></td>
-              </tr>
-              <tr>
-                <th>CLIENTE</th>
-                <td><input value={fields.customer} onChange={(event) => updateField('customer', event.target.value)} placeholder={order.customerName || ''} /></td>
-                <th>COR</th>
-                <td><input value={fields.color} onChange={(event) => updateField('color', event.target.value)} /></td>
-              </tr>
-              <tr>
-                <th>ESTAMPA</th>
-                <td><input value={fields.print} onChange={(event) => updateField('print', event.target.value)} /></td>
-                <th>GRAMATURA</th>
-                <td><input value={fields.weight} onChange={(event) => updateField('weight', event.target.value)} /></td>
-              </tr>
-              <tr>
-                <th>COR ESTAMPA</th>
-                <td><input value={fields.printColor} onChange={(event) => updateField('printColor', event.target.value)} /></td>
-                <th>OBS</th>
-                <td><input value={fields.notes} onChange={(event) => updateField('notes', event.target.value)} /></td>
-              </tr>
-            </tbody>
-          </table>
+            <table className="technical-sheet-meta-table">
+              <tbody>
+                <tr>
+                  <th>DESCRIÇÃO</th>
+                  <td colSpan="3">
+                    <input
+                      value={fields.description}
+                      onChange={(event) => updateField('description', event.target.value)}
+                      placeholder={order.garmentName || 'Preencher'}
+                    />
+                  </td>
+                </tr>
+                <tr>
+                  <th>REFERÊNCIA</th>
+                  <td><input value={fields.reference} onChange={(event) => updateField('reference', event.target.value)} /></td>
+                  <th>TECIDO</th>
+                  <td><input value={fields.fabric} onChange={(event) => updateField('fabric', event.target.value)} /></td>
+                </tr>
+                <tr>
+                  <th>CLIENTE</th>
+                  <td><input value={fields.customer} onChange={(event) => updateField('customer', event.target.value)} placeholder={order.customerName || ''} /></td>
+                  <th>COR</th>
+                  <td><input value={fields.color} onChange={(event) => updateField('color', event.target.value)} /></td>
+                </tr>
+                <tr>
+                  <th>ESTAMPA</th>
+                  <td><input value={fields.print} onChange={(event) => updateField('print', event.target.value)} /></td>
+                  <th>GRAMATURA</th>
+                  <td><input value={fields.weight} onChange={(event) => updateField('weight', event.target.value)} /></td>
+                </tr>
+                <tr>
+                  <th>COR ESTAMPA</th>
+                  <td><input value={fields.printColor} onChange={(event) => updateField('printColor', event.target.value)} /></td>
+                  <th>OBS</th>
+                  <td><input value={fields.notes} onChange={(event) => updateField('notes', event.target.value)} /></td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <div className="technical-sheet-titlebar">DESENHO TÉCNICO</div>
+
+          <section className="technical-sheet-drawing technical-sheet-drawing-main">
+            {drawings.length ? (
+              ['split-2', 'split-4'].includes(drawingLayout) && drawings.length === 1 ? (
+                <TechnicalSplitDrawing src={drawings[0][1]} mode={drawingLayout} />
+              ) : (
+                <div className={`technical-sheet-garments count-${Math.min(drawings.length, 3)}`}>
+                  {drawings.map(([view, url]) => (
+                    <figure key={view}>
+                      <TechnicalDrawingPreview src={url} alt={VIEW_LABELS[view] || view} />
+                      <figcaption>{VIEW_LABELS[view] || view}</figcaption>
+                    </figure>
+                  ))}
+                </div>
+              )
+            ) : (
+              <div className="technical-sheet-empty-art">Arte final do pedido não encontrada.</div>
+            )}
+          </section>
+
+          <footer className="technical-sheet-footer">
+            <span>Pedido: {order.displayCode || order.id}</span>
+            <span>Quantidade: {Number(order.quantity) || 0}</span>
+            <span>Versão: V{Number(order.designVersion) || 1}</span>
+          </footer>
         </section>
 
-        <div className="technical-sheet-titlebar">DESENHO TÉCNICO</div>
-
-        <section className="technical-sheet-drawing">
-          {drawings.length ? (
-            ['split-2', 'split-4'].includes(drawingLayout) && drawings.length === 1 ? (
-              <TechnicalSplitDrawing src={drawings[0][1]} mode={drawingLayout} />
-            ) : (
-              <div className={`technical-sheet-garments count-${Math.min(drawings.length, 3)}`}>
-                {drawings.map(([view, url]) => (
-                  <figure key={view}>
-                    <TechnicalDrawingPreview src={url} alt={VIEW_LABELS[view] || view} />
-                    <figcaption>{VIEW_LABELS[view] || view}</figcaption>
-                  </figure>
-                ))}
-              </div>
-            )
-          ) : (
-            <div className="technical-sheet-empty-art">Arte final do pedido não encontrada.</div>
-          )}
-
-          {logoPreviews.length > 0 && (
-            <div className="technical-sheet-logo-strip">
+        {logoPreviews.length > 0 && (
+          <section className="technical-sheet-print-page technical-sheet-print-page-logos">
+            <div className="technical-sheet-titlebar">LOGOS E DETALHES DE PERSONALIZAÇÃO</div>
+            <div className="technical-sheet-logo-detail-grid">
               {logoPreviews.map((logo, index) => (
                 <figure key={logo.id || `${logo.sourceName}-${index}`}>
-                  <TechnicalLogoPreview src={logo.preview} alt={logo.sourceName || `Logo ${index + 1}`} />
-                  <figcaption>{logo.sourceName || `Logo ${index + 1}`}</figcaption>
+                  <div className="technical-sheet-logo-detail-image">
+                    <TechnicalLogoPreview src={logo.preview} alt={logo.sourceName || `Logo ${index + 1}`} />
+                  </div>
+                  <figcaption>
+                    <strong>{logo.sourceName || `Logo ${index + 1}`}</strong>
+                    <span>{logo.sourceType === 'pdf' ? 'Arquivo vetorial / PDF' : 'Imagem utilizada no pedido'}</span>
+                  </figcaption>
                 </figure>
               ))}
             </div>
-          )}
-        </section>
 
-        <div className="technical-sheet-titlebar">TABELA DE MEDIDAS</div>
+            <footer className="technical-sheet-footer">
+              <span>Pedido: {order.displayCode || order.id}</span>
+              <span>Logos: {logoPreviews.length}</span>
+              <span>Versão: V{Number(order.designVersion) || 1}</span>
+            </footer>
+          </section>
+        )}
 
-        <section className="technical-sheet-measurements">
-          {guide.imageUrl && !guide.hasStructuredRows ? (
-            <img className="technical-sheet-measurement-image" src={guide.imageUrl} alt={guide.title || 'Tabela de medidas'} />
-          ) : (
-            <div className="technical-sheet-table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>NOME</th>
-                    {guide.columns.map((column) => <th key={column}>{column}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {guide.rows.map((row) => (
-                    <tr key={row.id}>
-                      <th>{row.label || '—'}</th>
-                      {guide.columns.map((column) => <td key={column}>{row.values?.[column] || ''}</td>)}
+        <section className="technical-sheet-print-page technical-sheet-print-page-measurements">
+          <div className="technical-sheet-titlebar">TABELA DE MEDIDAS</div>
+
+          <section className="technical-sheet-measurements">
+            {guide.imageUrl && !guide.hasStructuredRows ? (
+              <img className="technical-sheet-measurement-image" src={guide.imageUrl} alt={guide.title || 'Tabela de medidas'} />
+            ) : (
+              <div className="technical-sheet-table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>NOME</th>
+                      {guide.columns.map((column) => <th key={column}>{column}</th>)}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
+                  </thead>
+                  <tbody>
+                    {guide.rows.map((row) => (
+                      <tr key={row.id}>
+                        <th>{row.label || '—'}</th>
+                        {guide.columns.map((column) => <td key={column}>{row.values?.[column] || ''}</td>)}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
 
-        <footer className="technical-sheet-footer">
-          <span>Pedido: {order.displayCode || order.id}</span>
-          <span>Quantidade: {Number(order.quantity) || 0}</span>
-          <span>Versão: V{Number(order.designVersion) || 1}</span>
-        </footer>
+          <footer className="technical-sheet-footer">
+            <span>Pedido: {order.displayCode || order.id}</span>
+            <span>Quantidade: {Number(order.quantity) || 0}</span>
+            <span>Versão: V{Number(order.designVersion) || 1}</span>
+          </footer>
+        </section>
       </article>
     </main>
   );
