@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import TechnicalLogoPreview from '../components/TechnicalLogoPreview';
 import TechnicalDrawingPreview from '../components/TechnicalDrawingPreview';
 import TechnicalSplitDrawing from '../components/TechnicalSplitDrawing';
+import TechnicalSheetLayoutEditor, { normalizeTechnicalSheetLayout } from '../components/TechnicalSheetLayoutEditor';
 import { MARTINPEL_LOGO_DATA_URL } from '../lib/martinpelLogo';
 import { getGarment } from '../lib/garmentRepo';
 import { getOrderById, saveTechnicalSheet } from '../lib/orderRepo';
@@ -61,6 +62,7 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
   const [garment, setGarment] = useState(null);
   const [fields, setFields] = useState(EMPTY_FIELDS);
   const [drawingLayout, setDrawingLayout] = useState('original');
+  const [layoutConfig, setLayoutConfig] = useState(() => normalizeTechnicalSheetLayout(null));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -88,6 +90,7 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
         setDrawingLayout(['split-2', 'split-4'].includes(normalizedLayout)
           ? normalizedLayout
           : (['split-2', 'split-4'].includes(garmentLayout) ? garmentLayout : 'original'));
+        setLayoutConfig(normalizeTechnicalSheetLayout(orderData.technicalSheet?.layoutConfig));
       })
       .catch((err) => active && setError(err.message || 'Não foi possível abrir a ficha técnica.'))
       .finally(() => active && setLoading(false));
@@ -118,10 +121,10 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
     setSaving(true);
     setError('');
     try {
-      await saveTechnicalSheet(orderId, { fields, drawingLayout });
+      await saveTechnicalSheet(orderId, { fields, drawingLayout, layoutConfig });
       setOrder((current) => current ? {
         ...current,
-        technicalSheet: { fields: { ...fields }, drawingLayout, savedAt: new Date().toISOString() },
+        technicalSheet: { fields: { ...fields }, drawingLayout, layoutConfig, savedAt: new Date().toISOString() },
       } : current);
       if (!silent) setMessage('Ficha técnica salva no pedido.');
       return true;
@@ -207,142 +210,163 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
         </div>
       )}
 
-      <article className="technical-sheet-paper">
-        <section className="technical-sheet-print-page technical-sheet-print-page-main">
-          <div className="technical-sheet-titlebar">FICHA TÉCNICA</div>
+      <TechnicalSheetLayoutEditor
+        value={layoutConfig}
+        onChange={setLayoutConfig}
+        hasLogos={logoPreviews.length > 0}
+      />
 
-          <section className="technical-sheet-header-grid">
-            <div className="technical-sheet-logo">
-              <img src={MARTINPEL_LOGO_DATA_URL} alt="Martinpel Uniformes e EPI's" />
-            </div>
+      <article className="technical-sheet-paper technical-sheet-configurable-paper">
+        {layoutConfig.blocks.map((block) => {
+          if (!block.visible) return null;
+          if (block.id === 'logos' && logoPreviews.length === 0) return null;
 
-            <table className="technical-sheet-meta-table">
-              <tbody>
-                <tr>
-                  <th>DESCRIÇÃO</th>
-                  <td colSpan="3">
-                    <input
-                      value={fields.description}
-                      onChange={(event) => updateField('description', event.target.value)}
-                      placeholder={order.garmentName || 'Preencher'}
-                    />
-                  </td>
-                </tr>
-                <tr>
-                  <th>REFERÊNCIA</th>
-                  <td><input value={fields.reference} onChange={(event) => updateField('reference', event.target.value)} /></td>
-                  <th>TECIDO</th>
-                  <td><input value={fields.fabric} onChange={(event) => updateField('fabric', event.target.value)} /></td>
-                </tr>
-                <tr>
-                  <th>CLIENTE</th>
-                  <td><input value={fields.customer} onChange={(event) => updateField('customer', event.target.value)} placeholder={order.customerName || ''} /></td>
-                  <th>COR</th>
-                  <td><input value={fields.color} onChange={(event) => updateField('color', event.target.value)} /></td>
-                </tr>
-                <tr>
-                  <th>ESTAMPA</th>
-                  <td><input value={fields.print} onChange={(event) => updateField('print', event.target.value)} /></td>
-                  <th>GRAMATURA</th>
-                  <td><input value={fields.weight} onChange={(event) => updateField('weight', event.target.value)} /></td>
-                </tr>
-                <tr>
-                  <th>COR ESTAMPA</th>
-                  <td><input value={fields.printColor} onChange={(event) => updateField('printColor', event.target.value)} /></td>
-                  <th>OBS</th>
-                  <td><input value={fields.notes} onChange={(event) => updateField('notes', event.target.value)} /></td>
-                </tr>
-              </tbody>
-            </table>
-          </section>
+          const className = [
+            'technical-sheet-layout-section',
+            `technical-sheet-layout-${block.id}`,
+            `technical-sheet-size-${block.size}`,
+            block.breakBefore ? 'technical-sheet-break-before' : '',
+          ].filter(Boolean).join(' ');
 
-          <div className="technical-sheet-titlebar">DESENHO TÉCNICO</div>
+          if (block.id === 'header') {
+            return (
+              <section className={className} key={block.id}>
+                <div className="technical-sheet-titlebar">FICHA TÉCNICA</div>
+                <section className="technical-sheet-header-grid">
+                  <div className="technical-sheet-logo">
+                    <img src={MARTINPEL_LOGO_DATA_URL} alt="Martinpel Uniformes e EPI's" />
+                  </div>
 
-          <section className="technical-sheet-drawing technical-sheet-drawing-main">
-            {drawings.length ? (
-              ['split-2', 'split-4'].includes(drawingLayout) && drawings.length === 1 ? (
-                <TechnicalSplitDrawing src={drawings[0][1]} mode={drawingLayout} />
-              ) : (
-                <div className={`technical-sheet-garments count-${Math.min(drawings.length, 3)}`}>
-                  {drawings.map(([view, url]) => (
-                    <figure key={view}>
-                      <TechnicalDrawingPreview src={url} alt={VIEW_LABELS[view] || view} />
-                      <figcaption>{VIEW_LABELS[view] || view}</figcaption>
+                  <table className="technical-sheet-meta-table">
+                    <tbody>
+                      <tr>
+                        <th>DESCRIÇÃO</th>
+                        <td colSpan="3">
+                          <input
+                            value={fields.description}
+                            onChange={(event) => updateField('description', event.target.value)}
+                            placeholder={order.garmentName || 'Preencher'}
+                          />
+                        </td>
+                      </tr>
+                      <tr>
+                        <th>REFERÊNCIA</th>
+                        <td><input value={fields.reference} onChange={(event) => updateField('reference', event.target.value)} /></td>
+                        <th>TECIDO</th>
+                        <td><input value={fields.fabric} onChange={(event) => updateField('fabric', event.target.value)} /></td>
+                      </tr>
+                      <tr>
+                        <th>CLIENTE</th>
+                        <td><input value={fields.customer} onChange={(event) => updateField('customer', event.target.value)} placeholder={order.customerName || ''} /></td>
+                        <th>COR</th>
+                        <td><input value={fields.color} onChange={(event) => updateField('color', event.target.value)} /></td>
+                      </tr>
+                      <tr>
+                        <th>ESTAMPA</th>
+                        <td><input value={fields.print} onChange={(event) => updateField('print', event.target.value)} /></td>
+                        <th>GRAMATURA</th>
+                        <td><input value={fields.weight} onChange={(event) => updateField('weight', event.target.value)} /></td>
+                      </tr>
+                      <tr>
+                        <th>COR ESTAMPA</th>
+                        <td><input value={fields.printColor} onChange={(event) => updateField('printColor', event.target.value)} /></td>
+                        <th>OBS</th>
+                        <td><input value={fields.notes} onChange={(event) => updateField('notes', event.target.value)} /></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </section>
+              </section>
+            );
+          }
+
+          if (block.id === 'drawing') {
+            return (
+              <section className={className} key={block.id}>
+                <div className="technical-sheet-titlebar">DESENHO TÉCNICO</div>
+                <section className="technical-sheet-drawing technical-sheet-drawing-main">
+                  {drawings.length ? (
+                    ['split-2', 'split-4'].includes(drawingLayout) && drawings.length === 1 ? (
+                      <TechnicalSplitDrawing src={drawings[0][1]} mode={drawingLayout} />
+                    ) : (
+                      <div className={`technical-sheet-garments count-${Math.min(drawings.length, 3)}`}>
+                        {drawings.map(([view, url]) => (
+                          <figure key={view}>
+                            <TechnicalDrawingPreview src={url} alt={VIEW_LABELS[view] || view} />
+                            <figcaption>{VIEW_LABELS[view] || view}</figcaption>
+                          </figure>
+                        ))}
+                      </div>
+                    )
+                  ) : (
+                    <div className="technical-sheet-empty-art">Arte final do pedido não encontrada.</div>
+                  )}
+                </section>
+              </section>
+            );
+          }
+
+          if (block.id === 'logos') {
+            return (
+              <section className={className} key={block.id}>
+                <div className="technical-sheet-titlebar">LOGOS E DETALHES DE PERSONALIZAÇÃO</div>
+                <div className="technical-sheet-logo-detail-grid">
+                  {logoPreviews.map((logo, index) => (
+                    <figure key={logo.id || `${logo.sourceName}-${index}`}>
+                      <div className="technical-sheet-logo-detail-image">
+                        <TechnicalLogoPreview src={logo.preview} alt={logo.sourceName || `Logo ${index + 1}`} />
+                      </div>
+                      <figcaption>
+                        <strong>{logo.sourceName || `Logo ${index + 1}`}</strong>
+                        <span>{logo.sourceType === 'pdf' ? 'Arquivo vetorial / PDF' : 'Imagem utilizada no pedido'}</span>
+                      </figcaption>
                     </figure>
                   ))}
                 </div>
-              )
-            ) : (
-              <div className="technical-sheet-empty-art">Arte final do pedido não encontrada.</div>
-            )}
-          </section>
+              </section>
+            );
+          }
 
-          <footer className="technical-sheet-footer">
-            <span>Pedido: {order.displayCode || order.id}</span>
-            <span>Quantidade: {Number(order.quantity) || 0}</span>
-            <span>Versão: V{Number(order.designVersion) || 1}</span>
-          </footer>
-        </section>
+          if (block.id === 'measurements') {
+            return (
+              <section className={className} key={block.id}>
+                <div className="technical-sheet-titlebar">TABELA DE MEDIDAS</div>
+                <section className="technical-sheet-measurements">
+                  {guide.imageUrl && !guide.hasStructuredRows ? (
+                    <img className="technical-sheet-measurement-image" src={guide.imageUrl} alt={guide.title || 'Tabela de medidas'} />
+                  ) : (
+                    <div className="technical-sheet-table-scroll">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>NOME</th>
+                            {guide.columns.map((column) => <th key={column}>{column}</th>)}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {guide.rows.map((row) => (
+                            <tr key={row.id}>
+                              <th>{row.label || '—'}</th>
+                              {guide.columns.map((column) => <td key={column}>{row.values?.[column] || ''}</td>)}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
+              </section>
+            );
+          }
 
-        {logoPreviews.length > 0 && (
-          <section className="technical-sheet-print-page technical-sheet-print-page-logos">
-            <div className="technical-sheet-titlebar">LOGOS E DETALHES DE PERSONALIZAÇÃO</div>
-            <div className="technical-sheet-logo-detail-grid">
-              {logoPreviews.map((logo, index) => (
-                <figure key={logo.id || `${logo.sourceName}-${index}`}>
-                  <div className="technical-sheet-logo-detail-image">
-                    <TechnicalLogoPreview src={logo.preview} alt={logo.sourceName || `Logo ${index + 1}`} />
-                  </div>
-                  <figcaption>
-                    <strong>{logo.sourceName || `Logo ${index + 1}`}</strong>
-                    <span>{logo.sourceType === 'pdf' ? 'Arquivo vetorial / PDF' : 'Imagem utilizada no pedido'}</span>
-                  </figcaption>
-                </figure>
-              ))}
-            </div>
+          return null;
+        })}
 
-            <footer className="technical-sheet-footer">
-              <span>Pedido: {order.displayCode || order.id}</span>
-              <span>Logos: {logoPreviews.length}</span>
-              <span>Versão: V{Number(order.designVersion) || 1}</span>
-            </footer>
-          </section>
-        )}
-
-        <section className="technical-sheet-print-page technical-sheet-print-page-measurements">
-          <div className="technical-sheet-titlebar">TABELA DE MEDIDAS</div>
-
-          <section className="technical-sheet-measurements">
-            {guide.imageUrl && !guide.hasStructuredRows ? (
-              <img className="technical-sheet-measurement-image" src={guide.imageUrl} alt={guide.title || 'Tabela de medidas'} />
-            ) : (
-              <div className="technical-sheet-table-scroll">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>NOME</th>
-                      {guide.columns.map((column) => <th key={column}>{column}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {guide.rows.map((row) => (
-                      <tr key={row.id}>
-                        <th>{row.label || '—'}</th>
-                        {guide.columns.map((column) => <td key={column}>{row.values?.[column] || ''}</td>)}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          <footer className="technical-sheet-footer">
-            <span>Pedido: {order.displayCode || order.id}</span>
-            <span>Quantidade: {Number(order.quantity) || 0}</span>
-            <span>Versão: V{Number(order.designVersion) || 1}</span>
-          </footer>
-        </section>
+        <footer className="technical-sheet-footer">
+          <span>Pedido: {order.displayCode || order.id}</span>
+          <span>Quantidade: {Number(order.quantity) || 0}</span>
+          <span>Versão: V{Number(order.designVersion) || 1}</span>
+        </footer>
       </article>
     </main>
   );
