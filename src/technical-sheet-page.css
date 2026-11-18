@@ -471,3 +471,83 @@ body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     font-size:6.5pt!important;
   }
 }
+
+/* Print cleanup: remove UI chrome and avoid wasted pages */
+@media print{
+  .approval-share-toast,
+  .approval-share-actions,
+  .approval-admin-row{
+    display:none!important;
+  }
+
+  .technical-sheet-print-page{
+    min-height:0!important;
+  }
+
+  .technical-sheet-print-page-main{
+    min-height:275mm!important;
+  }
+
+  .technical-sheet-drawing-main{
+    flex:1 1 auto!important;
+    min-height:0!important;
+    height:205mm!important;
+    max-height:205mm!important;
+    overflow:hidden!important;
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+
+  .technical-sheet-split-grid{
+    height:100%!important;
+    max-height:100%!important;
+    overflow:hidden!important;
+  }
+
+  .technical-sheet-split-grid.is-split-4{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    grid-template-rows:repeat(2,minmax(0,1fr))!important;
+    gap:3mm!important;
+  }
+
+  .technical-sheet-split-grid.is-split-2{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    grid-template-rows:1fr!important;
+    gap:4mm!important;
+  }
+
+  .technical-sheet-split-grid figure{
+    min-width:0!important;
+    min-height:0!important;
+    overflow:hidden!important;
+  }
+
+  .technical-sheet-split-grid img{
+    width:auto!important;
+    height:auto!important;
+    max-width:100%!important;
+    max-height:100%!important;
+    object-fit:contain!important;
+  }
+
+  .technical-sheet-split-grid figcaption,
+  .technical-sheet-garments figcaption{
+    display:none!important;
+  }
+
+  .technical-sheet-print-page-logos{
+    min-height:0!important;
+  }
+
+  .technical-sheet-print-page-measurements{
+    min-height:0!important;
+  }
+
+  .technical-sheet-logo-detail-grid{
+    margin-bottom:2mm!important;
+  }
+
+  .technical-sheet-measurements{
+    flex:0 0 auto!important;
+  }
+}
