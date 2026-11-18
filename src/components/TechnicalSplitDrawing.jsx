@@ -70,7 +70,7 @@ export default function TechnicalSplitDrawing({ src, mode = 'split-4' }) {
   if (!parts.length) return null;
 
   return (
-    <div className="technical-sheet-split-grid">
+    <div className={`technical-sheet-split-grid is-${mode}`}>
       {parts.map((part, index) => (
         <figure key={(LABELS[mode] || LABELS['split-4'])[index]}>
           <img src={part} alt={(LABELS[mode] || LABELS['split-4'])[index]} />
