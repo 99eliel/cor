@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import AdminAuth from '../components/AdminAuth';
 import AdminLogoTester from '../components/AdminLogoTester';
 import GarmentEditorCanvas from '../components/GarmentEditorCanvas';
+import GarmentViewOrganizer from '../components/GarmentViewOrganizer';
 import MeasurementGuideEditor from '../components/MeasurementGuideEditor';
 import NewRegionDialog from '../components/NewRegionDialog';
 import OrderQuoteBuilder from '../components/OrderQuoteBuilder';
@@ -279,6 +280,7 @@ function AdminWorkspace({ logout }) {
   const [customSizeLabels, setCustomSizeLabels] = useState('');
   const [measurementGuide, setMeasurementGuide] = useState(() => normalizeMeasurementGuide(DEFAULT_MEASUREMENT_GUIDE, SIZE_SCALE_PRESETS[DEFAULT_SIZE_SCALE_TYPE].labels));
   const [images, setImages] = useState(EMPTY_IMAGES);
+  const [viewLayout, setViewLayout] = useState('original');
   const [regions, setRegions] = useState([]);
   const [view, setView] = useState('front');
   const [selectedRegionId, setSelectedRegionId] = useState(null);
@@ -346,6 +348,7 @@ function AdminWorkspace({ logout }) {
     setCustomSizeLabels('');
     setMeasurementGuide(normalizeMeasurementGuide(DEFAULT_MEASUREMENT_GUIDE, SIZE_SCALE_PRESETS[DEFAULT_SIZE_SCALE_TYPE].labels));
     setImages(EMPTY_IMAGES);
+    setViewLayout('original');
     setRegions([]);
     setVisibleIds(new Set());
     setSelectedRegionId(null);
@@ -371,6 +374,7 @@ function AdminWorkspace({ logout }) {
       setCustomSizeLabels(loadedSizeScale.type === 'custom' ? loadedSizeScale.labels.join(', ') : '');
       setMeasurementGuide(normalizeMeasurementGuide(data.measurementGuide, loadedSizeScale.labels));
       setImages(loadedImages);
+      setViewLayout(['split-2', 'split-4'].includes(data.viewLayout) ? data.viewLayout : 'original');
       setRegions(Array.isArray(data.regions) ? data.regions : []);
       setVisibleIds(new Set((data.regions ?? []).map((region) => region.id)));
       setPreviewColors(Object.fromEntries((data.regions ?? []).map((region) => [region.id, region.defaultColor])));
@@ -454,7 +458,7 @@ function AdminWorkspace({ logout }) {
     setBusy(true);
     try {
       const id = ensureGarmentId();
-      await saveGarment(id, { name: name.trim(), images, regions, sizeScale, measurementGuide: normalizedGuide });
+      await saveGarment(id, { name: name.trim(), images, viewLayout, regions, sizeScale, measurementGuide: normalizedGuide });
       setMeasurementGuide(normalizedGuide);
       await refreshGarments();
       setMessage(`Peça salva com ${Object.values(images).filter(Boolean).length} foto(s), grade “${getSizeScaleLabel(sizeScale)}” e tabela de medidas atualizada.`);
@@ -516,6 +520,15 @@ function AdminWorkspace({ logout }) {
               <MeasurementGuideEditor value={measurementGuide} onChange={setMeasurementGuide} sizeLabels={measurementSizeLabels} onUploadImage={handleMeasurementImageFile} busy={busy} />
 
               {(message || error) && <div className={error ? 'notice notice-error' : 'notice notice-success'}>{error || message}</div>}
+
+              <GarmentViewOrganizer
+                source={images.front || images.back || images.combined}
+                value={viewLayout}
+                onChange={(nextLayout) => {
+                  setViewLayout(nextLayout);
+                  setMessage(`Organização de vistas definida como ${nextLayout === 'split-2' ? '2 vistas' : nextLayout === 'split-4' ? '4 vistas' : 'Original'}. Salve a peça para aplicar.`);
+                }}
+              />
 
               <div className="view-toolbar panel">
                 <div className="segmented view-type-tabs">{['front', 'back', 'combined'].map((key) => <button key={key} type="button" className={view === key ? 'active' : ''} onClick={() => switchView(key)}>{VIEW_LABELS[key]}{images[key] ? ' ✓' : ''}</button>)}</div>
