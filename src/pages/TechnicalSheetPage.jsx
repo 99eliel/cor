@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import TechnicalLogoPreview from '../components/TechnicalLogoPreview';
+import TechnicalDrawingPreview from '../components/TechnicalDrawingPreview';
 import { MARTINPEL_LOGO_DATA_URL } from '../lib/martinpelLogo';
 import { getGarment } from '../lib/garmentRepo';
 import { getOrderById, saveTechnicalSheet } from '../lib/orderRepo';
@@ -225,7 +226,7 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
             <div className={`technical-sheet-garments count-${Math.min(drawings.length, 3)}`}>
               {drawings.map(([view, url]) => (
                 <figure key={view}>
-                  <img src={url} alt={VIEW_LABELS[view] || view} />
+                  <TechnicalDrawingPreview src={url} alt={VIEW_LABELS[view] || view} />
                   <figcaption>{VIEW_LABELS[view] || view}</figcaption>
                 </figure>
               ))}
