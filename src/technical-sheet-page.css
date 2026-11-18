@@ -551,3 +551,63 @@ body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     flex:0 0 auto!important;
   }
 }
+
+/* Print pagination fix: never generate artificial blank pages */
+@media print{
+  .technical-sheet-print-page{
+    min-height:0!important;
+    height:auto!important;
+    max-height:none!important;
+    break-after:auto!important;
+    page-break-after:auto!important;
+    break-inside:auto!important;
+    page-break-inside:auto!important;
+  }
+
+  .technical-sheet-print-page-main{
+    min-height:0!important;
+    height:auto!important;
+    max-height:none!important;
+    break-after:page!important;
+    page-break-after:always!important;
+  }
+
+  .technical-sheet-print-page-logos{
+    min-height:0!important;
+    height:auto!important;
+    max-height:none!important;
+    break-before:auto!important;
+    page-break-before:auto!important;
+    break-after:auto!important;
+    page-break-after:auto!important;
+  }
+
+  .technical-sheet-print-page-measurements{
+    min-height:0!important;
+    height:auto!important;
+    max-height:none!important;
+    break-before:auto!important;
+    page-break-before:auto!important;
+    break-after:auto!important;
+    page-break-after:auto!important;
+    margin-top:5mm!important;
+  }
+
+  .technical-sheet-drawing-main{
+    height:auto!important;
+    max-height:none!important;
+    min-height:185mm!important;
+  }
+
+  .technical-sheet-logo-detail-grid,
+  .technical-sheet-measurements{
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+
+  .technical-sheet-print-page-logos + .technical-sheet-print-page-measurements{
+    margin-top:6mm!important;
+    padding-top:0!important;
+    border-top:0!important;
+  }
+}
