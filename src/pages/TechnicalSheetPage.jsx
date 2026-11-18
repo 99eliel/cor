@@ -82,7 +82,12 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
           ...EMPTY_FIELDS,
           ...(orderData.technicalSheet?.fields || {}),
         });
-        setDrawingLayout(orderData.technicalSheet?.drawingLayout === 'split-2x2' ? 'split-2x2' : 'original');
+        const savedLayout = orderData.technicalSheet?.drawingLayout;
+        const garmentLayout = garmentData?.viewLayout;
+        const normalizedLayout = savedLayout === 'split-2x2' ? 'split-4' : savedLayout;
+        setDrawingLayout(['split-2', 'split-4'].includes(normalizedLayout)
+          ? normalizedLayout
+          : (['split-2', 'split-4'].includes(garmentLayout) ? garmentLayout : 'original'));
       })
       .catch((err) => active && setError(err.message || 'Não foi possível abrir a ficha técnica.'))
       .finally(() => active && setLoading(false));
@@ -168,12 +173,21 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
             </button>
             <button
               type="button"
-              className={drawingLayout === 'split-2x2' ? 'active' : ''}
-              onClick={() => setDrawingLayout('split-2x2')}
+              className={drawingLayout === 'split-2' ? 'active' : ''}
+              onClick={() => setDrawingLayout('split-2')}
               disabled={drawings.length !== 1}
-              title={drawings.length === 1 ? 'Divide a prancha atual em frente, costas e laterais.' : 'Disponível quando existe uma única imagem de desenho técnico.'}
+              title={drawings.length === 1 ? 'Divide a prancha atual em Frente e Costas.' : 'Disponível quando existe uma única imagem de desenho técnico.'}
             >
-              Dividir prancha 2x2
+              2 vistas
+            </button>
+            <button
+              type="button"
+              className={drawingLayout === 'split-4' ? 'active' : ''}
+              onClick={() => setDrawingLayout('split-4')}
+              disabled={drawings.length !== 1}
+              title={drawings.length === 1 ? 'Divide a prancha atual em Frente, Costas e laterais.' : 'Disponível quando existe uma única imagem de desenho técnico.'}
+            >
+              4 vistas
             </button>
           </div>
           <Link className="button button-secondary" to={isAdmin ? '/admin' : '/meus-pedidos'}>← Voltar</Link>
@@ -245,8 +259,8 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
 
         <section className="technical-sheet-drawing">
           {drawings.length ? (
-            drawingLayout === 'split-2x2' && drawings.length === 1 ? (
-              <TechnicalSplitDrawing src={drawings[0][1]} />
+            ['split-2', 'split-4'].includes(drawingLayout) && drawings.length === 1 ? (
+              <TechnicalSplitDrawing src={drawings[0][1]} mode={drawingLayout} />
             ) : (
               <div className={`technical-sheet-garments count-${Math.min(drawings.length, 3)}`}>
                 {drawings.map(([view, url]) => (
