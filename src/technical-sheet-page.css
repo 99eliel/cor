@@ -611,3 +611,108 @@ body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     border-top:0!important;
   }
 }
+
+/* Per-order technical sheet organizer */
+.technical-layout-editor{width:min(1180px,calc(100% - 44px));margin:0 auto 14px;padding:14px;border:1px solid #d4e0e9;border-radius:14px;background:#fff;box-shadow:0 8px 24px rgba(15,35,58,.06)}
+.technical-layout-editor-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:12px}.technical-layout-editor-head>div:first-child{display:flex;flex-direction:column;gap:2px}.technical-layout-editor-head span{color:#0b5d92;font-size:.66rem;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.technical-layout-editor-head strong{color:#17293d;font-size:1rem}.technical-layout-editor-head small{color:#6b7e90;font-size:.7rem;line-height:1.4}.technical-layout-presets{display:flex;gap:6px;flex-wrap:wrap}.technical-layout-presets button{padding:8px 11px;border:1px solid #ccd9e4;border-radius:9px;background:#f8fbfd;color:#53697d;font-size:.7rem;font-weight:850;cursor:pointer}.technical-layout-presets button.active{border-color:#1680bb;background:#eaf7fd;color:#0b5d92}.technical-layout-blocks{display:grid;gap:8px}.technical-layout-block{display:grid;grid-template-columns:minmax(180px,1fr) auto minmax(130px,170px) auto auto;align-items:center;gap:10px;padding:10px;border:1px solid #dbe5ed;border-radius:10px;background:#f9fbfd}.technical-layout-block-main{display:flex;flex-direction:column;gap:2px}.technical-layout-block-main strong{color:#17324b;font-size:.76rem}.technical-layout-block-main small{color:#8998a5;font-size:.62rem}.technical-layout-block label{display:flex;align-items:center;gap:6px;color:#617488;font-size:.64rem;font-weight:800}.technical-layout-block label>span{white-space:nowrap}.technical-layout-block select{min-height:34px;padding:6px 8px;border:1px solid #cdd9e3;border-radius:8px;background:#fff;color:#27465e;font-size:.68rem;font-weight:750}.technical-layout-order{display:flex;gap:4px}.technical-layout-order button{width:34px;height:34px;border:1px solid #ccd9e4;border-radius:8px;background:#fff;color:#1d5d87;font-weight:900;cursor:pointer}.technical-layout-order button:disabled{opacity:.35;cursor:not-allowed}.technical-layout-block.is-unavailable{opacity:.55}.technical-sheet-configurable-paper{display:flex;flex-direction:column;gap:10px}.technical-sheet-layout-section{min-width:0}.technical-sheet-layout-section+.technical-sheet-layout-section{margin-top:2px}
+
+@media(max-width:900px){.technical-layout-editor{width:calc(100% - 20px)}.technical-layout-editor-head{flex-direction:column}.technical-layout-block{grid-template-columns:1fr 1fr}.technical-layout-block-main{grid-column:1/-1}.technical-layout-order{justify-content:flex-end}}
+
+@media print{
+  .technical-sheet-configurable-paper{
+    display:block!important;
+    width:auto!important;
+    height:auto!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:0!important;
+    overflow:visible!important;
+    border:0!important;
+    box-shadow:none!important;
+  }
+
+  .technical-sheet-layout-section{
+    width:100%!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    margin:0 0 5mm!important;
+    padding:0!important;
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+
+  .technical-sheet-layout-section.technical-sheet-break-before{
+    break-before:page!important;
+    page-break-before:always!important;
+  }
+
+  .technical-sheet-layout-header.technical-sheet-size-small .technical-sheet-header-grid{transform:scale(.88);transform-origin:top left;width:113.6%;margin-bottom:-5mm!important}
+  .technical-sheet-layout-header.technical-sheet-size-large .technical-sheet-meta-table th,
+  .technical-sheet-layout-header.technical-sheet-size-large .technical-sheet-meta-table td{height:9mm!important}
+  .technical-sheet-layout-header.technical-sheet-size-full{break-after:page!important;page-break-after:always!important}
+
+  .technical-sheet-layout-drawing .technical-sheet-drawing-main{
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    overflow:hidden!important;
+    margin:0!important;
+    padding:3mm!important;
+  }
+  .technical-sheet-layout-drawing.technical-sheet-size-small .technical-sheet-drawing-main{height:85mm!important}
+  .technical-sheet-layout-drawing.technical-sheet-size-medium .technical-sheet-drawing-main{height:130mm!important}
+  .technical-sheet-layout-drawing.technical-sheet-size-large .technical-sheet-drawing-main{height:185mm!important}
+  .technical-sheet-layout-drawing.technical-sheet-size-full .technical-sheet-drawing-main{height:245mm!important}
+  .technical-sheet-layout-drawing.technical-sheet-size-full{break-after:page!important;page-break-after:always!important}
+
+  .technical-sheet-layout-drawing .technical-sheet-split-grid,
+  .technical-sheet-layout-drawing .technical-sheet-garments{
+    height:100%!important;
+    min-height:0!important;
+  }
+  .technical-sheet-layout-drawing .technical-sheet-split-grid img,
+  .technical-sheet-layout-drawing .technical-sheet-garments img{
+    max-height:100%!important;
+  }
+
+  .technical-sheet-layout-logos .technical-sheet-logo-detail-grid{
+    display:grid!important;
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:4mm!important;
+  }
+  .technical-sheet-layout-logos.technical-sheet-size-small .technical-sheet-logo-detail-grid figure{min-height:45mm!important;padding:2mm!important}
+  .technical-sheet-layout-logos.technical-sheet-size-small .technical-sheet-logo-detail-image{min-height:32mm!important}
+  .technical-sheet-layout-logos.technical-sheet-size-small .technical-sheet-logo-detail-image img{max-height:30mm!important}
+  .technical-sheet-layout-logos.technical-sheet-size-medium .technical-sheet-logo-detail-grid figure{min-height:62mm!important}
+  .technical-sheet-layout-logos.technical-sheet-size-medium .technical-sheet-logo-detail-image{min-height:48mm!important}
+  .technical-sheet-layout-logos.technical-sheet-size-medium .technical-sheet-logo-detail-image img{max-height:46mm!important}
+  .technical-sheet-layout-logos.technical-sheet-size-large .technical-sheet-logo-detail-grid figure{min-height:82mm!important}
+  .technical-sheet-layout-logos.technical-sheet-size-large .technical-sheet-logo-detail-image{min-height:66mm!important}
+  .technical-sheet-layout-logos.technical-sheet-size-large .technical-sheet-logo-detail-image img{max-height:64mm!important}
+  .technical-sheet-layout-logos.technical-sheet-size-full{break-after:page!important;page-break-after:always!important}
+  .technical-sheet-layout-logos.technical-sheet-size-full .technical-sheet-logo-detail-grid figure{min-height:105mm!important}
+  .technical-sheet-layout-logos.technical-sheet-size-full .technical-sheet-logo-detail-image{min-height:88mm!important}
+  .technical-sheet-layout-logos.technical-sheet-size-full .technical-sheet-logo-detail-image img{max-height:85mm!important}
+
+  .technical-sheet-layout-measurements .technical-sheet-measurements{
+    max-height:none!important;
+    overflow:visible!important;
+  }
+  .technical-sheet-layout-measurements.technical-sheet-size-small .technical-sheet-measurements th,
+  .technical-sheet-layout-measurements.technical-sheet-size-small .technical-sheet-measurements td{height:7mm!important;font-size:6.5pt!important;padding:.8mm!important}
+  .technical-sheet-layout-measurements.technical-sheet-size-medium .technical-sheet-measurements th,
+  .technical-sheet-layout-measurements.technical-sheet-size-medium .technical-sheet-measurements td{height:9mm!important;font-size:7.5pt!important;padding:1.1mm!important}
+  .technical-sheet-layout-measurements.technical-sheet-size-large .technical-sheet-measurements th,
+  .technical-sheet-layout-measurements.technical-sheet-size-large .technical-sheet-measurements td{height:12mm!important;font-size:9pt!important;padding:1.4mm!important}
+  .technical-sheet-layout-measurements.technical-sheet-size-full{break-after:page!important;page-break-after:always!important}
+  .technical-sheet-layout-measurements.technical-sheet-size-full .technical-sheet-measurements th,
+  .technical-sheet-layout-measurements.technical-sheet-size-full .technical-sheet-measurements td{height:15mm!important;font-size:10pt!important;padding:1.8mm!important}
+
+  .technical-sheet-configurable-paper>.technical-sheet-footer{
+    margin-top:3mm!important;
+    padding-top:2mm!important;
+    break-inside:avoid!important;
+    page-break-inside:avoid!important;
+  }
+}
