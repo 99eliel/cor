@@ -112,9 +112,17 @@ export default function GarmentEditorCanvas({
       visibleRegionIds: visibleIds,
       highlightRegionId: selectedRegionId,
       showEditorOverlay: mode !== 'preview',
+      editorZoom: zoom,
     });
     if (mode === 'draw' || mode === 'edit') {
-      drawEditableVertices({ canvas, region: selectedRegion, currentPolygon, hoverPoint, selectedVertex });
+      drawEditableVertices({
+        canvas,
+        region: selectedRegion,
+        currentPolygon,
+        hoverPoint,
+        selectedVertex,
+        zoom,
+      });
     }
   }, [image, regions, view, mode, visibleIds, previewColors, selectedRegionId, selectedRegion, currentPolygon, hoverPoint, selectedVertex]);
 
@@ -276,7 +284,8 @@ export default function GarmentEditorCanvas({
     if (!canvas || !image) return;
     const point = normalizedPointFromEvent(event, canvas);
     if (mode === 'draw' && selectedRegionId) {
-      if (currentPolygon.length >= 3 && distancePixels(point, currentPolygon[0], canvas.width, canvas.height) <= 10) {
+      const closeTolerance = Math.max(3, 10 / Math.max(1, zoomRef.current));
+      if (currentPolygon.length >= 3 && distancePixels(point, currentPolygon[0], canvas.width, canvas.height) <= closeTolerance) {
         finishPolygon();
         return;
       }
@@ -308,14 +317,15 @@ export default function GarmentEditorCanvas({
     if (event.button !== 0 || mode !== 'edit' || !selectedRegion) return;
     const canvas = canvasRef.current;
     const point = normalizedPointFromEvent(event, canvas);
-    const vertex = findVertexHit(selectedRegion, point, canvas.width, canvas.height, 10);
+    const zoomFactor = Math.max(1, zoomRef.current);
+    const vertex = findVertexHit(selectedRegion, point, canvas.width, canvas.height, Math.max(3.5, 12 / zoomFactor));
     if (vertex) {
       setSelectedVertex(vertex);
       setDraggingVertex(vertex);
       canvas.setPointerCapture?.(event.pointerId);
       return;
     }
-    const edge = findEdgeHit(selectedRegion, point, canvas.width, canvas.height, 7);
+    const edge = findEdgeHit(selectedRegion, point, canvas.width, canvas.height, Math.max(2.5, 9 / zoomFactor));
     if (edge) {
       const selection = { polygonIndex: edge.polygonIndex, vertexIndex: edge.edgeIndex + 1 };
       setRegions((items) => insertVertex(items, selectedRegion.id, edge, point));
