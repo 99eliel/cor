@@ -55,7 +55,7 @@ function splitDrawing(source, mode = 'split-4') {
   });
 }
 
-export default function TechnicalSplitDrawing({ src, mode = 'split-4' }) {
+export default function TechnicalSplitDrawing({ src, mode = 'split-4', singleIndex = null, className = '' }) {
   const [parts, setParts] = useState([]);
 
   useEffect(() => {
@@ -69,12 +69,17 @@ export default function TechnicalSplitDrawing({ src, mode = 'split-4' }) {
 
   if (!parts.length) return null;
 
+  const labels = LABELS[mode] || LABELS['split-4'];
+  const visibleParts = Number.isInteger(singleIndex)
+    ? parts.map((part, index) => ({ part, index })).filter((item) => item.index === singleIndex)
+    : parts.map((part, index) => ({ part, index }));
+
   return (
-    <div className={`technical-sheet-split-grid is-${mode}`}>
-      {parts.map((part, index) => (
-        <figure key={(LABELS[mode] || LABELS['split-4'])[index]}>
-          <img src={part} alt={(LABELS[mode] || LABELS['split-4'])[index]} />
-          <figcaption>{(LABELS[mode] || LABELS['split-4'])[index]}</figcaption>
+    <div className={`technical-sheet-split-grid is-${mode} ${Number.isInteger(singleIndex) ? 'is-single-part' : ''} ${className}`.trim()}>
+      {visibleParts.map(({ part, index }) => (
+        <figure key={labels[index]}>
+          <img src={part} alt={labels[index]} />
+          <figcaption>{labels[index]}</figcaption>
         </figure>
       ))}
     </div>
