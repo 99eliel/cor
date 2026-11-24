@@ -216,7 +216,7 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
         hasLogos={logoPreviews.length > 0}
       />
 
-      <article className="technical-sheet-paper technical-sheet-configurable-paper">
+      <article className="technical-sheet-paper technical-sheet-configurable-paper no-print">
         {layoutConfig.blocks.map((block) => {
           if (!block.visible) return null;
           if (block.id === 'logos' && logoPreviews.length === 0) return null;
@@ -367,6 +367,162 @@ export default function TechnicalSheetPage({ isAdmin = false, logout }) {
           <span>Quantidade: {Number(order.quantity) || 0}</span>
           <span>Versão: V{Number(order.designVersion) || 1}</span>
         </footer>
+      </article>
+
+      <article className="technical-sheet-print-document print-only">
+        <section className="technical-print-page technical-print-page-first">
+          <div className="technical-sheet-titlebar">FICHA TÉCNICA</div>
+
+          <section className="technical-print-header-grid">
+            <div className="technical-sheet-logo">
+              <img src={MARTINPEL_LOGO_DATA_URL} alt="Martinpel Uniformes e EPI's" />
+            </div>
+
+            <table className="technical-print-meta-table">
+              <tbody>
+                <tr>
+                  <th>DESCRIÇÃO</th>
+                  <td colSpan="3">{fields.description || order.garmentName || '—'}</td>
+                </tr>
+                <tr>
+                  <th>REFERÊNCIA</th>
+                  <td>{fields.reference || '—'}</td>
+                  <th>TECIDO</th>
+                  <td>{fields.fabric || '—'}</td>
+                </tr>
+                <tr>
+                  <th>CLIENTE</th>
+                  <td>{fields.customer || order.customerName || '—'}</td>
+                  <th>COR</th>
+                  <td>{fields.color || '—'}</td>
+                </tr>
+                <tr>
+                  <th>ESTAMPA</th>
+                  <td>{fields.print || '—'}</td>
+                  <th>GRAMATURA</th>
+                  <td>{fields.weight || '—'}</td>
+                </tr>
+                <tr>
+                  <th>COR ESTAMPA</th>
+                  <td>{fields.printColor || '—'}</td>
+                  <th>OBS</th>
+                  <td>{fields.notes || '—'}</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <div className="technical-sheet-titlebar">
+            {drawingLayout === 'split-2' || drawingLayout === 'split-4' ? 'FRENTE' : 'DESENHO TÉCNICO'}
+          </div>
+
+          <section className="technical-print-view-stage technical-print-view-stage-first">
+            {drawings.length ? (
+              ['split-2', 'split-4'].includes(drawingLayout) && drawings.length === 1 ? (
+                <TechnicalSplitDrawing src={drawings[0][1]} mode={drawingLayout} singleIndex={0} />
+              ) : (
+                <figure>
+                  <TechnicalDrawingPreview src={drawings[0][1]} alt={VIEW_LABELS[drawings[0][0]] || drawings[0][0]} />
+                  <figcaption>{VIEW_LABELS[drawings[0][0]] || drawings[0][0]}</figcaption>
+                </figure>
+              )
+            ) : (
+              <div className="technical-sheet-empty-art">Arte final do pedido não encontrada.</div>
+            )}
+          </section>
+
+          <footer className="technical-sheet-footer">
+            <span>Pedido: {order.displayCode || order.id}</span>
+            <span>Quantidade: {Number(order.quantity) || 0}</span>
+            <span>Versão: V{Number(order.designVersion) || 1}</span>
+          </footer>
+        </section>
+
+        {['split-2', 'split-4'].includes(drawingLayout) && drawings.length === 1 ? (
+          Array.from({ length: drawingLayout === 'split-4' ? 3 : 1 }, (_, offset) => {
+            const partIndex = offset + 1;
+            const labels = drawingLayout === 'split-4'
+              ? ['Frente', 'Costas', 'Lateral esquerda', 'Lateral direita']
+              : ['Frente', 'Costas'];
+            return (
+              <section className="technical-print-page technical-print-page-view" key={`print-part-${partIndex}`}>
+                <div className="technical-sheet-titlebar">{labels[partIndex]}</div>
+                <section className="technical-print-view-stage">
+                  <TechnicalSplitDrawing src={drawings[0][1]} mode={drawingLayout} singleIndex={partIndex} />
+                </section>
+                <footer className="technical-sheet-footer">
+                  <span>Pedido: {order.displayCode || order.id}</span>
+                  <span>{labels[partIndex]}</span>
+                  <span>Versão: V{Number(order.designVersion) || 1}</span>
+                </footer>
+              </section>
+            );
+          })
+        ) : (
+          drawings.slice(1).map(([view, url]) => (
+            <section className="technical-print-page technical-print-page-view" key={`print-view-${view}`}>
+              <div className="technical-sheet-titlebar">{VIEW_LABELS[view] || view}</div>
+              <section className="technical-print-view-stage">
+                <figure>
+                  <TechnicalDrawingPreview src={url} alt={VIEW_LABELS[view] || view} />
+                </figure>
+              </section>
+              <footer className="technical-sheet-footer">
+                <span>Pedido: {order.displayCode || order.id}</span>
+                <span>{VIEW_LABELS[view] || view}</span>
+                <span>Versão: V{Number(order.designVersion) || 1}</span>
+              </footer>
+            </section>
+          ))
+        )}
+
+        <section className="technical-print-page technical-print-page-final">
+          {logoPreviews.length > 0 && (
+            <>
+              <div className="technical-sheet-titlebar">LOGOS E DETALHES</div>
+              <div className={`technical-print-logo-grid count-${Math.min(logoPreviews.length, 6)}`}>
+                {logoPreviews.map((logo, index) => (
+                  <figure key={logo.id || `${logo.sourceName}-print-${index}`}>
+                    <div className="technical-print-logo-image">
+                      <TechnicalLogoPreview src={logo.preview} alt={logo.sourceName || `Logo ${index + 1}`} />
+                    </div>
+                    <figcaption>{logo.sourceName || `Logo ${index + 1}`}</figcaption>
+                  </figure>
+                ))}
+              </div>
+            </>
+          )}
+
+          <div className="technical-sheet-titlebar technical-print-measure-title">TABELA DE MEDIDAS</div>
+          <section className="technical-print-measurements">
+            {guide.imageUrl && !guide.hasStructuredRows ? (
+              <img className="technical-sheet-measurement-image" src={guide.imageUrl} alt={guide.title || 'Tabela de medidas'} />
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>NOME</th>
+                    {guide.columns.map((column) => <th key={column}>{column}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {guide.rows.map((row) => (
+                    <tr key={row.id}>
+                      <th>{row.label || '—'}</th>
+                      {guide.columns.map((column) => <td key={column}>{row.values?.[column] || ''}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
+
+          <footer className="technical-sheet-footer">
+            <span>Pedido: {order.displayCode || order.id}</span>
+            <span>Quantidade: {Number(order.quantity) || 0}</span>
+            <span>Versão: V{Number(order.designVersion) || 1}</span>
+          </footer>
+        </section>
       </article>
     </main>
   );
