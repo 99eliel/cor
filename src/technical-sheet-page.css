@@ -716,3 +716,271 @@ body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     page-break-inside:avoid!important;
   }
 }
+
+.print-only{display:none}
+
+/* Deterministic production PDF: one garment view per sheet */
+@media print{
+  .print-only{display:block!important}
+  .technical-sheet-configurable-paper{display:none!important}
+  .technical-layout-editor{display:none!important}
+
+  .technical-sheet-print-document{
+    width:100%!important;
+    margin:0!important;
+    padding:0!important;
+  }
+
+  .technical-print-page{
+    box-sizing:border-box;
+    width:100%;
+    min-height:281mm;
+    height:281mm;
+    margin:0!important;
+    padding:0!important;
+    display:flex;
+    flex-direction:column;
+    gap:2mm;
+    overflow:hidden;
+    break-after:page;
+    page-break-after:always;
+    break-inside:avoid;
+    page-break-inside:avoid;
+  }
+
+  .technical-print-page:last-child{
+    break-after:auto;
+    page-break-after:auto;
+  }
+
+  .technical-print-header-grid{
+    display:grid;
+    grid-template-columns:33mm minmax(0,1fr);
+    gap:3mm;
+    margin-bottom:1mm;
+    flex:0 0 auto;
+  }
+
+  .technical-print-header-grid .technical-sheet-logo{
+    display:grid;
+    place-items:center;
+    padding:1.5mm;
+  }
+
+  .technical-print-header-grid .technical-sheet-logo img{
+    width:30mm!important;
+    max-height:28mm!important;
+  }
+
+  .technical-print-meta-table{
+    width:100%;
+    border-collapse:collapse;
+    table-layout:fixed;
+    font-family:Arial,sans-serif;
+    font-size:7.5pt;
+  }
+
+  .technical-print-meta-table th,
+  .technical-print-meta-table td{
+    height:7.2mm;
+    border:1px solid #3d4650;
+    padding:1mm 1.4mm;
+    vertical-align:middle;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .technical-print-meta-table th{
+    width:23mm;
+    text-align:center;
+    font-size:6.8pt;
+    font-weight:800;
+  }
+
+  .technical-print-view-stage{
+    flex:1 1 auto;
+    min-height:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:5mm;
+    border:1px solid #3d4650;
+    overflow:hidden;
+  }
+
+  .technical-print-view-stage-first{
+    padding:4mm 7mm;
+  }
+
+  .technical-print-view-stage>figure{
+    width:100%;
+    height:100%;
+    margin:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .technical-print-view-stage>figure img,
+  .technical-print-view-stage .technical-sheet-split-grid img{
+    display:block;
+    width:auto!important;
+    height:auto!important;
+    max-width:96%!important;
+    max-height:96%!important;
+    object-fit:contain!important;
+    margin:auto!important;
+  }
+
+  .technical-print-view-stage figcaption,
+  .technical-print-view-stage .technical-sheet-split-grid figcaption{
+    display:none!important;
+  }
+
+  .technical-print-view-stage .technical-sheet-split-grid.is-single-part{
+    width:100%;
+    height:100%;
+    display:flex!important;
+    align-items:center;
+    justify-content:center;
+    grid-template-columns:none!important;
+    grid-template-rows:none!important;
+    gap:0!important;
+  }
+
+  .technical-print-view-stage .technical-sheet-split-grid.is-single-part figure{
+    width:100%;
+    height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin:0;
+    overflow:hidden;
+  }
+
+  .technical-print-page-view .technical-sheet-titlebar{
+    font-size:15pt!important;
+  }
+
+  .technical-print-page-final{
+    gap:2.5mm;
+  }
+
+  .technical-print-logo-grid{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:3mm;
+    flex:1 1 auto;
+    min-height:0;
+    align-content:start;
+  }
+
+  .technical-print-logo-grid figure{
+    min-width:0;
+    margin:0;
+    padding:2mm;
+    border:.25mm solid #d3dde5;
+    border-radius:1.5mm;
+    background:#fff;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+
+  .technical-print-logo-image{
+    flex:1 1 auto;
+    min-height:24mm;
+    width:100%;
+    display:grid;
+    place-items:center;
+    overflow:hidden;
+  }
+
+  .technical-print-logo-image img{
+    display:block;
+    width:auto!important;
+    height:auto!important;
+    max-width:96%!important;
+    max-height:38mm!important;
+    object-fit:contain!important;
+  }
+
+  .technical-print-logo-grid figcaption{
+    flex:0 0 auto;
+    width:100%;
+    margin-top:1mm;
+    text-align:center;
+    color:#53697d;
+    font-size:6.5pt;
+    font-weight:800;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  .technical-print-logo-grid.count-1,
+  .technical-print-logo-grid.count-2{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .technical-print-logo-grid.count-1 figure,
+  .technical-print-logo-grid.count-2 figure{
+    min-height:52mm;
+  }
+
+  .technical-print-measure-title{
+    margin-top:1mm!important;
+  }
+
+  .technical-print-measurements{
+    flex:0 0 auto;
+    overflow:hidden;
+  }
+
+  .technical-print-measurements table{
+    width:100%;
+    border-collapse:collapse;
+    table-layout:fixed;
+    font-family:Arial,sans-serif;
+    font-size:7pt;
+  }
+
+  .technical-print-measurements th,
+  .technical-print-measurements td{
+    height:8mm;
+    border:1px solid #3d4650;
+    padding:.8mm;
+    text-align:center;
+  }
+
+  .technical-print-measurements thead th{
+    height:6.5mm;
+    font-size:6.4pt;
+  }
+
+  .technical-print-measurements thead th:first-child,
+  .technical-print-measurements tbody th{
+    width:19mm;
+    font-weight:800;
+  }
+
+  .technical-print-measurements .technical-sheet-measurement-image{
+    display:block!important;
+    width:auto!important;
+    max-width:100%!important;
+    max-height:95mm!important;
+    margin:auto!important;
+    object-fit:contain!important;
+  }
+
+  .technical-print-page .technical-sheet-footer{
+    flex:0 0 5mm!important;
+    min-height:5mm!important;
+    margin-top:auto!important;
+    padding:1mm .5mm 0!important;
+    font-size:6pt!important;
+  }
+}
