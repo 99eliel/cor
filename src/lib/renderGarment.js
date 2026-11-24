@@ -268,6 +268,7 @@ export function renderGarment({
   visibleRegionIds = null,
   highlightRegionId = null,
   showEditorOverlay = false,
+  editorZoom = 1,
 }) {
   if (!canvas || !image) return;
   const ctx = canvas.getContext('2d');
@@ -296,7 +297,8 @@ export function renderGarment({
         ctx.save();
         ctx.fillStyle = region.id === highlightRegionId ? 'rgba(37, 99, 235, 0.18)' : 'rgba(17, 24, 39, 0.06)';
         ctx.strokeStyle = region.id === highlightRegionId ? '#2563eb' : 'rgba(17, 24, 39, 0.45)';
-        ctx.lineWidth = region.id === highlightRegionId ? 2.5 : 1.25;
+        const overlayScale = 1 / Math.max(1, Number(editorZoom) || 1);
+        ctx.lineWidth = (region.id === highlightRegionId ? 2.5 : 1.25) * overlayScale;
         ctx.fill();
         ctx.stroke();
         ctx.restore();
@@ -305,29 +307,56 @@ export function renderGarment({
   }
 }
 
-export function drawEditableVertices({ canvas, region, currentPolygon = [], hoverPoint = null, selectedVertex = null }) {
+export function drawEditableVertices({
+  canvas,
+  region,
+  currentPolygon = [],
+  hoverPoint = null,
+  selectedVertex = null,
+  zoom = 1,
+}) {
   if (!canvas || !region) return;
   const ctx = canvas.getContext('2d');
   const { width, height } = canvas;
+
+  // O canvas é ampliado visualmente via CSS. Compensamos o zoom aqui para
+  // que pontos e guias fiquem menores e mais precisos conforme o usuário aproxima.
+  const visualScale = 1 / Math.max(1, Number(zoom) || 1);
+  const vertexRadius = Math.max(1.7, 5 * visualScale);
+  const selectedRadius = Math.max(2.4, 7 * visualScale);
+  const vertexStroke = Math.max(0.7, 2 * visualScale);
+  const guideWidth = Math.max(0.65, 2 * visualScale);
+  const dash = Math.max(2.2, 7 * visualScale);
+  const gap = Math.max(1.6, 5 * visualScale);
+
   region.polygons?.forEach((polygon, polygonIndex) => {
     polygon.forEach((point, vertexIndex) => {
       const x = point.x * width;
       const y = point.y * height;
       ctx.beginPath();
-      ctx.arc(x, y, selectedVertex?.polygonIndex === polygonIndex && selectedVertex?.vertexIndex === vertexIndex ? 7 : 5, 0, Math.PI * 2);
+      ctx.arc(
+        x,
+        y,
+        selectedVertex?.polygonIndex === polygonIndex && selectedVertex?.vertexIndex === vertexIndex
+          ? selectedRadius
+          : vertexRadius,
+        0,
+        Math.PI * 2,
+      );
       ctx.fillStyle = '#fff';
       ctx.fill();
-      ctx.lineWidth = 2;
+      ctx.lineWidth = vertexStroke;
       ctx.strokeStyle = '#2563eb';
       ctx.stroke();
     });
   });
+
   if (currentPolygon.length) {
     ctx.save();
     ctx.strokeStyle = '#dc2626';
     ctx.fillStyle = '#dc2626';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([7, 5]);
+    ctx.lineWidth = guideWidth;
+    ctx.setLineDash([dash, gap]);
     ctx.beginPath();
     currentPolygon.forEach((point, index) => {
       const x = point.x * width;
@@ -340,7 +369,7 @@ export function drawEditableVertices({ canvas, region, currentPolygon = [], hove
     ctx.setLineDash([]);
     currentPolygon.forEach((point) => {
       ctx.beginPath();
-      ctx.arc(point.x * width, point.y * height, 5, 0, Math.PI * 2);
+      ctx.arc(point.x * width, point.y * height, vertexRadius, 0, Math.PI * 2);
       ctx.fill();
     });
     ctx.restore();
